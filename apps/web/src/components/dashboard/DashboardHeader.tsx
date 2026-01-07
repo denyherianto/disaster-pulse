@@ -1,0 +1,82 @@
+'use client';
+
+import { Shield, Settings, WifiOff, RefreshCw, Wifi } from 'lucide-react';
+import { useNetworkStatus } from '@/components/providers/NetworkStatusProvider';
+import { useIsFetching, useQueryClient } from '@tanstack/react-query';
+
+export default function DashboardHeader() {
+    const { isOnline } = useNetworkStatus();
+    const isFetching = useIsFetching();
+    const queryClient = useQueryClient();
+
+    const handleRetry = () => {
+        queryClient.invalidateQueries();
+    };
+
+    return (
+        <header className="pt-12 pb-2 px-6 bg-white/95 backdrop-blur-md border-b border-slate-100 transition-colors duration-300">
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 bg-slate-900 rounded-lg flex items-center justify-center text-white">
+                        <Shield size={18} />
+                    </div>
+                    <h1 className="font-semibold tracking-tight text-lg text-slate-900">Vigilant</h1>
+                </div>
+                
+                {/* Status Indicator */}
+                <div className="flex items-center gap-4">
+                    {!isOnline ? (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-100 rounded-full animate-in fade-in slide-in-from-top-2 duration-300">
+                            <WifiOff className="text-amber-500" size={12} />
+                            <span className="text-xs font-medium text-amber-700">Offline Mode</span>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full animate-in fade-in slide-in-from-top-2 duration-300">
+                            <div className="relative flex h-2 w-2">
+                                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 ${isFetching > 0 ? 'opacity-75' : 'opacity-0'}`}></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </div>
+                            <span className="text-xs font-medium text-emerald-700">Online</span>
+                        </div>
+                    )}
+                    
+                    <button className="text-slate-400 hover:text-slate-600 transition-colors">
+                        <Settings size={20} />
+                    </button>
+                </div>
+            </div>
+
+            {/* Connection / Sync Banner */}
+            <div className="flex items-center justify-between py-1.5 h-6">
+                <span className="text-xs text-slate-500 flex items-center gap-1.5">
+                    {isFetching > 0 ? (
+                        <>
+                            <RefreshCw size={10} className="animate-spin text-blue-500" />
+                            <span className="text-blue-600 font-medium">Syncing data...</span>
+                        </>
+                    ) : !isOnline ? (
+                        <>
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                            Showing cached data from {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </>
+                    ) : (
+                        <>
+                            <Wifi size={10} className="text-slate-400" />
+                            <span className="text-slate-400">Up to date</span>
+                        </>
+                    )}
+                </span>
+                
+                {(!isOnline || (!(isFetching > 0) && isOnline)) && (
+                    <button 
+                        onClick={handleRetry}
+                        disabled={isFetching > 0}
+                        className={`text-[10px] font-semibold uppercase tracking-wide cursor-pointer transition-colors ${isFetching > 0 ? 'text-slate-300' : 'text-blue-600 hover:text-blue-700 hover:underline'}`}
+                    >
+                        {isFetching > 0 ? 'Syncing...' : 'Refresh'}
+                    </button>
+                )}
+            </div>
+        </header>
+    );
+}

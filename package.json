@@ -1,0 +1,22 @@
+{
+  "name": "disaster-app",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "dev": "concurrently -n \"WEB,API\" -c \"bgBlue.bold,bgMagenta.bold\" \"npm run dev -w apps/web\" \"npm run dev -w apps/api\"",
+    "lint": "turbo lint",
+    "clean": "turbo clean"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "prettier": "^3.0.0",
+    "turbo": "^2.7.3"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "npm@11.6.1"
+}
