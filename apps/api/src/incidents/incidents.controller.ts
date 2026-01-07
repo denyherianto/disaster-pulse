@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Param, Query, BadRequestException, Patch } from '@nestjs/common';
 import { IncidentsService } from './incidents.service';
 
 @Controller('incidents')
@@ -44,5 +44,9 @@ export class IncidentsController {
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return this.incidentsService.getIncidentById(id);
+  }
+  @Patch(':id/resolve')
+  async resolve(@Param('id') id: string) {
+    return this.incidentsService.resolveIncident(id);
   }
 }

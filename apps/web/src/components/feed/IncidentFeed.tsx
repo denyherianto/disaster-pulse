@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CloudRain, Zap, MapPin, SlidersHorizontal, Info, Database } from 'lucide-react';
 
 type FeedIncident = {
@@ -24,19 +24,25 @@ import { useZone } from '@/components/providers/ZoneProvider';
 
 export default function IncidentFeed() {
     const { selectedZone } = useZone();
+    const queryClient = useQueryClient();
 
     const { data: incidents, isLoading } = useQuery({
         queryKey: ['feed-incidents', selectedZone?.id],
         queryFn: async () => {
+            let data: FeedIncident[] = [];
             if (selectedZone) {
                 const res = await fetch(`${API_BASE_URL}/incidents/nearby?lat=${selectedZone.lat}&lng=${selectedZone.lng}&radius=${selectedZone.radius_m}`);
                 if (!res.ok) throw new Error("Failed to fetch feed");
-                return res.json() as Promise<FeedIncident[]>;
+                data = await res.json();
             } else {
                  const res = await fetch(`${API_BASE_URL}/incidents/map?minLat=-90&maxLat=90&minLng=-180&maxLng=180`);
                  if (!res.ok) throw new Error("Failed to fetch feed");
-                 return res.json() as Promise<FeedIncident[]>;
+                data = await res.json();
              }
+
+            // Sort by severity (High > Medium > Low)
+            const severityWeight: Record<string, number> = { 'high': 3, 'medium': 2, 'low': 1 };
+            return data.sort((a, b) => (severityWeight[b.severity] || 0) - (severityWeight[a.severity] || 0));
         }
     });
 
@@ -78,12 +84,23 @@ export default function IncidentFeed() {
                                     </div>
                                 </div>
                             </div>
-                            {/* Verified Badge for specific items (mock logic for demo) */}
-                            {i === 0 && (
-                                <div className="flex flex-col items-end gap-1">
+                            {/* Actions */}
+                            <div className="flex flex-col items-end gap-2">
+                                {i === 0 && (
                                     <span className="bg-slate-100 text-slate-600 text-xs font-medium px-2 py-0.5 rounded-full">Verified</span>
-                                </div>
-                            )}
+                                )}
+                                <button
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        if (!confirm('Mark this incident as resolved?')) return;
+                                        await fetch(`${API_BASE_URL}/incidents/${inc.id}/resolve`, { method: 'PATCH' });
+                                        queryClient.invalidateQueries({ queryKey: ['feed-incidents'] });
+                                    }}
+                                    className="text-xs text-slate-400 hover:text-red-500 underline decoration-dotted transition-colors"
+                                >
+                                    Dismiss
+                                </button>
+                            </div>
                         </div>
                         
                         {/* Trust/Confidence Indicator */}

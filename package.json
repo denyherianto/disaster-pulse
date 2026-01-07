@@ -13,7 +13,8 @@
     "turbo": "^2.7.3"
   },
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ],
   "engines": {
     "node": ">=18"

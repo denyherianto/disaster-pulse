@@ -165,4 +165,20 @@ export class IncidentsService {
 
     return incident;
   }
+  async resolveIncident(id: string) {
+    const { error } = await this.supabase.getClient()
+      .from('incidents')
+      .update({ status: 'resolved' })
+      .eq('id', id);
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to resolve incident');
+    }
+
+    // Also resolve the cluster?
+    // Optimization: Trigger logic to resolve cluster if all incidents are resolved.
+    // For now, simpler approach: just resolve the incident.
+
+    return { success: true };
+  }
 }
