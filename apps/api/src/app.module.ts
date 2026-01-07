@@ -8,6 +8,8 @@ import { SignalsModule } from './signals/signals.module';
 import { UserPlacesModule } from './user-places/user-places.module';
 import { IncidentsModule } from './incidents/incidents.module';
 import { ClusterModule } from './cluster/cluster.module';
+import { ReasoningModule } from './reasoning/reasoning.module';
+import { DatabaseModule } from './database/database.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { ClusterModule } from './cluster/cluster.module';
     UserPlacesModule,
     IncidentsModule,
     ClusterModule,
+    ReasoningModule,
+    DatabaseModule,
   ],
   controllers: [AppController],
   providers: [AppService],

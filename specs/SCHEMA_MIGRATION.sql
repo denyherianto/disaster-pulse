@@ -71,7 +71,10 @@ CREATE TABLE signals (
   media_type TEXT CHECK (media_type IN ('image', 'video')),
 
   city_hint TEXT,
+  happened_at TIMESTAMPTZ DEFAULT now(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processed', 'failed')),
 
   raw_payload JSONB
 );

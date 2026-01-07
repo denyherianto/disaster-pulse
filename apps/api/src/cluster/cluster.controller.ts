@@ -5,8 +5,8 @@ import { ClusterService } from './cluster.service';
 export class ClusterController {
   constructor(private readonly clusterService: ClusterService) {}
 
-  @Post('trigger')
-  async triggerClustering() {
-    return this.clusterService.processClusters();
-  }
+  // @Post('trigger')
+  // async triggerClustering() {
+  //   return { message: 'Deprecated. System is now event-driven.' };
+  // }
 }

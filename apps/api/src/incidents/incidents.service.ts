@@ -166,8 +166,8 @@ export class IncidentsService {
     return incident;
   }
   async resolveIncident(id: string) {
-    const { error } = await this.supabase.getClient()
-      .from('incidents')
+    const { error } = await (this.supabase.getClient()
+      .from('incidents') as any)
       .update({ status: 'resolved' })
       .eq('id', id);
 

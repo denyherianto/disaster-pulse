@@ -208,12 +208,49 @@ export interface VerificationInsert {
   created_at?: string
 }
 
+
 export interface VerificationUpdate {
   id?: string
   incident_id?: string
   user_id?: string
   type?: 'confirm' | 'still_happening' | 'false' | 'resolved'
   created_at?: string
+}
+
+export interface AgentTrace {
+  id: string
+  session_id: string
+  cluster_id: string | null
+  incident_id: string | null
+  step: string;
+  input_context: Json;
+  output_result: Json;
+  model_used: string;
+  created_at: string;
+}
+
+export interface AgentTraceInsert {
+  id?: string
+  session_id: string
+  cluster_id?: string | null
+  incident_id?: string | null
+  step: string;
+  input_context: Json;
+  output_result: Json;
+  model_used: string;
+  created_at?: string;
+}
+
+export interface AgentTraceUpdate {
+  id?: string
+  session_id?: string
+  cluster_id?: string | null
+  incident_id?: string | null
+  step?: string;
+  input_context?: Json;
+  output_result?: Json;
+  model_used?: string;
+  created_at?: string;
 }
 
 export interface Database {
@@ -258,6 +295,11 @@ export interface Database {
         Row: Verification
         Insert: VerificationInsert
         Update: VerificationUpdate
+      }
+      agent_traces: {
+        Row: AgentTrace
+        Insert: AgentTraceInsert
+        Update: AgentTraceUpdate
       }
     }
   }
