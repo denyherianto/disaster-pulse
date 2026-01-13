@@ -1,6 +1,6 @@
 'use client';
 
-import { User, FileText, CheckCircle, XCircle, MapPin, Bell, ChevronRight, Settings, LogOut } from 'lucide-react';
+import { User, FileText, CheckCircle, XCircle, MapPin, Bell, ChevronRight, Settings, LogOut, Shield } from 'lucide-react';
 import BottomNav from '@/components/navigation/BottomNav';
 import Link from 'next/link';
 import { useLanguage } from '@/components/providers/LanguageProvider';
@@ -118,6 +118,21 @@ export default function ProfilePage() {
                         
                         <div className="border-t border-slate-100" />
                         
+                        <Link href="/profile/privacy" className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600">
+                                    <Shield size={18} />
+                                </div>
+                                <div>
+                                    <div className="font-medium text-slate-900">{t('profile.privacyPolicy')}</div>
+                                    <div className="text-sm text-slate-500">{t('profile.privacyPolicyDesc')}</div>
+                                </div>
+                            </div>
+                            <ChevronRight className="text-slate-300" size={20} />
+                        </Link>
+
+                        <div className="border-t border-slate-100" />
+
                         <Link href="/settings" className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600">

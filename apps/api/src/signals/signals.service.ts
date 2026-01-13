@@ -57,6 +57,7 @@ export class SignalsService {
         lng: severityResult.lng || payload.lng,
         media_url: payload.media_url || null,
         media_type: payload.media_type || null,
+        thumbnail_url: payload.thumbnail_url || null,
         city_hint: severityResult.location || payload.city_hint || null,
         event_type: severityResult.event_type,
         raw_payload: payload.raw_payload || null,

@@ -1,12 +1,40 @@
 'use client';
 
 import { useParams } from 'next/navigation';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { CloudRain, Zap, Flame, Mountain, MapPin, ChevronLeft, ThumbsUp, ThumbsDown, Clock, Phone, FileDown, ExternalLink, AlertTriangle, CheckCircle, Eye, Newspaper, Video, AlarmCheck } from 'lucide-react';
+import { CloudRain, Zap, Flame, Mountain, MapPin, ChevronLeft, ThumbsUp, ThumbsDown, Clock, Phone, FileDown, ExternalLink, AlertTriangle, CheckCircle, Eye, Newspaper, Video, AlarmCheck, ChevronDown, ChevronUp } from 'lucide-react';
 import Link from 'next/link';
 import BottomNav from '@/components/navigation/BottomNav';
 import { API_BASE_URL } from '@/lib/config';
 import { useLanguage } from '@/components/providers/LanguageProvider';
+
+const CollapsibleSection = ({ children, maxHeight = 200 }: { children: React.ReactNode, maxHeight?: number }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    return (
+        <div className="relative">
+            <div
+                className={`transition-all duration-500 ease-in-out ${isExpanded ? '' : 'relative overflow-hidden'}`}
+                style={{ maxHeight: isExpanded ? 'none' : `${maxHeight}px` }}
+            >
+                {children}
+                {!isExpanded && (
+                    <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-slate-50 to-transparent pointer-events-none" />
+                )}
+            </div>
+            <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="w-full mt-2 py-2 text-sm text-blue-600 font-medium hover:text-blue-700 flex items-center justify-center gap-1 transition-colors"
+            >
+                {isExpanded ? (
+                    <>Show Less <ChevronUp size={16} /></>
+                ) : (
+                    <>Show More <ChevronDown size={16} /></>
+                )}
+            </button>
+        </div>
+    );
+};
 
 const getIncidentIcon = (type: string) => {
     switch (type) {
@@ -303,7 +331,8 @@ export default function IncidentDetailPage() {
                                     {/* <Newspaper size={16} /> */}
                                     {t('incidentDetail.sources.news')}
                                 </h3>
-                                <div className="space-y-3">
+                                <CollapsibleSection>
+                                    <div className="space-y-3">
                                     {signals.filter((s: any) => s.source === 'news').map((signal: any) => (
                                         <a 
                                             key={signal.id} 
@@ -330,7 +359,8 @@ export default function IncidentDetailPage() {
                                             </div>
                                         </a>
                                     ))}
-                                </div>
+                                    </div>
+                                </CollapsibleSection>
                             </div>
                         )}
 
@@ -338,26 +368,46 @@ export default function IncidentDetailPage() {
                         {signals.some((s: any) => s.source === 'social_media' && s.media_type === 'video') && (
                             <div>
                                 <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                                    <Video size={16} />
+                                    {/* <Video size={16} /> */}
                                     {t('incidentDetail.sources.liveUpdates')}
                                 </h3>
-                                <div className="grid grid-cols-2 gap-3">
-                                    {signals.filter((s: any) => s.source === 'social_media' && s.media_type === 'video').slice(0, 4).map((signal: any) => (
-                                        <div key={signal.id} className="relative aspect-[9/16] bg-slate-900 rounded-xl overflow-hidden border border-slate-200">
-                                             {/* Video Preview (Thumbnail logic or direct embed) */}
-                                             {/* Since we don't have real thumbnail generation, we try to use a placeholder or iframe if safe */}
-                                            <div className="absolute inset-0 flex items-center justify-center text-white/50 bg-black/40">
-                                                <ExternalLink size={24} />
-                                            </div>
+                                <CollapsibleSection>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {signals.filter((s: any) => s.source === 'social_media' && s.media_type === 'video').map((signal: any) => (
+                                            <div key={signal.id} className="relative aspect-[9/16] bg-slate-900 rounded-xl overflow-hidden border border-slate-200 group">
+                                                {/* Thumbnail */}
+                                                {signal.thumbnail_url ? (
+                                                    <img
+                                                        src={signal.thumbnail_url}
+                                                        alt={signal.text}
+                                                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                                    />
+                                                ) : (
+                                                    <div className="absolute inset-0 flex items-center justify-center text-white/50 bg-black/40">
+                                                        <ExternalLink size={24} />
+                                                    </div>
+                                                )}
+
+                                                {/* Play Icon/Overlay */}
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/20 transition-colors">
+                                                    {signal.thumbnail_url && (
+                                                        <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/30 shadow-lg">
+                                                            <Video size={18} fill="currentColor" className="opacity-90" />
+                                                        </div>
+                                                    )}
+                                                </div>
+
                                             <a href={signal.media_url} target="_blank" rel="noreferrer" className="absolute inset-0 z-10" />
-                                            <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
-                                                <div className="text-xs text-white line-clamp-2 font-medium">
+
+                                                <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
+                                                    <div className="text-xs text-white line-clamp-2 font-medium drop-shadow-md">
                                                     {signal.text}
                                                 </div>
                                             </div>
                                         </div>
                                     ))}
-                                </div>
+                                    </div>
+                                </CollapsibleSection>
                             </div>
                         )}
                     </div>

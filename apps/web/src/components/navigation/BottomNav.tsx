@@ -24,7 +24,7 @@ export default function BottomNav() {
     ];
 
     return (
-        <nav className="h-20 bg-white border-t border-slate-200 px-6 flex items-center justify-between shrink-0 pb-4">
+        <nav className="h-20 bg-white border-t border-slate-200 px-6 flex items-center justify-between shrink-0">
             {navItems.map((item) => {
                 const active = isActive(item.path);
                 return (

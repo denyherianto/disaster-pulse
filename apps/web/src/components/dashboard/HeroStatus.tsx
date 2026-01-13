@@ -24,7 +24,33 @@ export default function HeroStatus() {
     // const [isExpanded, setIsExpanded] = useState(false); // Removed
     // const [isVerified, setIsVerified] = useState(false); // Removed
     const [currentIndex, setCurrentIndex] = useState(0);
-    const router = useRouter(); // Moved hook to top level
+    const [animPhase, setAnimPhase] = useState<'idle' | 'out' | 'snap'>('idle');
+    const [slideDir, setSlideDir] = useState<'left' | 'right'>('left');
+    const router = useRouter();
+
+    const triggerSlide = (direction: 'next' | 'prev', total: number) => {
+        if (animPhase !== 'idle') return;
+
+        const dir = direction === 'next' ? 'left' : 'right';
+        setSlideDir(dir);
+        setAnimPhase('out');
+
+        setTimeout(() => {
+            if (direction === 'next') {
+                setCurrentIndex(prev => (prev < total - 1 ? prev + 1 : 0));
+            } else {
+                setCurrentIndex(prev => (prev > 0 ? prev - 1 : total - 1));
+            }
+
+            setAnimPhase('snap');
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    setAnimPhase('idle');
+                });
+            });
+        }, 500);
+    };
 
     // Fetch incidents
     const { data: incidents = [], isLoading } = useQuery({
@@ -75,14 +101,12 @@ export default function HeroStatus() {
 
     const nextIncident = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (currentIndex < total - 1) setCurrentIndex(prev => prev + 1);
-        else setCurrentIndex(0); // Loop
+        triggerSlide('next', total);
     };
 
     const prevIncident = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (currentIndex > 0) setCurrentIndex(prev => prev - 1);
-        else setCurrentIndex(total - 1); // Loop
+        triggerSlide('prev', total);
     };
 
     // Navigate on click
@@ -131,7 +155,19 @@ export default function HeroStatus() {
 
                 <div
                     onClick={() => router.push(`/incidents/${currentIncident.id}`)}
-                    className="relative bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden group z-10 transition-all duration-300 cursor-pointer active:scale-[0.99]"
+                    className={`relative bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden group z-10 
+                        cursor-pointer active:scale-[0.99]
+                        ${animPhase === 'snap' ? 'transition-none opacity-0' : 'transition-all duration-500 ease-in-out opacity-100'}
+                        ${animPhase === 'snap'
+                            ? (slideDir === 'left' ? '-translate-x-12 opacity-0' : 'translate-x-12 opacity-0')
+                            : ''
+                        }
+                        ${animPhase === 'out'
+                            ? (slideDir === 'left' ? 'translate-x-12' : '-translate-x-12')
+                            : ''
+                        }
+                        ${animPhase === 'idle' ? 'translate-x-0' : ''}
+                    `}
                 >
                     <div className="relative z-10 p-6 pb-4">
                         <div className="flex items-center gap-2 mb-3">
@@ -143,7 +179,7 @@ export default function HeroStatus() {
                             </span>
                         </div>
 
-                        <h2 className="text-3xl font-semibold tracking-tight text-slate-900 mb-2 leading-tight capitalize animate-in fade-in slide-in-from-right-4 duration-300" key={currentIncident.id}>
+                        <h2 className="text-3xl font-semibold tracking-tight text-slate-900 mb-2 leading-tight capitalize">
                             {currentIncident.type.replace('_', ' ')} detected.
                         </h2>
                         <p className="text-slate-500 leading-relaxed text-base">

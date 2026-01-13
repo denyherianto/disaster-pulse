@@ -1,6 +1,7 @@
 'use client';
 
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import 'leaflet/dist/leaflet.css';
 import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
@@ -103,6 +104,16 @@ const createIncidentIcon = (type: string, severity: string) => {
   but standard transitions usually do.
 */
 
+const createClusterCustomIcon = (cluster: any) => {
+    return L.divIcon({
+        html: `<div class="flex items-center justify-center w-full h-full bg-slate-600 text-white font-bold rounded-full border-2 border-white shadow-md text-sm">
+            ${cluster.getChildCount()}
+        </div>`,
+        className: 'custom-cluster-icon',
+        iconSize: L.point(40, 40, true),
+    });
+};
+
 // Inner component to handle map updates based on context
 function MapUpdater({ zoomLevel = 13 }: { zoomLevel?: number }) {
     const map = useMap();
@@ -177,33 +188,43 @@ export default function IncidentMap({
                 />
                 <MapUpdater zoomLevel={zoomLevel} />
                 
-                {incidents?.map((inc) => (
-                    <Marker
-                        key={inc.id}
-                        position={[inc.lat, inc.lng]}
-                        icon={createIncidentIcon(inc.type, inc.severity)}
-                    >
-                        <Popup>
-                            <div className="text-xs">
-                                <strong className="capitalize text-sm block mb-1">{inc.type.replace('_', ' ')}</strong>
-                                <span className="text-slate-500 mb-2 block">{inc.city}</span>
 
-                                <div className="flex gap-2">
-                                    <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${inc.status === 'alert' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
-                                        }`}>
-                                        {inc.status}
-                                    </span>
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] uppercase font-bold bg-slate-100 text-slate-600">
-                                        {inc.severity}
-                                    </span>
+
+
+                <MarkerClusterGroup
+                    chunkedLoading
+                    maxClusterRadius={60}
+                    spiderfyOnMaxZoom={true}
+                    iconCreateFunction={createClusterCustomIcon}
+                >
+                    {incidents?.map((inc) => (
+                        <Marker
+                            key={inc.id}
+                            position={[inc.lat, inc.lng]}
+                            icon={createIncidentIcon(inc.type, inc.severity)}
+                        >
+                            <Popup>
+                                <div className="text-xs">
+                                    <strong className="capitalize text-sm block mb-1">{inc.type.replace('_', ' ')}</strong>
+                                    <span className="text-slate-500 mb-2 block">{inc.city}</span>
+
+                                    <div className="flex gap-2">
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${inc.status === 'alert' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                                            }`}>
+                                            {inc.status}
+                                        </span>
+                                        <span className="px-2 py-0.5 rounded-full text-[10px] uppercase font-bold bg-slate-100 text-slate-600">
+                                            {inc.severity}
+                                        </span>
+                                    </div>
+                                    <div className="mt-2 text-[10px] text-blue-600 underline cursor-pointer">
+                                        <a href={`/incidents/${inc.id}`}>View Details</a>
+                                    </div>
                                 </div>
-                                <div className="mt-2 text-[10px] text-blue-600 underline cursor-pointer">
-                                    <a href={`/incidents/${inc.id}`}>View Details</a>
-                                </div>
-                            </div>
-                        </Popup>
-                    </Marker>
-                ))}
+                            </Popup>
+                        </Marker>
+                    ))}
+                </MarkerClusterGroup>
             </MapContainer>
         </div>
     );

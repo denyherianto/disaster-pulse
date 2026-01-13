@@ -106,7 +106,7 @@ export default function IncidentFeed() {
 
                     return (
                         <Link key={inc.id} href={`/incidents/${inc.id}`}>
-                            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm active:scale-[0.99] transition-transform cursor-pointer hover:border-slate-300">
+                            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm active:scale-[0.99] transition-transform cursor-pointer hover:border-slate-300 mb-2">
                                 <div className="flex items-center justify-between">
                                     <div className="flex gap-3 items-center">
                                         <div className={`w-10 h-10 rounded-full border flex items-center justify-center shrink-0 ${colorClasses}`}>

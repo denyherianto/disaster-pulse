@@ -205,7 +205,7 @@ export default function AlertsPage() {
                                     <Link key={inc.id} href={`/incidents/${inc.id}`}>
                                         <div 
                                             ref={isLast ? lastItemRef : null}
-                                            className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm active:scale-[0.99] transition-transform cursor-pointer hover:border-slate-300"
+                                            className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm active:scale-[0.99] transition-transform cursor-pointer hover:border-slate-300 mb-2"
                                         >
                                             <div className="flex items-center justify-between">
                                                 <div className="flex gap-3 items-center">

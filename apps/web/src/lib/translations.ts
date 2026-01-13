@@ -110,6 +110,9 @@ export const translations = {
       myPlacesDesc: 'Manage saved locations',
       notifications: 'Notifications',
       notificationsDesc: 'Alert preferences',
+
+      privacyPolicy: 'Privacy Policy',
+      privacyPolicyDesc: 'Data sources & user rights',
       settingsDesc: 'App preferences',
       signOut: 'Sign Out'
     },
@@ -257,6 +260,9 @@ export const translations = {
       myPlacesDesc: 'Kelola lokasi tersimpan',
       notifications: 'Notifikasi',
       notificationsDesc: 'Preferensi peringatan',
+
+      privacyPolicy: 'Kebijakan Privasi',
+      privacyPolicyDesc: 'Sumber data & hak pengguna',
       settingsDesc: 'Preferensi aplikasi',
       signOut: 'Keluar'
     },

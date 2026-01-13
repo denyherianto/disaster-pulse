@@ -60,7 +60,7 @@ export class TiktokService implements OnModuleInit {
     this.logger.log('TikTok Watcher Service Initialized');
   }
 
-  @Cron(CronExpression.EVERY_12_HOURS)
+  @Cron(CronExpression.EVERY_10_MINUTES)
   async handleCron() {
     this.logger.log('Starting TikTok Disaster Scan...');
     try {
@@ -185,6 +185,7 @@ export class TiktokService implements OnModuleInit {
       city_hint: analysis.location_inference || null,
       media_url: video.play, // Store the video URL
       media_type: 'video',
+      thumbnail_url: video.origin_cover || video.cover,
       created_at: undefined, // Let DB handle it
       happened_at: analysis?.happened_at || new Date(video.create_time * 1000).toISOString(),
       raw_payload: {
