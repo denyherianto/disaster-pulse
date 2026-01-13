@@ -1,6 +1,7 @@
 'use client';
 
 import { Shield, Settings, WifiOff, RefreshCw, Wifi, Megaphone } from 'lucide-react';
+import Image from 'next/image';
 import { useNetworkStatus } from '@/components/providers/NetworkStatusProvider';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -19,12 +20,20 @@ export default function DashboardHeader() {
         queryClient.invalidateQueries();
     };
 
+
+
     return (
         <header className="pt-6 pb-2 px-6 bg-white/95 backdrop-blur-md border-b border-slate-100 transition-colors duration-300">
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 bg-slate-900 rounded-lg flex items-center justify-center text-white">
-                        <Shield size={18} />
+                    <div className="h-8 w-8 rounded-full overflow-hidden shadow-sm">
+                        <Image
+                            src="/icons/icon-192x192.png"
+                            alt="Disaster Pulse"
+                            width={32}
+                            height={32}
+                            unoptimized
+                        />
                     </div>
                     <h1 className="font-semibold tracking-tight text-lg text-slate-900">Disaster Pulse</h1>
                 </div>
