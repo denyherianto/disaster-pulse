@@ -165,7 +165,7 @@ export default function IncidentMap({
         <div className="w-full h-full relative z-0">
             {/* Filter Toggle */}
             {showFilter && (
-                <div className="absolute top-4 left-4 z-[1000] bg-white rounded-full shadow-lg border border-slate-200 p-1 flex">
+                <div className="absolute top-4 right-4 z-[1000] bg-white rounded-full shadow-lg border border-slate-200 p-1 flex">
                     <button
                         onClick={() => setShowMyPlaces(false)}
                         className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${!showMyPlaces

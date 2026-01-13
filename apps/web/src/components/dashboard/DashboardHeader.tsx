@@ -1,20 +1,23 @@
 'use client';
 
-import { Shield, Settings, WifiOff, RefreshCw, Wifi } from 'lucide-react';
+import { Shield, Settings, WifiOff, RefreshCw, Wifi, Megaphone } from 'lucide-react';
 import { useNetworkStatus } from '@/components/providers/NetworkStatusProvider';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import ReportIncidentModal from '@/components/modals/ReportIncidentModal';
 
 export default function DashboardHeader() {
     const { isOnline } = useNetworkStatus();
     const isFetching = useIsFetching();
     const queryClient = useQueryClient();
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
     const handleRetry = () => {
         queryClient.invalidateQueries();
     };
 
     return (
-        <header className="pt-12 pb-2 px-6 bg-white/95 backdrop-blur-md border-b border-slate-100 transition-colors duration-300">
+        <header className="pt-6 pb-2 px-6 bg-white/95 backdrop-blur-md border-b border-slate-100 transition-colors duration-300">
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                     <div className="h-8 w-8 bg-slate-900 rounded-lg flex items-center justify-center text-white">
@@ -40,6 +43,14 @@ export default function DashboardHeader() {
                         </div>
                     )}
                     
+                    <button
+                        onClick={() => setIsReportModalOpen(true)}
+                        className="bg-red-50 text-red-600 hover:bg-red-100 p-2 rounded-full transition-colors flex items-center justify-center relative active:scale-95"
+                    >
+                        <Megaphone size={18} />
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                    </button>
+
                     <button className="text-slate-400 hover:text-slate-600 transition-colors">
                         <Settings size={20} />
                     </button>
@@ -77,6 +88,12 @@ export default function DashboardHeader() {
                     </button>
                 )}
             </div>
-        </header>
+
+
+            <ReportIncidentModal
+                isOpen={isReportModalOpen}
+                onClose={() => setIsReportModalOpen(false)}
+            />
+        </header >
     );
 }

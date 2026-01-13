@@ -51,11 +51,6 @@
       "category": "news"
     },
     {
-      "name": "Tribun News",
-      "url": "https://www.tribunnews.com/rss",
-      "category": "news"
-    },
-    {
       "name": "CNA.id",
       "url": "https://www.cna.id/api/v1/rss-outbound-feed?_format=xml",
       "category": "news"

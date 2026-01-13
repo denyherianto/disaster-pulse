@@ -147,7 +147,7 @@ export default function GuidesPage() {
 
                                 return (
                                     <Link key={guide.id} href={`/guides/${guide.id}`}>
-                                        <div className="bg-white rounded-2xl border border-slate-200 p-4 hover:border-slate-300 transition-colors cursor-pointer">
+                                        <div className="bg-white rounded-2xl border border-slate-200 p-4 hover:border-slate-300 transition-colors cursor-pointer mb-2">
                                             <div className="flex items-start gap-3">
                                                 <div className={`w-12 h-12 rounded-xl border flex items-center justify-center shrink-0 ${colorClasses}`}>
                                                     <IconComponent size={22} />
@@ -156,9 +156,6 @@ export default function GuidesPage() {
                                                     <h3 className="font-semibold text-slate-900">{guide.title}</h3>
                                                     <p className="text-sm text-slate-500 mt-1 line-clamp-2">{guide.description}</p>
                                                     <div className="flex items-center gap-2 mt-2">
-                                                        <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${colorClasses}`}>
-                                                            {guide.disaster_type}
-                                                        </span>
                                                     </div>
                                                 </div>
                                                 <ChevronRight className="text-slate-300 shrink-0" size={20} />

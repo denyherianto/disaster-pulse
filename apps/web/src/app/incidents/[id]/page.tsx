@@ -179,7 +179,7 @@ export default function IncidentDetailPage() {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto no-scrollbar bg-slate-50 pb-24">
+            <div className="flex-1 overflow-y-auto bg-slate-50 pb-24">
                 {/* Lifecycle Timeline */}
                 <div className="px-6 py-4">
                     <h3 className="text-sm font-semibold text-slate-900 mb-3">Incident Timeline</h3>
