@@ -1,4 +1,4 @@
-export async function reverseGeocodeCity(lat: number, lng: number): Promise<string> {
+export async function reverseGeocodeCity(lat: number, lng: number): Promise<string | null> {
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`,
@@ -10,7 +10,7 @@ export async function reverseGeocodeCity(lat: number, lng: number): Promise<stri
       }
     );
 
-    if (!res.ok) return 'Unknown City';
+    if (!res.ok) return null;
 
     const data = await res.json();
     const addr = data.address ?? {};
@@ -21,10 +21,10 @@ export async function reverseGeocodeCity(lat: number, lng: number): Promise<stri
       addr.municipality ||
       addr.county ||
       addr.state ||
-      'Unknown City'
+      null
     );
   } catch (err) {
     console.error('Reverse geocoding failed:', err);
-    return 'Unknown City';
+    return null;
   }
 }

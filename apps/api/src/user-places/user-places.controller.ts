@@ -7,7 +7,7 @@ const placeSchema = z.object({
   label: z.string().min(1),
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
-  radius_m: z.number().min(100).max(10000).default(3000), // Default 3km
+  radius_m: z.number().min(100).max(100000).default(3000), // Default 3km, Max 100km
 });
 
 @Controller('user/places')

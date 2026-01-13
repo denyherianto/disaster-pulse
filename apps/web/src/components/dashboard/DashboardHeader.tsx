@@ -20,7 +20,7 @@ export default function DashboardHeader() {
                     <div className="h-8 w-8 bg-slate-900 rounded-lg flex items-center justify-center text-white">
                         <Shield size={18} />
                     </div>
-                    <h1 className="font-semibold tracking-tight text-lg text-slate-900">Vigilant</h1>
+                    <h1 className="font-semibold tracking-tight text-lg text-slate-900">Disaster Pulse</h1>
                 </div>
                 
                 {/* Status Indicator */}

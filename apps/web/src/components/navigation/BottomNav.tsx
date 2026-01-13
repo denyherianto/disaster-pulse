@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Home, Map as MapIcon, Bookmark, Bell, User } from 'lucide-react';
+import { Home, Map as MapIcon, Bell, User, BookOpen } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 
 export default function BottomNav() {
@@ -15,10 +15,10 @@ export default function BottomNav() {
 
     const navItems = [
         { label: 'Home', icon: Home, path: '/' },
+        { label: 'Alerts', icon: Bell, path: '/alerts' },
         { label: 'Map', icon: MapIcon, path: '/map' },
-        { label: 'Saved', icon: Bookmark, path: '/saved' }, // Placeholder
-        { label: 'Alerts', icon: Bell, path: '/alerts' }, // Placeholder
-        { label: 'Profile', icon: User, path: '/profile' } // Placeholder
+        { label: 'Guides', icon: BookOpen, path: '/guides' },
+        { label: 'Profile', icon: User, path: '/profile' }
     ];
 
     return (

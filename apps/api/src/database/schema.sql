@@ -2,6 +2,10 @@
 -- Disaster Intelligence Platform
 -- Full Baseline SQL Schema (PostgreSQL + PostGIS)
 -- ============================================================
+-- 
+-- UPDATED: Clusters merged into Incidents
+-- 
+-- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE EXTENSION IF NOT EXISTS postgis;
@@ -50,6 +54,19 @@ CREATE TABLE IF NOT EXISTS user_place_preferences (
 );
 
 -- ============================================================
+-- RAW TIKTOK LOG (DEDUPLICATION)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS tiktok_posts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tiktok_id TEXT NOT NULL UNIQUE,
+  author TEXT,
+  text TEXT,
+  raw_data JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ============================================================
 -- RAW SIGNAL INGESTION
 -- ============================================================
 
@@ -57,19 +74,20 @@ CREATE TABLE IF NOT EXISTS signals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
   source TEXT NOT NULL CHECK (
-    source IN ('user_report', 'social_media', 'news', 'sensor')
+    source IN ('user_report', 'social_media', 'news', 'sensor', 'tiktok_ai')
   ),
 
   text TEXT,
 
-  lat DOUBLE PRECISION NOT NULL,
-  lng DOUBLE PRECISION NOT NULL,
+  lat DOUBLE PRECISION,
+  lng DOUBLE PRECISION,
   geom GEOGRAPHY(POINT, 4326)
-    GENERATED ALWAYS AS (ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography) STORED,
+    GENERATED ALWAYS AS (CASE WHEN lat IS NOT NULL AND lng IS NOT NULL THEN ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography ELSE NULL END) STORED,
 
   media_url TEXT,
   media_type TEXT CHECK (media_type IN ('image', 'video')),
 
+  event_type TEXT,
   city_hint TEXT,
   happened_at TIMESTAMPTZ DEFAULT now(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -102,18 +120,33 @@ CREATE TABLE IF NOT EXISTS user_reports (
 );
 
 -- ============================================================
--- CLUSTERS (PLACE + TIME CONTAINERS)
+-- INCIDENTS (Unified - absorbs former clusters)
+-- ============================================================
+-- 
+-- An incident represents a specific disaster hypothesis at a location.
+-- Previously, "clusters" grouped signals by location+time, then incidents
+-- were created from clusters. Now incidents directly contain location data.
+--
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS clusters (
+CREATE TABLE IF NOT EXISTS incidents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
+  -- Location & Time (formerly from clusters)
   city TEXT NOT NULL,
-  event_type_guess TEXT,
-
   time_start TIMESTAMPTZ NOT NULL,
   time_end TIMESTAMPTZ NOT NULL,
 
+  -- Disaster classification
+  event_type TEXT NOT NULL CHECK (
+    event_type IN ('flood', 'landslide', 'fire', 'earthquake', 'power_outage', 'other')
+  ),
+
+  -- Assessment (orthogonal concepts)
+  severity TEXT CHECK (severity IN ('low', 'medium', 'high')),
+  confidence_score NUMERIC CHECK (confidence_score BETWEEN 0 AND 1),
+
+  -- Status (procedural, not factual)
   status TEXT NOT NULL CHECK (
     status IN ('monitor', 'alert', 'suppress', 'resolved')
   ),
@@ -122,16 +155,26 @@ CREATE TABLE IF NOT EXISTS clusters (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS clusters_time_idx ON clusters (time_start DESC, time_end DESC);
+CREATE INDEX IF NOT EXISTS incidents_city_event_type_idx ON incidents (city, event_type);
+CREATE INDEX IF NOT EXISTS incidents_time_idx ON incidents (time_start DESC, time_end DESC);
+CREATE INDEX IF NOT EXISTS incidents_status_idx ON incidents (status);
 
-CREATE TABLE IF NOT EXISTS cluster_signals (
-  cluster_id UUID NOT NULL REFERENCES clusters(id) ON DELETE CASCADE,
+-- ============================================================
+-- INCIDENT SIGNALS (Links signals to incidents)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS incident_signals (
+  incident_id UUID NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
   signal_id UUID NOT NULL REFERENCES signals(id) ON DELETE CASCADE,
-  PRIMARY KEY (cluster_id, signal_id)
+  PRIMARY KEY (incident_id, signal_id)
 );
 
-CREATE TABLE IF NOT EXISTS cluster_metrics (
-  cluster_id UUID PRIMARY KEY REFERENCES clusters(id) ON DELETE CASCADE,
+-- ============================================================
+-- INCIDENT METRICS (Computed facts about an incident)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS incident_metrics (
+  incident_id UUID PRIMARY KEY REFERENCES incidents(id) ON DELETE CASCADE,
 
   report_count INT NOT NULL DEFAULT 0,
   unique_reporters INT NOT NULL DEFAULT 0,
@@ -144,57 +187,13 @@ CREATE TABLE IF NOT EXISTS cluster_metrics (
   last_updated TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS cluster_lifecycle (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-  cluster_id UUID NOT NULL REFERENCES clusters(id) ON DELETE CASCADE,
-  from_status TEXT,
-  to_status TEXT NOT NULL,
-
-  reason TEXT,
-  triggered_by TEXT NOT NULL CHECK (
-    triggered_by IN ('ai', 'system', 'admin')
-  ),
-
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
 -- ============================================================
--- INCIDENTS (MULTIPLE PER CLUSTER)
+-- INCIDENT RELATIONSHIPS (Cascading/correlated incidents)
 -- ============================================================
-
-CREATE TABLE IF NOT EXISTS incidents (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  cluster_id UUID NOT NULL REFERENCES clusters(id) ON DELETE CASCADE,
-
-  event_type TEXT NOT NULL CHECK (
-    event_type IN ('flood', 'landslide', 'fire', 'earthquake', 'power_outage', 'other')
-  ),
-
-  severity TEXT CHECK (severity IN ('low', 'medium', 'high')),
-  confidence_score NUMERIC CHECK (confidence_score BETWEEN 0 AND 1),
-
-  status TEXT NOT NULL CHECK (
-    status IN ('monitor', 'alert', 'suppress', 'resolved')
-  ),
-
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS incidents_cluster_idx ON incidents (cluster_id);
-CREATE INDEX IF NOT EXISTS incidents_status_idx ON incidents (status);
-
-CREATE TABLE IF NOT EXISTS incident_signals (
-  incident_id UUID NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
-  signal_id UUID NOT NULL REFERENCES signals(id) ON DELETE CASCADE,
-  PRIMARY KEY (incident_id, signal_id)
-);
 
 CREATE TABLE IF NOT EXISTS incident_relationships (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-  cluster_id UUID NOT NULL REFERENCES clusters(id) ON DELETE CASCADE,
   from_incident_id UUID NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
   to_incident_id UUID NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
 
@@ -209,6 +208,10 @@ CREATE TABLE IF NOT EXISTS incident_relationships (
   CHECK (from_incident_id <> to_incident_id)
 );
 
+-- ============================================================
+-- INCIDENT LIFECYCLE (Audit trail for status transitions)
+-- ============================================================
+
 CREATE TABLE IF NOT EXISTS incident_lifecycle (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
@@ -221,6 +224,7 @@ CREATE TABLE IF NOT EXISTS incident_lifecycle (
     triggered_by IN ('ai', 'system', 'admin')
   ),
 
+  changed_by TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -253,8 +257,7 @@ CREATE INDEX IF NOT EXISTS verifications_incident_idx
 CREATE TABLE IF NOT EXISTS ai_evaluations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-  cluster_id UUID REFERENCES clusters(id) ON DELETE CASCADE,
-  incident_id UUID REFERENCES incidents(id) ON DELETE CASCADE,
+  incident_id UUID NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
 
   model TEXT NOT NULL,
 
@@ -269,13 +272,7 @@ CREATE TABLE IF NOT EXISTS ai_evaluations (
   explanation TEXT,
   raw_response JSONB,
 
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-
-  CHECK (
-    (cluster_id IS NOT NULL AND incident_id IS NULL)
-    OR
-    (cluster_id IS NULL AND incident_id IS NOT NULL)
-  )
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ============================================================
@@ -321,31 +318,16 @@ CREATE TABLE IF NOT EXISTS notification_audit (
 );
 
 -- ============================================================
--- HELPER VIEW (OPTIONAL)
+-- AGENT TRACES (AI reasoning audit log)
 -- ============================================================
 
-CREATE OR REPLACE VIEW cluster_active_incidents AS
-SELECT
-  c.id AS cluster_id,
-  c.city,
-  c.status AS cluster_status,
-  COUNT(*) FILTER (WHERE i.status IN ('monitor', 'alert')) AS active_incidents,
-  COUNT(*) FILTER (WHERE i.status = 'alert') AS alert_incidents
-FROM clusters c
-JOIN incidents i ON i.cluster_id = c.id
-GROUP BY c.id;
-
--- ============================================================
--- AGENT TRACES (ADDED MANUALLY - KEEPING EXISTING)
--- ============================================================
 CREATE TABLE IF NOT EXISTS agent_traces (
-  id uuid default uuid_generate_v4() primary key,
-  session_id uuid not null,
-  cluster_id uuid,
-  incident_id uuid,
-  step text not null,
-  input_context jsonb,
-  output_result jsonb,
-  model_used text,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  session_id UUID NOT NULL,
+  incident_id UUID REFERENCES incidents(id) ON DELETE SET NULL,
+  step TEXT NOT NULL,
+  input_context JSONB,
+  output_result JSONB,
+  model_used TEXT,
+  created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );

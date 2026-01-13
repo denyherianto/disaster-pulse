@@ -23,10 +23,15 @@ export default function LiveMapSnippet() {
           </Link>
             </div>
 
-            <div className="w-full h-48 rounded-2xl border border-slate-200 map-pattern relative overflow-hidden mask-bottom bg-slate-50">
+            <div className="w-full h-48 rounded-2xl border border-slate-200 relative overflow-hidden mask-bottom bg-slate-50">
                 {/* Map Component */}
-                <div className="absolute inset-0 opacity-75 mix-blend-multiply">
-                    <IncidentMap />
+                <div className="absolute inset-0 opacity-100">
+                    <IncidentMap
+                        showFilter={false}
+                        interactive={false}
+                        defaultShowMyPlaces={true}
+                        zoomLevel={10}
+                    />
                 </div>
 
                 {/* Decorative Overlay Markers (Visual only, assuming Map has real markers too) */}

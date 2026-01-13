@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, BadRequestException, Patch } from '@nestjs/common';
+import { Controller, Get, Param, Query, BadRequestException, Patch, Post, Body } from '@nestjs/common';
 import { IncidentsService } from './incidents.service';
 
 @Controller('incidents')
@@ -45,8 +45,35 @@ export class IncidentsController {
   async findOne(@Param('id') id: string) {
     return this.incidentsService.getIncidentById(id);
   }
+
+  @Get(':id/signals')
+  async getSignals(@Param('id') id: string) {
+    return this.incidentsService.getIncidentSignals(id);
+  }
+
+  @Get(':id/lifecycle')
+  async getLifecycle(@Param('id') id: string) {
+    return this.incidentsService.getIncidentLifecycle(id);
+  }
+
   @Patch(':id/resolve')
   async resolve(@Param('id') id: string) {
     return this.incidentsService.resolveIncident(id);
+  }
+
+  @Post(':id/feedback')
+  async submitFeedback(
+    @Param('id') id: string,
+    @Body() body: { user_id: string; type: 'confirm' | 'reject' }
+  ) {
+    if (!body.user_id || !body.type) {
+      throw new BadRequestException('user_id and type are required');
+    }
+    return this.incidentsService.submitFeedback(id, body.user_id, body.type);
+  }
+
+  @Post('trigger-reprocessing')
+  async triggerReprocessing() {
+    return this.incidentsService.reprocessPendingSignals();
   }
 }

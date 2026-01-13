@@ -1,26 +1,43 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CloudRain, Zap, MapPin, SlidersHorizontal, Info, Database } from 'lucide-react';
+import { CloudRain, Zap, Flame, Mountain, MapPin, Database, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
 
 type FeedIncident = {
     id: string;
     type: string;
     city: string;
-    severity: string;
+    severity: 'low' | 'medium' | 'high';
     confidence: number;
     lat: number;
     lng: number;
     status: string;
+    created_at?: string;
 }
 
 import { API_BASE_URL } from '@/lib/config';
-
-// ...
-
 import { useZone } from '@/components/providers/ZoneProvider';
 
-// ...
+const getIncidentIcon = (type: string) => {
+    switch (type) {
+        case 'flood': return CloudRain;
+        case 'earthquake': return Zap;
+        case 'fire': return Flame;
+        case 'landslide': return Mountain;
+        default: return Zap;
+    }
+};
+
+const getIncidentColor = (type: string) => {
+    switch (type) {
+        case 'flood': return 'bg-blue-50 border-blue-100 text-blue-500';
+        case 'earthquake': return 'bg-amber-50 border-amber-100 text-amber-500';
+        case 'fire': return 'bg-red-50 border-red-100 text-red-500';
+        case 'landslide': return 'bg-orange-50 border-orange-100 text-orange-500';
+        default: return 'bg-slate-50 border-slate-100 text-slate-400';
+    }
+};
 
 export default function IncidentFeed() {
     const { selectedZone } = useZone();
@@ -40,101 +57,89 @@ export default function IncidentFeed() {
                 data = await res.json();
              }
 
-            // Sort by severity (High > Medium > Low)
+            // Filter to only show monitor and alert status
+            const filteredData = data.filter(inc => inc.status === 'monitor' || inc.status === 'alert');
+
+            // Sort by created_at (most recent first) then by severity
             const severityWeight: Record<string, number> = { 'high': 3, 'medium': 2, 'low': 1 };
-            return data.sort((a, b) => (severityWeight[b.severity] || 0) - (severityWeight[a.severity] || 0));
+            return filteredData
+                .sort((a, b) => {
+                    // Primary: status (alert > monitor)
+                    if (a.status === 'alert' && b.status !== 'alert') return -1;
+                    if (b.status === 'alert' && a.status !== 'alert') return 1;
+                    // Secondary: severity
+                    return (severityWeight[b.severity] || 0) - (severityWeight[a.severity] || 0);
+                })
+                .slice(0, 5); // Limit to 5 most recent
         }
     });
 
-    if (isLoading) return <div className="p-6 text-center text-slate-400 text-sm">Loading feed...</div>;
+    if (isLoading) return <div className="p-6 text-center text-slate-400 text-sm">Loading alerts...</div>;
     if (!incidents || incidents.length === 0) return (
          <div className="space-y-4 px-6 pb-24">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold tracking-tight text-slate-900">Recent Alerts</h3>
                 <Database className="text-slate-400" size={18} />
             </div>
-            <div className="p-6 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-2xl">No cached alerts.</div>
+            <div className="p-6 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-2xl">No active alerts.</div>
          </div>
     );
 
     return (
         <section className="mt-6 px-6">
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold tracking-tight text-slate-900">Nearby Incidents</h3>
-                <SlidersHorizontal className="text-slate-400" size={18} />
+                <h3 className="text-lg font-semibold tracking-tight text-slate-900">Recent Alerts</h3>
+                <Link href="/alerts" className="text-sm text-blue-600 font-medium flex items-center gap-1 hover:underline">
+                    View all
+                    <ChevronRight size={14} />
+                </Link>
             </div>
 
-            <div className="space-y-4">
-                {incidents?.map((inc, i) => (
-                    <div key={inc.id} className={`bg-white p-4 rounded-2xl border border-slate-200 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.02)] active:scale-[0.99] transition-transform duration-100 group ${i > 0 ? 'opacity-80' : ''}`}>
-                        <div className="flex items-start justify-between">
-                            <div className="flex gap-4">
-                                <div className={`mt-1 w-10 h-10 rounded-full border flex items-center justify-center shrink-0 ${inc.type === 'flood' ? 'bg-blue-50 border-blue-100 text-blue-500' : 'bg-slate-50 border-slate-100 text-slate-400'}`}>
-                                    {inc.type === 'flood' ? <CloudRain size={20}/> : <Zap size={20}/>}
-                                </div>
-                                <div>
-                                    <h4 className="text-base font-semibold text-slate-900 capitalize">{inc.type.replace('_', ' ')}</h4>
-                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-slate-500">
-                                        <span className="flex items-center gap-1">
-                                            <MapPin size={12} />
-                                            {inc.city || '3.2 mi'}
-                                        </span>
-                                        <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                        <span>24m ago</span>
-                                    </div>
-                                </div>
-                            </div>
-                            {/* Actions */}
-                            <div className="flex flex-col items-end gap-2">
-                                {i === 0 && (
-                                    <span className="bg-slate-100 text-slate-600 text-xs font-medium px-2 py-0.5 rounded-full">Verified</span>
-                                )}
-                                <button
-                                    onClick={async (e) => {
-                                        e.stopPropagation();
-                                        if (!confirm('Mark this incident as resolved?')) return;
-                                        await fetch(`${API_BASE_URL}/incidents/${inc.id}/resolve`, { method: 'PATCH' });
-                                        queryClient.invalidateQueries({ queryKey: ['feed-incidents'] });
-                                    }}
-                                    className="text-xs text-slate-400 hover:text-red-500 underline decoration-dotted transition-colors"
-                                >
-                                    Dismiss
-                                </button>
-                            </div>
-                        </div>
-                        
-                        {/* Trust/Confidence Indicator */}
-                        {i === 0 ? (
-                            <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <div className="flex -space-x-2">
-                                        <div className="w-6 h-6 rounded-full bg-slate-200 border-2 border-white"></div>
-                                        <div className="w-6 h-6 rounded-full bg-slate-300 border-2 border-white"></div>
-                                    </div>
-                                    <span className="text-xs text-slate-400">Confirmed by 5 locals</span>
-                                </div>
-                                <div className="flex items-center gap-1 text-xs text-blue-600 font-medium cursor-pointer">
-                                    Explain
-                                    <Info size={12} />
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="mt-3 flex items-center gap-2">
-                                <div className="h-1.5 w-16 bg-slate-100 rounded-full overflow-hidden">
-                                    <div className="h-full bg-slate-300 w-[40%] rounded-full"></div>
-                                </div>
-                                <span className="text-xs text-slate-400 font-medium">Low Confidence</span>
-                            </div>
-                        )}
-                    </div>
-                ))}
+            <div className="space-y-3">
+                {incidents?.map((inc) => {
+                    const IconComponent = getIncidentIcon(inc.type);
+                    const colorClasses = getIncidentColor(inc.type);
 
-                {/* All Clear Break */}
-                <div className="py-4 flex items-center gap-4">
-                    <div className="h-px bg-slate-200 flex-1"></div>
-                    <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">Everything else looks good</span>
-                    <div className="h-px bg-slate-200 flex-1"></div>
-                </div>
+                    return (
+                        <Link key={inc.id} href={`/incidents/${inc.id}`}>
+                            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm active:scale-[0.99] transition-transform cursor-pointer hover:border-slate-300">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex gap-3 items-center">
+                                        <div className={`w-10 h-10 rounded-full border flex items-center justify-center shrink-0 ${colorClasses}`}>
+                                            <IconComponent size={18} />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h4 className="text-base font-semibold text-slate-900 capitalize">{inc.type.replace('_', ' ')}</h4>
+                                                {inc.status === 'alert' && (
+                                                    <span className="bg-red-100 text-red-600 text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase">Alert</span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-0.5 text-sm text-slate-500">
+                                                <MapPin size={12} />
+                                                <span>{inc.city || 'Unknown location'}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="text-slate-300" size={20} />
+                                </div>
+
+                                {/* Confidence indicator */}
+                                <div className="mt-3 flex items-center gap-2">
+                                    <div className="h-1.5 flex-1 bg-slate-100 rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full ${inc.confidence >= 0.7 ? 'bg-green-400' : inc.confidence >= 0.4 ? 'bg-amber-400' : 'bg-slate-300'}`}
+                                            style={{ width: `${(inc.confidence || 0.3) * 100}%` }}
+                                        />
+                                    </div>
+                                    <span className="text-xs text-slate-400 font-medium w-16 text-right">
+                                        {inc.confidence >= 0.7 ? 'High' : inc.confidence >= 0.4 ? 'Medium' : 'Low'}
+                                    </span>
+                                </div>
+                            </div>
+                        </Link>
+                    );
+                })}
             </div>
         </section>
     );

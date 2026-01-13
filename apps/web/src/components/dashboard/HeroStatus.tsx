@@ -2,30 +2,29 @@
 
 import { useState } from 'react';
 import { Card } from '@/components/ui/components';
-import { AlertCircle, ChevronRight, Users, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, ChevronRight, Users, ChevronDown, CheckCircle2, Activity } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 
 type HeroIncident = {
     id: string;
     type: string;
     city: string;
-    severity: string;
+    severity: 'low' | 'medium' | 'high';
     status: string;
+    confidence: number;
+    signal_count?: number;
 }
 
 import { API_BASE_URL } from '@/lib/config';
-
-// ...
-
 import { useZone } from '@/components/providers/ZoneProvider';
-
-// ...
 
 export default function HeroStatus() {
     const { selectedZone } = useZone();
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [isVerified, setIsVerified] = useState(false);
+    // const [isExpanded, setIsExpanded] = useState(false); // Removed
+    // const [isVerified, setIsVerified] = useState(false); // Removed
     const [currentIndex, setCurrentIndex] = useState(0);
+    const router = useRouter(); // Moved hook to top level
 
     // Fetch incidents
     const { data: incidents = [], isLoading } = useQuery({
@@ -72,11 +71,7 @@ export default function HeroStatus() {
         </section>
     );
 
-    const handleVerify = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setIsVerified(true);
-        setTimeout(() => setIsVerified(false), 3000);
-    };
+    // handleVerify removed
 
     const nextIncident = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -89,6 +84,9 @@ export default function HeroStatus() {
         if (currentIndex > 0) setCurrentIndex(prev => prev - 1);
         else setCurrentIndex(total - 1); // Loop
     };
+
+    // Navigate on click
+    // const router = useRouter(); // Moved to top
 
     return (
         <section className="px-6 pb-2 relative">
@@ -119,7 +117,7 @@ export default function HeroStatus() {
                         </button>
                     </div>
                 )}
-                </div>
+            </div>
 
             {/* Card Stack Wrapper */}
             <div className="relative">
@@ -132,10 +130,10 @@ export default function HeroStatus() {
                 )}
 
                 <div
-                    onClick={() => setIsExpanded(!isExpanded)}
-                    className="relative bg-white rounded-3xl p-6 shadow-sm border border-slate-200 overflow-hidden group z-10 transition-all duration-300 cursor-pointer"
+                    onClick={() => router.push(`/incidents/${currentIncident.id}`)}
+                    className="relative bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden group z-10 transition-all duration-300 cursor-pointer active:scale-[0.99]"
                 >
-                    <div className="relative z-10">
+                    <div className="relative z-10 p-6 pb-4">
                         <div className="flex items-center gap-2 mb-3">
                             <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-600">
                                 <AlertCircle size={14} />
@@ -151,47 +149,27 @@ export default function HeroStatus() {
                         <p className="text-slate-500 leading-relaxed text-base">
                             Reported near <span className="text-slate-900 font-medium">{currentIncident.city}</span>.
                         </p>
+                    </div>
 
-                        {/* Expandable Actions */}
-                        <div className={`grid transition-all duration-300 ease-in-out ${isExpanded ? 'grid-rows-[1fr] mt-4 opacity-100' : 'grid-rows-[0fr] mt-0 opacity-0'}`}>
-                            <div className="overflow-hidden">
-                                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 text-sm text-slate-600">
-                                    <h4 className="font-semibold text-slate-900 mb-2">Recommended Actions</h4>
-                                    <ul className="list-disc list-inside space-y-1 ml-1">
-                                        <li>Stay indoors using safe room procedures.</li>
-                                        <li>Monitor local radio for updates.</li>
-                                        <li>Prepare emergency kit.</li>
-                                    </ul>
-
-                                    <div className="mt-4 pt-3 border-t border-slate-200 flex justify-end">
-                                        <button
-                                            onClick={handleVerify}
-                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${isVerified
-                                                ? 'bg-green-100 text-green-700'
-                                                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
-                                                }`}
-                                        >
-                                            {isVerified ? (
-                                                <>
-                                                    <CheckCircle2 size={12} />
-                                                    Verified
-                                                </>
-                                            ) : (
-                                                'Verify Incident'
-                                            )}
-                                        </button>
-                                    </div>
-                                </div>
+                    {/* Metrics Bar */}
+                    <div className="bg-slate-50/50 px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+                        <div className="flex gap-4 text-xs text-slate-500">
+                            <div title="Confidence Score" className="flex items-center gap-1">
+                                <Activity size={12} className={currentIncident.confidence > 0.7 ? 'text-green-500' : 'text-slate-400'} />
+                                <span className="font-medium">{Math.round(currentIncident.confidence * 100)}%</span>
+                            </div>
+                            <div title="Severity" className="flex items-center gap-1">
+                                <div className={`w-1.5 h-1.5 rounded-full ${currentIncident.severity === 'high' ? 'bg-red-500' : currentIncident.severity === 'medium' ? 'bg-amber-500' : 'bg-green-500'}`} />
+                                <span className="capitalize">{currentIncident.severity}</span>
+                            </div>
+                            <div title="User Reports" className="flex items-center gap-1">
+                                <span className="font-semibold text-slate-900">{currentIncident.signal_count}</span>
+                                <span>Reports</span>
                             </div>
                         </div>
 
-                        {/* Accordion Toggle */}
-                        <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <span className="text-sm font-medium text-slate-700">Offline Procedures</span>
-                                <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">Downloaded</span>
-                            </div>
-                            {isExpanded ? <ChevronDown className="text-slate-400" size={18} /> : <ChevronRight className="text-slate-400" size={18} />}
+                        <div className="flex items-center gap-1 text-[10px] font-medium text-blue-600 uppercase tracking-widest">
+                            Details <ChevronRight size={12} />
                         </div>
                     </div>
                 </div>

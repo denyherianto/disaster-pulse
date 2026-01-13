@@ -22,7 +22,7 @@ export class ReasoningService {
   async runReasoningLoop(
     signals: { source: string; text: string; created_at: string }[],
     existingIncidents: { id: string; type: string; city: string }[],
-    clusterId?: string
+    incidentId?: string
   ) {
     const sessionId = crypto.randomUUID();
     this.logger.log(`Starting Reasoning Session ${sessionId} for ${signals.length} signals`);
@@ -30,23 +30,23 @@ export class ReasoningService {
     try {
       // 1. Observer
       const { result: observation, trace: t1 } = await this.observer.run({ signals });
-      await this.saveTrace(sessionId, t1, clusterId);
+      await this.saveTrace(sessionId, t1, incidentId);
 
       // 2. Classifier
       const { result: hypotheses, trace: t2 } = await this.classifier.run(observation);
-      await this.saveTrace(sessionId, t2, clusterId);
+      await this.saveTrace(sessionId, t2, incidentId);
 
       // 3. Skeptic
       const { result: critique, trace: t3 } = await this.skeptic.run({ observations: observation, hypotheses });
-      await this.saveTrace(sessionId, t3, clusterId);
+      await this.saveTrace(sessionId, t3, incidentId);
 
       // 4. Synthesizer
       const { result: conclusion, trace: t4 } = await this.synthesizer.run({ observations: observation, hypotheses, critique });
-      await this.saveTrace(sessionId, t4, clusterId);
+      await this.saveTrace(sessionId, t4, incidentId);
 
       // 5. Action
       const { result: decision, trace: t5 } = await this.action.run({ conclusion, existingIncidents });
-      await this.saveTrace(sessionId, t5, clusterId);
+      await this.saveTrace(sessionId, t5, incidentId);
 
       return {
         conclusion,
@@ -60,11 +60,11 @@ export class ReasoningService {
     }
   }
 
-  private async saveTrace(sessionId: string, trace: any, clusterId?: string) {
+  private async saveTrace(sessionId: string, trace: any, incidentId?: string) {
     // Fire and forget trace logging
     (this.supabase.getClient().from('agent_traces') as any).insert({
       session_id: sessionId,
-      cluster_id: clusterId,
+      incident_id: incidentId,
       step: trace.step,
       input_context: trace.input,
       output_result: trace.output,

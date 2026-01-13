@@ -7,9 +7,13 @@ import { AppService } from './app.service';
 import { SignalsModule } from './signals/signals.module';
 import { UserPlacesModule } from './user-places/user-places.module';
 import { IncidentsModule } from './incidents/incidents.module';
-import { ClusterModule } from './cluster/cluster.module';
 import { ReasoningModule } from './reasoning/reasoning.module';
 import { DatabaseModule } from './database/database.module';
+import { TiktokModule } from './sources/tiktok/tiktok.module';
+import { RssModule } from './sources/rss/rss.module';
+import { ReportsModule } from './sources/reports/reports.module';
+import { GuidesModule } from './guides/guides.module';
+import { EmergencyContactsModule } from './emergency-contacts/emergency-contacts.module';
 
 @Module({
   imports: [
@@ -19,9 +23,13 @@ import { DatabaseModule } from './database/database.module';
     SignalsModule,
     UserPlacesModule,
     IncidentsModule,
-    ClusterModule,
     ReasoningModule,
     DatabaseModule,
+    TiktokModule,
+    RssModule,
+    ReportsModule,
+    GuidesModule,
+    EmergencyContactsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

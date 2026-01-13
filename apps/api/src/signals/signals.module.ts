@@ -8,6 +8,7 @@ import { ReasoningModule } from '../reasoning/reasoning.module';
 @Module({
   imports: [QueueModule, ReasoningModule],
   controllers: [SignalsController],
-  providers: [SignalsService]
+  providers: [SignalsService],
+  exports: [SignalsService]
 })
 export class SignalsModule {}

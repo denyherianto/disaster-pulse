@@ -50,6 +50,19 @@ CREATE TABLE user_place_preferences (
 );
 
 -- ============================================================
+-- RAW TIKTOK LOG (DEDUPLICATION)
+-- ============================================================
+
+CREATE TABLE tiktok_posts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tiktok_id TEXT NOT NULL UNIQUE,
+  author TEXT,
+  text TEXT,
+  raw_data JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ============================================================
 -- RAW SIGNAL INGESTION
 -- ============================================================
 
@@ -57,19 +70,20 @@ CREATE TABLE signals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
   source TEXT NOT NULL CHECK (
-    source IN ('user_report', 'social_media', 'news', 'sensor')
+    source IN ('user_report', 'social_media', 'news', 'sensor', 'tiktok_ai')
   ),
 
   text TEXT,
 
-  lat DOUBLE PRECISION NOT NULL,
-  lng DOUBLE PRECISION NOT NULL,
+  lat DOUBLE PRECISION,
+  lng DOUBLE PRECISION,
   geom GEOGRAPHY(POINT, 4326)
-    GENERATED ALWAYS AS (ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography) STORED,
+    GENERATED ALWAYS AS (CASE WHEN lat IS NOT NULL AND lng IS NOT NULL THEN ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography ELSE NULL END) STORED,
 
   media_url TEXT,
   media_type TEXT CHECK (media_type IN ('image', 'video')),
 
+  event_type TEXT,
   city_hint TEXT,
   happened_at TIMESTAMPTZ DEFAULT now(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),

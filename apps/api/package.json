@@ -30,6 +30,7 @@
     "@nestjs/schedule": "^6.1.0",
     "@supabase/supabase-js": "^2.89.0",
     "@types/pg": "^8.16.0",
+    "axios": "^1.13.2",
     "bull": "^4.16.5",
     "date-fns": "^4.1.0",
     "openai": "^6.15.0",

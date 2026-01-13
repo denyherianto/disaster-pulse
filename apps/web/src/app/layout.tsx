@@ -7,7 +7,7 @@ import Providers from './providers';
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "Vigilant | Disaster Pulse",
+  title: "Disaster Pulse",
   description: "Calm, verified disaster intelligence.",
 };
 

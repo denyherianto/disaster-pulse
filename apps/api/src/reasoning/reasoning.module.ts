@@ -9,6 +9,9 @@ import { SkepticAgent } from './agents/skeptic.agent';
 import { SynthesizerAgent } from './agents/synthesizer.agent';
 import { ActionAgent } from './agents/action.agent';
 import { SignalSeverityAgent } from './agents/signal-severity.agent';
+import { VideoAnalysisAgent } from './agents/video-analysis.agent';
+import { NewsAnalysisAgent } from './agents/news-analysis.agent';
+import { IncidentResolutionAgent } from './agents/incident-resolution.agent';
 
 @Module({
   imports: [ConfigModule, SupabaseModule],
@@ -20,6 +23,9 @@ import { SignalSeverityAgent } from './agents/signal-severity.agent';
     SynthesizerAgent,
     ActionAgent,
     SignalSeverityAgent,
+    VideoAnalysisAgent,
+    NewsAnalysisAgent,
+    IncidentResolutionAgent,
     {
       provide: OpenAI,
       useFactory: (configService: ConfigService) => new OpenAI({
@@ -29,6 +35,6 @@ import { SignalSeverityAgent } from './agents/signal-severity.agent';
       inject: [ConfigService],
     }
   ],
-  exports: [ReasoningService, SignalSeverityAgent],
+  exports: [ReasoningService, SignalSeverityAgent, VideoAnalysisAgent, NewsAnalysisAgent, IncidentResolutionAgent],
 })
 export class ReasoningModule {}

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { API_BASE_URL } from '@/lib/config';
 
 // Mock User ID for MVP
@@ -38,6 +39,7 @@ const ZoneContext = createContext<ZoneContextType>({
 export const useZone = () => useContext(ZoneContext);
 
 export default function ZoneProvider({ children }: { children: React.ReactNode }) {
+    const router = useRouter();
     // 1. Fetch Zones
     const { data: zones = [], isLoading } = useQuery({
         queryKey: ['user-zones', TIM_USER_ID],
@@ -90,7 +92,11 @@ export default function ZoneProvider({ children }: { children: React.ReactNode }
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...payload, user_id: TIM_USER_ID })
             });
-            if (!res.ok) throw new Error('Failed to create zone');
+            if (!res.ok) {
+                const err = await res.json();
+                console.error('Create Zone Failed', err);
+                throw new Error(err.message || 'Failed to create zone');
+            }
             // Invalidate/Refetch
             // For MVP simpler to just reload page or rely on react-query invalidation if we had access to queryClient here.
             // But we can just use window.location.reload() for now or assume parent re-renders if we used queryClient.invalidate.
@@ -108,8 +114,12 @@ export default function ZoneProvider({ children }: { children: React.ReactNode }
                 method: 'DELETE',
             });
             if (!res.ok) throw new Error('Failed to delete zone');
-             if (selectedZoneId === id) setSelectedZoneId(null);
-             window.location.reload();
+            if (selectedZoneId === id) {
+                setSelectedZoneId(null);
+                router.push('/'); // Fallback to Home
+            } else {
+                window.location.reload();
+            }
         } catch (error) {
             console.error(error);
         }
