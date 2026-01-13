@@ -14,6 +14,7 @@ type FeedIncident = {
     lng: number;
     status: string;
     created_at?: string;
+    updated_at?: string;
 }
 
 import { API_BASE_URL } from '@/lib/config';
@@ -61,18 +62,16 @@ export default function IncidentFeed() {
                 data = await res.json();
              }
 
-            // Filter to only show monitor and alert status
-            const filteredData = data.filter(inc => inc.status === 'monitor' || inc.status === 'alert');
+            // Filter to only show monitor, alert, and resolved status
+            const filteredData = data.filter(inc => ['monitor', 'alert', 'resolved'].includes(inc.status));
 
-            // Sort by created_at (most recent first) then by severity
-            const severityWeight: Record<string, number> = { 'high': 3, 'medium': 2, 'low': 1 };
+            // Sort by updated_at/created_at (most recent activity first)
+            // This ensures recently resolved incidents show up
             return filteredData
                 .sort((a, b) => {
-                    // Primary: status (alert > monitor)
-                    if (a.status === 'alert' && b.status !== 'alert') return -1;
-                    if (b.status === 'alert' && a.status !== 'alert') return 1;
-                    // Secondary: severity
-                    return (severityWeight[b.severity] || 0) - (severityWeight[a.severity] || 0);
+                    const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
+                    const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
+                    return timeB - timeA;
                 })
                 .slice(0, 5); // Limit to 5 most recent
         }
@@ -117,6 +116,9 @@ export default function IncidentFeed() {
                                                 <h4 className="text-base font-semibold text-slate-900 capitalize">{inc.type.replace('_', ' ')}</h4>
                                                 {inc.status === 'alert' && (
                                                     <span className="bg-red-100 text-red-600 text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase">{t('incidentFeed.alert')}</span>
+                                                )}
+                                                {inc.status === 'resolved' && (
+                                                    <span className="bg-slate-100 text-slate-600 text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase">Resolved</span>
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2 mt-0.5 text-sm text-slate-500">

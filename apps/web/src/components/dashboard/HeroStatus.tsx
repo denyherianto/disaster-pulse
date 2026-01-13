@@ -54,20 +54,26 @@ export default function HeroStatus() {
 
     // Fetch incidents
     const { data: incidents = [], isLoading } = useQuery({
-        queryKey: ['hero-incident', selectedZone?.id],
+        queryKey: ['hero-incident', selectedZone?.id, 'v2'],
         queryFn: async () => {
             if (selectedZone) {
                 // Use new Nearby Endpoint
                 const res = await fetch(`${API_BASE_URL}/incidents/nearby?lat=${selectedZone.lat}&lng=${selectedZone.lng}&radius=${selectedZone.radius_m}`);
                 if (!res.ok) throw new Error("Failed to fetch nearby");
-                return res.json() as Promise<HeroIncident[]>;
+                const data = await res.json() as HeroIncident[];
+                console.log('Hero Data Raw:', data);
+                return data.filter(i => ['monitor', 'alert'].includes(i.status.toLowerCase())); 
             } else {
                 // Global fallback (viewport centered at 0,0 default or Jakarta)
                 const res = await fetch(`${API_BASE_URL}/incidents/map?minLat=-90&maxLat=90&minLng=-180&maxLng=180`);
                 if (!res.ok) throw new Error("Failed to fetch hero");
                 const all = await res.json() as HeroIncident[];
-            // Sort by severity (high > medium > low)
-                return all.filter(i => i.severity === 'high').concat(all.filter(i => i.severity !== 'high'));
+                console.log('Hero Data Global Raw:', all);
+                // Filter: Only active (monitor/alert)
+                const active = all.filter(i => ['monitor', 'alert'].includes(i.status.toLowerCase()));
+
+                // Sort by severity (high > medium > low)
+                return active.filter(i => i.severity === 'high').concat(active.filter(i => i.severity !== 'high'));
             }
         },
         enabled: true 

@@ -478,6 +478,8 @@ export class IncidentsService {
         event_type,
         confidence_score,
         city,
+        created_at,
+        updated_at,
         incident_signals!inner (
           signals!inner (
             lat,
@@ -489,7 +491,7 @@ export class IncidentsService {
             type
         )
       `)
-      .in('status', ['alert', 'monitor']);
+      .in('status', ['alert', 'monitor', 'resolved']);
 
     if (error) {
       console.error('Map API Error:', error);
@@ -514,6 +516,8 @@ export class IncidentsService {
         lng: avgLng,
         city: inc.city,
         status: inc.status,
+        created_at: inc.created_at,
+        updated_at: inc.updated_at,
         signal_count: sigs.length,
         user_feedback: inc.incident_feedback || []
       };
@@ -536,6 +540,8 @@ export class IncidentsService {
         event_type,
         confidence_score,
         city,
+        created_at,
+        updated_at,
         incident_signals!inner (
           signals!inner (lat, lng)
         ),
@@ -544,7 +550,7 @@ export class IncidentsService {
             type
         )
       `)
-      .in('status', ['alert', 'monitor']);
+      .in('status', ['alert', 'monitor', 'resolved']);
 
     if (error) {
       throw new InternalServerErrorException('Failed to fetch incidents');
@@ -565,6 +571,8 @@ export class IncidentsService {
         confidence: inc.confidence_score,
         city: inc.city,
         status: inc.status,
+        created_at: inc.created_at,
+        updated_at: inc.updated_at,
         lat: avgLat,
         lng: avgLng,
         distance: 0,

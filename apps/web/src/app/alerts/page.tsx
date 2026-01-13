@@ -19,6 +19,7 @@ type AlertIncident = {
     lng: number;
     status: string;
     created_at?: string;
+    updated_at?: string;
 }
 
 const DISASTER_TYPES = ['all', 'flood', 'earthquake', 'fire', 'landslide', 'power_outage'];
@@ -73,17 +74,16 @@ export default function AlertsPage() {
             const allData: AlertIncident[] = await res.json();
 
             // Filter by status and type
-            let filtered = allData.filter(inc => inc.status === 'monitor' || inc.status === 'alert');
+            let filtered = allData.filter(inc => ['monitor', 'alert', 'resolved'].includes(inc.status));
             if (typeFilter !== 'all') {
                 filtered = filtered.filter(inc => inc.type === typeFilter);
             }
 
-            // Sort by status (alert first) then severity
-            const severityWeight: Record<string, number> = { 'high': 3, 'medium': 2, 'low': 1 };
+            // Sort by updated_at (Recent Activity)
             filtered.sort((a, b) => {
-                if (a.status === 'alert' && b.status !== 'alert') return -1;
-                if (b.status === 'alert' && a.status !== 'alert') return 1;
-                return (severityWeight[b.severity] || 0) - (severityWeight[a.severity] || 0);
+                const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
+                const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
+                return timeB - timeA;
             });
 
             // Paginate
@@ -217,6 +217,9 @@ export default function AlertsPage() {
                                                             <h4 className="text-base font-semibold text-slate-900 capitalize">{getDisasterLabel(inc.type)}</h4>
                                                             {inc.status === 'alert' && (
                                                                 <span className="bg-red-100 text-red-600 text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase">{t('incidentFeed.alert')}</span>
+                                                            )}
+                                                            {inc.status === 'resolved' && (
+                                                                <span className="bg-slate-100 text-slate-600 text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase">Resolved</span>
                                                             )}
                                                         </div>
                                                         <div className="flex items-center gap-2 mt-0.5 text-sm text-slate-500">

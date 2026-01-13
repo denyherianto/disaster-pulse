@@ -209,7 +209,9 @@ export default function IncidentMap({
                                     <span className="text-slate-500 mb-2 block">{inc.city}</span>
 
                                     <div className="flex gap-2">
-                                        <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${inc.status === 'alert' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${inc.status === 'alert' ? 'bg-red-100 text-red-700' :
+                                                inc.status === 'resolved' ? 'bg-slate-100 text-slate-600' :
+                                                    'bg-amber-100 text-amber-700'
                                             }`}>
                                             {inc.status}
                                         </span>
