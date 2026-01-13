@@ -1,19 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CloudRain, Zap, Flame, Mountain, ChevronLeft, Download, ChevronRight, BookOpen } from 'lucide-react';
+import { CloudRain, Zap, Flame, Mountain, ChevronLeft, Download, ChevronRight, BookOpen, Filter } from 'lucide-react';
 import Link from 'next/link';
 import BottomNav from '@/components/navigation/BottomNav';
 import { API_BASE_URL } from '@/lib/config';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
-const DISASTER_TYPES = [
-    { id: 'all', label: 'All', icon: BookOpen },
-    { id: 'flood', label: 'Flood', icon: CloudRain },
-    { id: 'earthquake', label: 'Earthquake', icon: Zap },
-    { id: 'fire', label: 'Fire', icon: Flame },
-    { id: 'landslide', label: 'Landslide', icon: Mountain },
-];
 
 // Mock guides data (would come from API)
 const mockGuides = [
@@ -75,14 +69,25 @@ const getColorByType = (type: string) => {
 };
 
 export default function GuidesPage() {
+    const { t } = useLanguage();
     const [typeFilter, setTypeFilter] = useState('all');
+    const [showFilters, setShowFilters] = useState(false);
+
+
+    const DISASTER_TYPES = useMemo(() => [
+        { id: 'all', label: t('common.disasterTypes.all'), icon: BookOpen },
+        { id: 'flood', label: t('common.disasterTypes.flood'), icon: CloudRain },
+        { id: 'earthquake', label: t('common.disasterTypes.earthquake'), icon: Zap },
+        { id: 'fire', label: t('common.disasterTypes.fire'), icon: Flame },
+        { id: 'landslide', label: t('common.disasterTypes.landslide'), icon: Mountain },
+    ], [t]);
 
     // Fetch guides from API
     const { data: guides = mockGuides, isLoading } = useQuery({
         queryKey: ['guides', typeFilter],
         queryFn: async () => {
-            const url = typeFilter === 'all' 
-                ? `${API_BASE_URL}/guides` 
+            const url = typeFilter === 'all'
+                ? `${API_BASE_URL}/guides`
                 : `${API_BASE_URL}/guides?type=${typeFilter}`;
             const res = await fetch(url);
             if (!res.ok) return mockGuides; // Fallback to mock data
@@ -90,8 +95,8 @@ export default function GuidesPage() {
         },
     });
 
-    const filteredGuides = typeFilter === 'all' 
-        ? guides 
+    const filteredGuides = typeFilter === 'all'
+        ? guides
         : guides.filter((g: any) => g.disaster_type === typeFilter);
 
     return (
@@ -99,34 +104,42 @@ export default function GuidesPage() {
             {/* Header */}
             <div className="shrink-0 bg-white z-20 relative border-b border-slate-100">
                 <div className="px-6 py-4">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between">
                         <Link href="/" className="p-2 -ml-2 text-slate-600 hover:text-slate-900">
                             <ChevronLeft size={20} />
                         </Link>
-                        <h1 className="text-lg font-semibold text-slate-900">Safety Guides</h1>
-                        <div className="w-8" />
+                        <h1 className="text-lg font-semibold text-slate-900">{t('guides.title')}</h1>
+                        <button
+                            onClick={() => setShowFilters(!showFilters)}
+                            className={`p-2 -mr-2 transition-colors ${showFilters ? 'text-blue-600' : 'text-slate-600 hover:text-slate-900'}`}
+                        >
+                            <Filter size={20} />
+                        </button>
                     </div>
 
-                    {/* Type Filter */}
-                    <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-6 px-6 pb-2">
-                        {DISASTER_TYPES.map(type => {
-                            const IconComponent = type.icon;
-                            return (
-                                <button
-                                    key={type.id}
-                                    onClick={() => setTypeFilter(type.id)}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                                        typeFilter === type.id 
-                                            ? 'bg-slate-900 text-white' 
-                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                    }`}
-                                >
-                                    <IconComponent size={16} />
-                                    {type.label}
-                                </button>
-                            );
-                        })}
-                    </div>
+                    {/* Filter Panel */}
+                    {showFilters && (
+                        <div className="mt-4 pb-2">
+                            <div className="flex flex-wrap gap-2">
+                                {DISASTER_TYPES.map(type => {
+                                    const IconComponent = type.icon;
+                                    return (
+                                        <button
+                                            key={type.id}
+                                            onClick={() => setTypeFilter(type.id)}
+                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${typeFilter === type.id
+                                                ? 'bg-slate-900 text-white'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                                }`}
+                                        >
+                                            <IconComponent size={14} />
+                                            {type.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -134,10 +147,10 @@ export default function GuidesPage() {
             <div className="flex-1 overflow-y-auto no-scrollbar bg-slate-50 pb-24">
                 <div className="px-6 py-4">
                     {isLoading ? (
-                        <div className="text-center text-slate-400 text-sm py-12">Loading guides...</div>
+                        <div className="text-center text-slate-400 text-sm py-12">{t('guides.loading')}</div>
                     ) : filteredGuides.length === 0 ? (
                         <div className="text-center text-slate-400 text-sm py-12 border border-dashed border-slate-200 rounded-2xl">
-                            No guides found for this category.
+                                {t('guides.empty')}
                         </div>
                     ) : (
                         <div className="space-y-3">

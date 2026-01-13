@@ -18,6 +18,9 @@ type FeedIncident = {
 
 import { API_BASE_URL } from '@/lib/config';
 import { useZone } from '@/components/providers/ZoneProvider';
+import { useLanguage } from '@/components/providers/LanguageProvider';
+
+// ... (helper functions getIncidentIcon, getIncidentColor unchanged)
 
 const getIncidentIcon = (type: string) => {
     switch (type) {
@@ -42,6 +45,7 @@ const getIncidentColor = (type: string) => {
 export default function IncidentFeed() {
     const { selectedZone } = useZone();
     const queryClient = useQueryClient();
+    const { t } = useLanguage();
 
     const { data: incidents, isLoading } = useQuery({
         queryKey: ['feed-incidents', selectedZone?.id],
@@ -74,23 +78,23 @@ export default function IncidentFeed() {
         }
     });
 
-    if (isLoading) return <div className="p-6 text-center text-slate-400 text-sm">Loading alerts...</div>;
+    if (isLoading) return <div className="p-6 text-center text-slate-400 text-sm">{t('common.loading')}</div>;
     if (!incidents || incidents.length === 0) return (
          <div className="space-y-4 px-6 pb-24">
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold tracking-tight text-slate-900">Recent Alerts</h3>
+                <h3 className="text-lg font-semibold tracking-tight text-slate-900">{t('dashboard.recentAlerts')}</h3>
                 <Database className="text-slate-400" size={18} />
             </div>
-            <div className="p-6 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-2xl">No active alerts.</div>
+            <div className="p-6 text-center text-slate-400 text-sm border border-dashed border-slate-200 rounded-2xl">{t('incidentFeed.empty')}</div>
          </div>
     );
 
     return (
         <section className="mt-6 px-6">
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold tracking-tight text-slate-900">Recent Alerts</h3>
+                <h3 className="text-lg font-semibold tracking-tight text-slate-900">{t('dashboard.recentAlerts')}</h3>
                 <Link href="/alerts" className="text-sm text-blue-600 font-medium flex items-center gap-1 hover:underline">
-                    View all
+                    {t('incidentFeed.viewAll')}
                     <ChevronRight size={14} />
                 </Link>
             </div>
@@ -112,12 +116,12 @@ export default function IncidentFeed() {
                                             <div className="flex items-center gap-2">
                                                 <h4 className="text-base font-semibold text-slate-900 capitalize">{inc.type.replace('_', ' ')}</h4>
                                                 {inc.status === 'alert' && (
-                                                    <span className="bg-red-100 text-red-600 text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase">Alert</span>
+                                                    <span className="bg-red-100 text-red-600 text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase">{t('incidentFeed.alert')}</span>
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2 mt-0.5 text-sm text-slate-500">
                                                 <MapPin size={12} />
-                                                <span>{inc.city || 'Unknown location'}</span>
+                                                <span>{inc.city || t('incidentFeed.unknownLocation')}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -133,7 +137,7 @@ export default function IncidentFeed() {
                                         />
                                     </div>
                                     <span className="text-xs text-slate-400 font-medium w-16 text-right">
-                                        {inc.confidence >= 0.7 ? 'High' : inc.confidence >= 0.4 ? 'Medium' : 'Low'}
+                                        {inc.confidence >= 0.7 ? t('incidentFeed.confidence.high') : inc.confidence >= 0.4 ? t('incidentFeed.confidence.medium') : t('incidentFeed.confidence.low')}
                                     </span>
                                 </div>
                             </div>

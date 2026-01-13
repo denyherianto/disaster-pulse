@@ -7,6 +7,7 @@ import Link from 'next/link';
 import BottomNav from '@/components/navigation/BottomNav';
 import { API_BASE_URL } from '@/lib/config';
 import { useZone } from '@/components/providers/ZoneProvider';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 type AlertIncident = {
     id: string;
@@ -43,10 +44,13 @@ const getIncidentColor = (type: string) => {
 };
 
 export default function AlertsPage() {
+    const { t } = useLanguage();
     const { zones, selectedZone, setSelectedZoneId } = useZone();
     const [typeFilter, setTypeFilter] = useState('all');
     const [showFilters, setShowFilters] = useState(false);
     const observerRef = useRef<HTMLDivElement>(null);
+
+    // ... (useInfiniteQuery logic remains same)
 
     const {
         data,
@@ -55,6 +59,7 @@ export default function AlertsPage() {
         isFetchingNextPage,
         isLoading,
     } = useInfiniteQuery({
+        // ... same config
         queryKey: ['alerts', selectedZone?.id, typeFilter],
         queryFn: async ({ pageParam = 0 }) => {
             let url = `${API_BASE_URL}/incidents/map?minLat=-90&maxLat=90&minLng=-180&maxLng=180`;
@@ -94,8 +99,10 @@ export default function AlertsPage() {
         getNextPageParam: (lastPage) => lastPage.nextCursor,
         initialPageParam: 0,
     });
-
-    // Infinite scroll observer
+    
+    // ... (observer logic remains same)
+    
+     // Infinite scroll observer
     const lastItemRef = useCallback((node: HTMLDivElement | null) => {
         if (isFetchingNextPage) return;
         if (observerRef.current) return;
@@ -111,6 +118,11 @@ export default function AlertsPage() {
 
     const allIncidents = data?.pages.flatMap(page => page.items) || [];
 
+    const getDisasterLabel = (type: string) => {
+         // @ts-ignore
+         return t(`common.disasterTypes.${type}`) || type.replace('_', ' ');
+    };
+
     return (
         <>
             {/* Header */}
@@ -120,7 +132,7 @@ export default function AlertsPage() {
                         <Link href="/" className="p-2 -ml-2 text-slate-600 hover:text-slate-900">
                             <ChevronLeft size={20} />
                         </Link>
-                        <h1 className="text-lg font-semibold text-slate-900">All Alerts</h1>
+                        <h1 className="text-lg font-semibold text-slate-900">{t('alerts.title')}</h1>
                         <button 
                             onClick={() => setShowFilters(!showFilters)}
                             className={`p-2 -mr-2 transition-colors ${showFilters ? 'text-blue-600' : 'text-slate-600 hover:text-slate-900'}`}
@@ -134,7 +146,7 @@ export default function AlertsPage() {
                         <div className="mt-4 space-y-4 pb-2">
                             {/* Place Filter */}
                             <div>
-                                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 block">Location</label>
+                                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 block">{t('alerts.filter.location')}</label>
                                 <select 
                                     value={selectedZone?.id || 'all'}
                                     onChange={(e) => {
@@ -142,7 +154,7 @@ export default function AlertsPage() {
                                     }}
                                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >
-                                    <option value="all">All Locations</option>
+                                    <option value="all">{t('alerts.filter.allLocations')}</option>
                                     {zones.map(zone => (
                                         <option key={zone.id} value={zone.id}>{zone.label}</option>
                                     ))}
@@ -151,7 +163,7 @@ export default function AlertsPage() {
 
                             {/* Type Filter */}
                             <div>
-                                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 block">Disaster Type</label>
+                                <label className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-2 block">{t('alerts.filter.type')}</label>
                                 <div className="flex flex-wrap gap-2">
                                     {DISASTER_TYPES.map(type => (
                                         <button
@@ -163,7 +175,7 @@ export default function AlertsPage() {
                                                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                             }`}
                                         >
-                                            {type === 'all' ? 'All Types' : type.replace('_', ' ')}
+                                            {getDisasterLabel(type)}
                                         </button>
                                     ))}
                                 </div>
@@ -177,10 +189,10 @@ export default function AlertsPage() {
             <div className="flex-1 overflow-y-auto no-scrollbar pb-24">
                 <div className="px-6 py-4 space-y-3">
                     {isLoading ? (
-                        <div className="text-center text-slate-400 text-sm py-12">Loading alerts...</div>
+                        <div className="text-center text-slate-400 text-sm py-12">{t('alerts.loading')}</div>
                     ) : allIncidents.length === 0 ? (
                         <div className="text-center text-slate-400 text-sm py-12 border border-dashed border-slate-200 rounded-2xl">
-                            No alerts found with current filters.
+                            {t('alerts.empty')}
                         </div>
                     ) : (
                         <>
@@ -202,14 +214,14 @@ export default function AlertsPage() {
                                                     </div>
                                                     <div>
                                                         <div className="flex items-center gap-2">
-                                                            <h4 className="text-base font-semibold text-slate-900 capitalize">{inc.type.replace('_', ' ')}</h4>
+                                                            <h4 className="text-base font-semibold text-slate-900 capitalize">{getDisasterLabel(inc.type)}</h4>
                                                             {inc.status === 'alert' && (
-                                                                <span className="bg-red-100 text-red-600 text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase">Alert</span>
+                                                                <span className="bg-red-100 text-red-600 text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase">{t('incidentFeed.alert')}</span>
                                                             )}
                                                         </div>
                                                         <div className="flex items-center gap-2 mt-0.5 text-sm text-slate-500">
                                                             <MapPin size={12} />
-                                                            <span>{inc.city || 'Unknown location'}</span>
+                                                            <span>{inc.city || t('incidentFeed.unknownLocation')}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -224,22 +236,22 @@ export default function AlertsPage() {
                                                     />
                                                 </div>
                                                 <span className="text-xs text-slate-400 font-medium w-16 text-right">
-                                                    {inc.confidence >= 0.7 ? 'High' : inc.confidence >= 0.4 ? 'Medium' : 'Low'}
+                                                    {inc.confidence >= 0.7 ? t('incidentFeed.confidence.high') : inc.confidence >= 0.4 ? t('incidentFeed.confidence.medium') : t('incidentFeed.confidence.low')}
                                                 </span>
                                             </div>
                                         </div>
                                     </Link>
                                 );
                             })}
-
+                        
                             {isFetchingNextPage && (
-                                <div className="text-center text-slate-400 text-sm py-4">Loading more...</div>
+                                <div className="text-center text-slate-400 text-sm py-4">{t('common.loading')}</div>
                             )}
 
                             {!hasNextPage && allIncidents.length > 0 && (
                                 <div className="py-4 flex items-center gap-4">
                                     <div className="h-px bg-slate-200 flex-1" />
-                                    <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">End of list</span>
+                                    <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">{t('alerts.endOfList')}</span>
                                     <div className="h-px bg-slate-200 flex-1" />
                                 </div>
                             )}

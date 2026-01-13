@@ -104,45 +104,39 @@ const createIncidentIcon = (type: string, severity: string) => {
 */
 
 // Inner component to handle map updates based on context
-function MapUpdater({ showMyPlaces, zoomLevel = 13 }: { showMyPlaces: boolean, zoomLevel?: number }) {
+function MapUpdater({ zoomLevel = 13 }: { zoomLevel?: number }) {
     const map = useMap();
     const { selectedZone } = useZone();
 
     useEffect(() => {
-        if (showMyPlaces && selectedZone) {
+        if (selectedZone) {
             map.flyTo([selectedZone.lat, selectedZone.lng], zoomLevel);
         } else {
             // Reset to Indonesia view
             map.flyTo(INDONESIA_CENTER, INDONESIA_ZOOM);
         }
-    }, [selectedZone, showMyPlaces, map, zoomLevel]);
+    }, [selectedZone, map, zoomLevel]);
 
     return null;
 }
 
 interface IncidentMapProps {
-    showFilter?: boolean;
     interactive?: boolean;
-    defaultShowMyPlaces?: boolean;
     zoomLevel?: number;
 }
 
 export default function IncidentMap({
-    showFilter = true,
     interactive = true,
-    defaultShowMyPlaces = false,
     zoomLevel = 13
 }: IncidentMapProps) {
     const [isMounted, setIsMounted] = useState(false);
-    const [showMyPlaces, setShowMyPlaces] = useState(defaultShowMyPlaces);
-
-    const { selectedZone, zones } = useZone();
+    const { selectedZone } = useZone();
 
     // Fetch incidents
     const { data: incidents } = useQuery({
-        queryKey: ['map-incidents-leaflet', showMyPlaces ? selectedZone?.id : 'all'],
+        queryKey: ['map-incidents-leaflet', selectedZone?.id || 'all'],
         queryFn: async () => {
-            if (showMyPlaces && selectedZone) {
+            if (selectedZone) {
                 const res = await fetch(`${API_BASE_URL}/incidents/nearby?lat=${selectedZone.lat}&lng=${selectedZone.lng}&radius=${selectedZone.radius_m}`);
                 if (!res.ok) throw new Error('Failed to fetch map incidents');
                 return res.json() as Promise<Incident[]>;
@@ -163,31 +157,6 @@ export default function IncidentMap({
 
     return (
         <div className="w-full h-full relative z-0">
-            {/* Filter Toggle */}
-            {showFilter && (
-                <div className="absolute top-4 right-4 z-[1000] bg-white rounded-full shadow-lg border border-slate-200 p-1 flex">
-                    <button
-                        onClick={() => setShowMyPlaces(false)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${!showMyPlaces
-                            ? 'bg-slate-900 text-white'
-                            : 'text-slate-600 hover:bg-slate-100'
-                            }`}
-                    >
-                        All Indonesia
-                    </button>
-                    <button
-                        onClick={() => setShowMyPlaces(true)}
-                        disabled={zones.length === 0}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${showMyPlaces
-                            ? 'bg-slate-900 text-white'
-                            : 'text-slate-600 hover:bg-slate-100'
-                            } ${zones.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                        My Places
-                    </button>
-                </div>
-            )}
-
             <MapContainer 
                 center={INDONESIA_CENTER}
                 zoom={INDONESIA_ZOOM}
@@ -206,7 +175,7 @@ export default function IncidentMap({
                 <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                <MapUpdater showMyPlaces={showMyPlaces} zoomLevel={zoomLevel} />
+                <MapUpdater zoomLevel={zoomLevel} />
                 
                 {incidents?.map((inc) => (
                     <Marker

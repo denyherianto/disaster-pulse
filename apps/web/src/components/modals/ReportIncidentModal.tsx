@@ -4,6 +4,8 @@ import { X, CloudRain, Zap, Flame, Mountain, AlertTriangle, Loader2, MapPin } fr
 import { useMutation } from '@tanstack/react-query';
 import { API_BASE_URL } from '@/lib/config';
 
+import { useLanguage } from '@/components/providers/LanguageProvider';
+
 type ReportModalProps = {
     isOpen: boolean;
     onClose: () => void;
@@ -12,6 +14,7 @@ type ReportModalProps = {
 type IncidentType = 'flood' | 'earthquake' | 'fire' | 'landslide' | 'other';
 
 export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProps) {
+    const { t } = useLanguage();
     const [eventType, setEventType] = useState<IncidentType | null>(null);
     const [description, setDescription] = useState('');
     const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -116,7 +119,7 @@ export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProp
             <div className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-5 fade-in duration-300">
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                    <h3 className="font-semibold text-slate-900">Report Incident</h3>
+                    <h3 className="font-semibold text-slate-900">{t('report.title')}</h3>
                     <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-200 text-slate-500 transition-colors">
                         <X size={20} />
                     </button>
@@ -130,7 +133,7 @@ export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProp
                         </div>
                         <div className="flex-1">
                             {isLocating ? (
-                                <p className="text-slate-500">Detecting location...</p>
+                                <p className="text-slate-500">{t('report.location.detecting')}</p>
                             ) : locationError ? (
                                 <div className="flex items-center gap-2">
                                     <p className="text-red-500 font-medium">{locationError}</p>
@@ -139,11 +142,11 @@ export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProp
                                         onClick={detectLocation}
                                         className="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-md text-slate-600 transition-colors"
                                     >
-                                        Retry
+                                            {t('common.retry')}
                                     </button>
                                 </div>
                             ) : (
-                                <p className="text-green-600 font-medium">Location detected</p>
+                                        <p className="text-green-600 font-medium">{t('report.location.detected')}</p>
                             )}
                             {location && <p className="text-[10px] text-slate-400 font-mono">{location.lat.toFixed(6)}, {location.lng.toFixed(6)}</p>}
                         </div>
@@ -151,7 +154,7 @@ export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProp
 
                     {/* Incident Type Grid */}
                     <div className="space-y-3">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Select Type</label>
+                        <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">{t('report.selectType')}</label>
                         <div className="grid grid-cols-4 gap-3">
                             {[
                                 { id: 'flood', icon: CloudRain, label: 'Flood', color: 'blue' },
@@ -182,11 +185,11 @@ export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProp
 
                     {/* Description */}
                     <div className="space-y-3">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Description</label>
+                        <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">{t('report.description')}</label>
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Describe what you see..."
+                            placeholder={t('report.descriptionPlaceholder')}
                             className="w-full h-24 p-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none bg-slate-50"
                         />
                     </div>
@@ -200,14 +203,14 @@ export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProp
                         {mutation.isPending ? (
                             <>
                                 <Loader2 size={18} className="animate-spin" />
-                                Submitting...
+                                {t('report.submitting')}
                             </>
                         ) : (
-                            'Submit Report'
+                                t('report.submit')
                         )}
                     </button>
                     {!location && !isLocating && !locationError && (
-                         <p className="text-[10px] text-center text-slate-400">Location is required to submit a report.</p>
+                        <p className="text-[10px] text-center text-slate-400">{t('report.location.required')}</p>
                     )}
                 </form>
             </div>

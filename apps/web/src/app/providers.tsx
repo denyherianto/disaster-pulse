@@ -6,6 +6,7 @@ import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persist
 import { useState, useEffect } from 'react';
 import NetworkStatusProvider from '@/components/providers/NetworkStatusProvider';
 import ZoneProvider from '@/components/providers/ZoneProvider';
+import { LanguageProvider } from '@/components/providers/LanguageProvider';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -34,25 +35,29 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   if (!persister) {
     return (
       <NetworkStatusProvider>
-        <QueryClientProvider client={queryClient}>
-          <ZoneProvider>
-            {children}
-          </ZoneProvider>
-        </QueryClientProvider>
+        <LanguageProvider>
+          <QueryClientProvider client={queryClient}>
+            <ZoneProvider>
+              {children}
+            </ZoneProvider>
+          </QueryClientProvider>
+        </LanguageProvider>
       </NetworkStatusProvider>
     );
   }
 
   return (
     <NetworkStatusProvider>
-      <PersistQueryClientProvider
-        client={queryClient}
-        persistOptions={{ persister }}
-      >
-        <ZoneProvider>
-          {children}
-        </ZoneProvider>
-      </PersistQueryClientProvider>
+      <LanguageProvider>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{ persister }}
+        >
+          <ZoneProvider>
+            {children}
+          </ZoneProvider>
+        </PersistQueryClientProvider>
+      </LanguageProvider>
     </NetworkStatusProvider>
   );
 }

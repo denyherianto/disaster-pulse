@@ -3,9 +3,11 @@
 import Link from 'next/link';
 import { Home, Map as MapIcon, Bell, User, BookOpen } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 export default function BottomNav() {
     const pathname = usePathname();
+    const { t } = useLanguage();
 
     const isActive = (path: string) => {
         if (path === '/' && pathname === '/') return true;
@@ -14,11 +16,11 @@ export default function BottomNav() {
     };
 
     const navItems = [
-        { label: 'Home', icon: Home, path: '/' },
-        { label: 'Alerts', icon: Bell, path: '/alerts' },
-        { label: 'Map', icon: MapIcon, path: '/map' },
-        { label: 'Guides', icon: BookOpen, path: '/guides' },
-        { label: 'Profile', icon: User, path: '/profile' }
+        { label: t('navigation.home'), icon: Home, path: '/' },
+        { label: t('navigation.alerts'), icon: Bell, path: '/alerts' },
+        { label: t('navigation.map'), icon: MapIcon, path: '/map' },
+        { label: t('navigation.guides'), icon: BookOpen, path: '/guides' },
+        { label: t('navigation.profile'), icon: User, path: '/profile' }
     ];
 
     return (

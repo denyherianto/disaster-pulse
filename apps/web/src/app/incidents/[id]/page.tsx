@@ -6,6 +6,7 @@ import { CloudRain, Zap, Flame, Mountain, MapPin, ChevronLeft, ThumbsUp, ThumbsD
 import Link from 'next/link';
 import BottomNav from '@/components/navigation/BottomNav';
 import { API_BASE_URL } from '@/lib/config';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 const getIncidentIcon = (type: string) => {
     switch (type) {
@@ -47,6 +48,7 @@ export default function IncidentDetailPage() {
     const params = useParams();
     const incidentId = params.id as string;
     const queryClient = useQueryClient();
+    const { t } = useLanguage();
 
     // Fetch incident details
     const { data: incident, isLoading } = useQuery({
@@ -97,7 +99,7 @@ export default function IncidentDetailPage() {
     if (isLoading) {
         return (
             <div className="flex-1 flex items-center justify-center">
-                <div className="text-slate-400">Loading...</div>
+                <div className="text-slate-400">{t('common.loading')}</div>
             </div>
         );
     }
@@ -106,8 +108,8 @@ export default function IncidentDetailPage() {
         return (
             <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
-                    <div className="text-slate-400 mb-4">Incident not found</div>
-                    <Link href="/" className="text-blue-600 font-medium">Go back</Link>
+                    <div className="text-slate-400 mb-4">{t('incidentDetail.notFound')}</div>
+                    <Link href="/" className="text-blue-600 font-medium">{t('common.back')}</Link>
                 </div>
             </div>
         );
@@ -122,8 +124,8 @@ export default function IncidentDetailPage() {
         time: l.created_at,
         label: l.reason || `Status changed to ${l.to_status}`
     })) : [
-        { status: 'detected', time: incident.created_at, label: 'First Detected' },
-        { status: incident.status, time: incident.updated_at, label: `Current Status: ${incident.status}` }
+            { status: 'detected', time: incident.created_at, label: t('incidentDetail.firstDetected') },
+            { status: incident.status, time: incident.updated_at, label: `${t('incidentDetail.currentStatus')}: ${incident.status}` }
     ];
 
     // Mock signals data (would come from API)  
@@ -150,10 +152,10 @@ export default function IncidentDetailPage() {
                             <IconComponent size={28} />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold capitalize">{incident.event_type?.replace('_', ' ')}</h1>
+                            <h1 className="text-2xl font-bold capitalize">{t(`common.disasterTypes.${incident.event_type}`) || incident.event_type?.replace('_', ' ')}</h1>
                             <div className="flex items-center gap-2 text-white/80 mt-1">
                                 <MapPin size={14} />
-                                <span className="text-sm">{incident.city || 'Unknown location'}</span>
+                                <span className="text-sm">{incident.city || t('incidentFeed.unknownLocation')}</span>
                             </div>
                         </div>
                     </div>
@@ -162,17 +164,17 @@ export default function IncidentDetailPage() {
                     <div className="grid grid-cols-3 gap-3 mt-4">
                         <div className="bg-white/10 rounded-xl p-3 text-center">
                             <div className="text-2xl font-bold">{Math.round((incident.confidence_score || 0.5) * 100)}%</div>
-                            <div className="text-xs text-white/70">Confidence</div>
+                            <div className="text-xs text-white/70">{t('incidentDetail.confidence')}</div>
                         </div>
                         <div className="bg-white/10 rounded-xl p-3 text-center">
                             <div className={`text-sm font-semibold px-2 py-1 rounded-full inline-block ${getSeverityColor(incident.severity)}`}>
                                 {(incident?.severity || 'Medium').toUpperCase()}
                             </div>
-                            <div className="text-xs text-white/70 mt-1">Severity</div>
+                            <div className="text-xs text-white/70 mt-1">{t('incidentDetail.severity')}</div>
                         </div>
                         <div className="bg-white/10 rounded-xl p-3 text-center">
                             <div className="text-2xl font-bold">{signals.length}</div>
-                            <div className="text-xs text-white/70">Reports</div>
+                            <div className="text-xs text-white/70">{t('incidentDetail.reports')}</div>
                         </div>
                     </div>
                 </div>
@@ -182,10 +184,10 @@ export default function IncidentDetailPage() {
             <div className="flex-1 overflow-y-auto bg-slate-50 pb-24">
                 {/* Lifecycle Timeline */}
                 <div className="px-6 py-4">
-                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Incident Timeline</h3>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3">{t('incidentDetail.timeline')}</h3>
                     <div className="bg-white rounded-2xl border border-slate-200 p-4">
                         <div className="relative">
-                            {lifecycle.map((event, i) => {
+                            {lifecycle.map((event: any, i: number) => {
                                 const StatusIcon = getStatusIcon(event.status);
                                 return (
                                     <div key={i} className="flex gap-3 mb-4 last:mb-0">
@@ -215,9 +217,9 @@ export default function IncidentDetailPage() {
 
                 {/* Feedback Section */}
                 <div className="px-6 py-4">
-                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Is this real?</h3>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3">{t('incidentDetail.verification.title')}</h3>
                     <div className="bg-white rounded-2xl border border-slate-200 p-4">
-                        <p className="text-sm text-slate-600 mb-4">Help us verify this incident by sharing your knowledge</p>
+                        <p className="text-sm text-slate-600 mb-4">{t('incidentDetail.verification.subtitle')}</p>
                         <div className="flex gap-3">
                             <button 
                                 onClick={() => feedbackMutation.mutate('confirm')}
@@ -229,7 +231,7 @@ export default function IncidentDetailPage() {
                                 }`}
                             >
                                 <ThumbsUp size={18} />
-                                {incident.incident_feedback?.some((f: any) => f.user_id === '00000000-0000-0000-0000-000000000000' && f.type === 'confirm') ? 'Confirmed' : 'Confirm'}
+                                {incident.incident_feedback?.some((f: any) => f.user_id === '00000000-0000-0000-0000-000000000000' && f.type === 'confirm') ? t('incidentDetail.verification.confirmed') : t('incidentDetail.verification.confirm')}
                             </button>
                             <button 
                                 onClick={() => feedbackMutation.mutate('reject')}
@@ -241,7 +243,7 @@ export default function IncidentDetailPage() {
                                 }`}
                             >
                                 <ThumbsDown size={18} />
-                                {incident.incident_feedback?.some((f: any) => f.user_id === '00000000-0000-0000-0000-000000000000' && f.type === 'reject') ? 'Reported as False' : 'False Alarm'}
+                                {incident.incident_feedback?.some((f: any) => f.user_id === '00000000-0000-0000-0000-000000000000' && f.type === 'reject') ? t('incidentDetail.verification.reportedFalse') : t('incidentDetail.verification.falseAlarm')}
                             </button>
                         </div>
 
@@ -249,8 +251,8 @@ export default function IncidentDetailPage() {
                         {incident.incident_feedback?.some((f: any) => f.user_id === '00000000-0000-0000-0000-000000000000') && (
                             <div className="mt-4 pt-4 border-t border-slate-100">
                                 <div className="flex items-center justify-between text-xs font-medium text-slate-500 mb-2">
-                                    <span>Community Verification</span>
-                                    <span>{incident.incident_feedback.length} reports</span>
+                                    <span>{t('incidentDetail.verification.communityStats')}</span>
+                                    <span>{incident.incident_feedback.length} {t('incidentDetail.reports')}</span>
                                 </div>
                                 <div className="h-2 bg-slate-100 rounded-full overflow-hidden flex">
                                     <div 
@@ -263,8 +265,8 @@ export default function IncidentDetailPage() {
                                     />
                                 </div>
                                 <div className="flex justify-between mt-1.5 text-[10px] text-slate-400 font-medium uppercase">
-                                    <span className="text-green-600">{incident.incident_feedback.filter((f: any) => f.type === 'confirm').length} Confirmed</span>
-                                    <span className="text-red-600">{incident.incident_feedback.filter((f: any) => f.type === 'reject').length} False</span>
+                                    <span className="text-green-600">{incident.incident_feedback.filter((f: any) => f.type === 'confirm').length} {t('incidentDetail.verification.confirmed')}</span>
+                                    <span className="text-red-600">{incident.incident_feedback.filter((f: any) => f.type === 'reject').length} {t('profile.hoax')}</span>
                                 </div>
                             </div>
                         )}
@@ -282,9 +284,9 @@ export default function IncidentDetailPage() {
                                         <AlarmCheck size={20} />
                                     </div>
                                     <div>
-                                        <div className="font-semibold text-blue-900">User Reports</div>
+                                        <div className="font-semibold text-blue-900">{t('incidentDetail.sources.userReports')}</div>
                                         <div className="text-sm text-blue-700">
-                                            {signals.filter((s: any) => s.source === 'user_report').length} verified reports
+                                            {signals.filter((s: any) => s.source === 'user_report').length} {t('incidentDetail.sources.verifiedReports')}
                                         </div>
                                     </div>
                                 </div>
@@ -299,7 +301,7 @@ export default function IncidentDetailPage() {
                             <div>
                                 <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
                                     {/* <Newspaper size={16} /> */}
-                                    Latest News
+                                    {t('incidentDetail.sources.news')}
                                 </h3>
                                 <div className="space-y-3">
                                     {signals.filter((s: any) => s.source === 'news').map((signal: any) => (
@@ -316,7 +318,7 @@ export default function IncidentDetailPage() {
                                                         {signal.text}
                                                     </h4>
                                                     <div className="text-xs text-slate-500">
-                                                        {new Date(signal.created_at).toLocaleDateString()} • Read more
+                                                        {new Date(signal.created_at).toLocaleDateString()} • {t('incidentDetail.sources.readMore')}
                                                     </div>
                                                 </div>
                                                 {signal.media_type === 'image' && (
@@ -337,7 +339,7 @@ export default function IncidentDetailPage() {
                             <div>
                                 <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
                                     <Video size={16} />
-                                    Live Updates
+                                    {t('incidentDetail.sources.liveUpdates')}
                                 </h3>
                                 <div className="grid grid-cols-2 gap-3">
                                     {signals.filter((s: any) => s.source === 'social_media' && s.media_type === 'video').slice(0, 4).map((signal: any) => (
@@ -384,12 +386,12 @@ export default function IncidentDetailPage() {
 
                 {/* Safety Measures */}
                 <div className="px-6 py-4">
-                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Safety Measures</h3>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3">{t('incidentDetail.safety.title')}</h3>
                     <Link href={`/guides?type=${incident.event_type}`}>
                         <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl p-4 flex items-center justify-between">
                             <div>
-                                <div className="font-semibold">View Safety Guide</div>
-                                <div className="text-sm text-white/80">Procedures for {incident.event_type?.replace('_', ' ')}</div>
+                                <div className="font-semibold">{t('incidentDetail.safety.viewGuide')}</div>
+                                <div className="text-sm text-white/80">{t('incidentDetail.safety.procedures')} {t(`common.disasterTypes.${incident.event_type}`)}</div>
                             </div>
                             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
                                 <FileDown size={20} />
@@ -400,7 +402,7 @@ export default function IncidentDetailPage() {
 
                 {/* Emergency Contacts */}
                 <div className="px-6 py-4">
-                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Emergency Contacts</h3>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3">{t('incidentDetail.emergency.title')}</h3>
                     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                         {[
                             { name: 'Police', phone: '110' },
@@ -424,7 +426,7 @@ export default function IncidentDetailPage() {
                                         <div className="text-sm text-slate-500">{contact.phone}</div>
                                     </div>
                                 </div>
-                                <div className="text-blue-600">Call</div>
+                                <div className="text-blue-600">{t('incidentDetail.emergency.call')}</div>
                             </a>
                         ))}
                     </div>

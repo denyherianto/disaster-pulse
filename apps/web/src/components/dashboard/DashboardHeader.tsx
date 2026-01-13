@@ -5,12 +5,15 @@ import { useNetworkStatus } from '@/components/providers/NetworkStatusProvider';
 import { useIsFetching, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import ReportIncidentModal from '@/components/modals/ReportIncidentModal';
+import { useLanguage } from '@/components/providers/LanguageProvider';
+import Link from 'next/link';
 
 export default function DashboardHeader() {
     const { isOnline } = useNetworkStatus();
     const isFetching = useIsFetching();
     const queryClient = useQueryClient();
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const { t } = useLanguage();
 
     const handleRetry = () => {
         queryClient.invalidateQueries();
@@ -31,7 +34,7 @@ export default function DashboardHeader() {
                     {!isOnline ? (
                         <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-100 rounded-full animate-in fade-in slide-in-from-top-2 duration-300">
                             <WifiOff className="text-amber-500" size={12} />
-                            <span className="text-xs font-medium text-amber-700">Offline Mode</span>
+                            <span className="text-xs font-medium text-amber-700">{t('dashboard.status.offline')}</span>
                         </div>
                     ) : (
                         <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full animate-in fade-in slide-in-from-top-2 duration-300">
@@ -39,7 +42,7 @@ export default function DashboardHeader() {
                                 <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 ${isFetching > 0 ? 'opacity-75' : 'opacity-0'}`}></span>
                                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                             </div>
-                            <span className="text-xs font-medium text-emerald-700">Online</span>
+                                <span className="text-xs font-medium text-emerald-700">{t('dashboard.status.online')}</span>
                         </div>
                     )}
                     
@@ -51,9 +54,9 @@ export default function DashboardHeader() {
                         <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
                     </button>
 
-                    <button className="text-slate-400 hover:text-slate-600 transition-colors">
+                    <Link href="/settings" className="text-slate-400 hover:text-slate-600 transition-colors">
                         <Settings size={20} />
-                    </button>
+                    </Link>
                 </div>
             </div>
 
@@ -63,17 +66,17 @@ export default function DashboardHeader() {
                     {isFetching > 0 ? (
                         <>
                             <RefreshCw size={10} className="animate-spin text-blue-500" />
-                            <span className="text-blue-600 font-medium">Syncing data...</span>
+                            <span className="text-blue-600 font-medium">{t('dashboard.status.syncing')}</span>
                         </>
                     ) : !isOnline ? (
                         <>
                             <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                            Showing cached data from {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                {t('dashboard.status.cached')} {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </>
                     ) : (
                         <>
                             <Wifi size={10} className="text-slate-400" />
-                            <span className="text-slate-400">Up to date</span>
+                                    <span className="text-slate-400">{t('dashboard.status.uptodate')}</span>
                         </>
                     )}
                 </span>
@@ -84,7 +87,7 @@ export default function DashboardHeader() {
                         disabled={isFetching > 0}
                         className={`text-[10px] font-semibold uppercase tracking-wide cursor-pointer transition-colors ${isFetching > 0 ? 'text-slate-300' : 'text-blue-600 hover:text-blue-700 hover:underline'}`}
                     >
-                        {isFetching > 0 ? 'Syncing...' : 'Refresh'}
+                        {isFetching > 0 ? 'Syncing...' : t('common.retry')}
                     </button>
                 )}
             </div>

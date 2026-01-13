@@ -3,6 +3,7 @@
 import { User, FileText, CheckCircle, XCircle, MapPin, Bell, ChevronRight, Settings, LogOut } from 'lucide-react';
 import BottomNav from '@/components/navigation/BottomNav';
 import Link from 'next/link';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 // Mocked user data
 const mockUser = {
@@ -20,12 +21,14 @@ const mockStats = {
 };
 
 export default function ProfilePage() {
+    const { t } = useLanguage();
+
     return (
         <>
             {/* Header */}
             <div className="shrink-0 bg-white">
                 <div className="px-6 py-6">
-                    <h1 className="text-2xl font-bold text-slate-900">Profile</h1>
+                    <h1 className="text-2xl font-bold text-slate-900">{t('profile.title')}</h1>
                 </div>
             </div>
 
@@ -46,7 +49,7 @@ export default function ProfilePage() {
                                 <h2 className="text-lg font-semibold text-slate-900">{mockUser.name}</h2>
                                 <p className="text-sm text-slate-500">{mockUser.email}</p>
                                 <p className="text-xs text-slate-400 mt-1">
-                                    Member since {new Date(mockUser.joined).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+                                    {t('profile.memberSince')} {new Date(mockUser.joined).toLocaleDateString()}
                                 </p>
                             </div>
                         </div>
@@ -55,35 +58,35 @@ export default function ProfilePage() {
 
                 {/* Contribution Stats */}
                 <div className="px-6 py-4">
-                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Your Contributions</h3>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3">{t('profile.contributions')}</h3>
                     <div className="grid grid-cols-3 gap-3">
                         <div className="bg-white rounded-2xl border border-slate-200 p-4 text-center">
                             <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-2">
                                 <FileText size={18} className="text-blue-600" />
                             </div>
                             <div className="text-2xl font-bold text-slate-900">{mockStats.totalReports}</div>
-                            <div className="text-xs text-slate-500">Reports</div>
+                            <div className="text-xs text-slate-500">{t('profile.reports')}</div>
                         </div>
                         <div className="bg-white rounded-2xl border border-slate-200 p-4 text-center">
                             <div className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-2">
                                 <CheckCircle size={18} className="text-green-600" />
                             </div>
                             <div className="text-2xl font-bold text-slate-900">{mockStats.confirmedEvents}</div>
-                            <div className="text-xs text-slate-500">Confirmed</div>
+                            <div className="text-xs text-slate-500">{t('profile.confirmed')}</div>
                         </div>
                         <div className="bg-white rounded-2xl border border-slate-200 p-4 text-center">
                             <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-2">
                                 <XCircle size={18} className="text-red-600" />
                             </div>
                             <div className="text-2xl font-bold text-slate-900">{mockStats.hoaxReports}</div>
-                            <div className="text-xs text-slate-500">Hoax</div>
+                            <div className="text-xs text-slate-500">{t('profile.hoax')}</div>
                         </div>
                     </div>
                 </div>
 
                 {/* Quick Links */}
                 <div className="px-6 py-4">
-                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Settings</h3>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3">{t('settings.title')}</h3>
                     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                         <Link href="/profile/places" className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
                             <div className="flex items-center gap-3">
@@ -91,8 +94,8 @@ export default function ProfilePage() {
                                     <MapPin size={18} />
                                 </div>
                                 <div>
-                                    <div className="font-medium text-slate-900">My Places</div>
-                                    <div className="text-sm text-slate-500">Manage saved locations</div>
+                                    <div className="font-medium text-slate-900">{t('profile.myPlaces')}</div>
+                                    <div className="text-sm text-slate-500">{t('profile.myPlacesDesc')}</div>
                                 </div>
                             </div>
                             <ChevronRight className="text-slate-300" size={20} />
@@ -106,8 +109,8 @@ export default function ProfilePage() {
                                     <Bell size={18} />
                                 </div>
                                 <div>
-                                    <div className="font-medium text-slate-900">Notifications</div>
-                                    <div className="text-sm text-slate-500">Alert preferences</div>
+                                    <div className="font-medium text-slate-900">{t('profile.notifications')}</div>
+                                    <div className="text-sm text-slate-500">{t('profile.notificationsDesc')}</div>
                                 </div>
                             </div>
                             <ChevronRight className="text-slate-300" size={20} />
@@ -115,14 +118,14 @@ export default function ProfilePage() {
                         
                         <div className="border-t border-slate-100" />
                         
-                        <Link href="/profile/settings" className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
+                        <Link href="/settings" className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600">
                                     <Settings size={18} />
                                 </div>
                                 <div>
-                                    <div className="font-medium text-slate-900">Settings</div>
-                                    <div className="text-sm text-slate-500">App preferences</div>
+                                    <div className="font-medium text-slate-900">{t('settings.title')}</div>
+                                    <div className="text-sm text-slate-500">{t('profile.settingsDesc')}</div>
                                 </div>
                             </div>
                             <ChevronRight className="text-slate-300" size={20} />
@@ -134,7 +137,7 @@ export default function ProfilePage() {
                 <div className="px-6 py-4">
                     <button className="w-full flex items-center justify-center gap-2 py-3 bg-slate-100 text-slate-600 rounded-xl font-medium hover:bg-slate-200 transition-colors">
                         <LogOut size={18} />
-                        Sign Out
+                        {t('profile.signOut')}
                     </button>
                 </div>
             </div>
