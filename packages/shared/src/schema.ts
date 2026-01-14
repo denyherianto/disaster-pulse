@@ -59,7 +59,7 @@ export interface UserPlaceUpdate {
 
 export interface Signal {
   id: string
-  source: 'user_report' | 'social_media' | 'news' | 'sensor'
+  source: 'user_report' | 'social_media' | 'news' | 'sensor' | 'bmkg'
   text: string | null
   lat: number
   lng: number
@@ -72,7 +72,7 @@ export interface Signal {
 
 export interface SignalInsert {
   id?: string
-  source: 'user_report' | 'social_media' | 'news' | 'sensor'
+  source: 'user_report' | 'social_media' | 'news' | 'sensor' | 'bmkg'
   text?: string | null
   lat: number
   lng: number
@@ -85,7 +85,7 @@ export interface SignalInsert {
 
 export interface SignalUpdate {
   id?: string
-  source?: 'user_report' | 'social_media' | 'news' | 'sensor'
+  source?: 'user_report' | 'social_media' | 'news' | 'sensor' | 'bmkg'
   text?: string | null
   lat?: number
   lng?: number

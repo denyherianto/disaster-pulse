@@ -45,8 +45,8 @@ export class IncidentsService {
    * Main entry point for processing a single new signal.
    * Invoked by IncidentProcessor.
    */
-  async processSignal(signalId: string, lat: number, lng: number) {
-    this.logger.debug(`Processing signal ${signalId} at ${lat}, ${lng}`);
+  async processSignal(signalId: string, lat: number, lng: number, happenedAt?: string) {
+    this.logger.debug(`Processing signal ${signalId} at ${lat}, ${lng} (HappenedAt: ${happenedAt})`);
 
     try {
       // 1. Fetch full signal details
@@ -82,9 +82,17 @@ export class IncidentsService {
       // 2. Reverse Geocode to get City
       const city = await reverseGeocodeCity(lat, lng);
       if (city) {
+        const updateData: any = { city_hint: city };
+
+        // Ensure happened_at is set if provided (critical for earthquakes)
+        if (happenedAt && !signal.happened_at) {
+          updateData.happened_at = happenedAt;
+          signal.happened_at = happenedAt;
+        }
+
         await this.db
           .from('signals')
-          .update({ city_hint: city })
+          .update(updateData)
           .eq('id', signalId);
 
         signal.city_hint = city;
@@ -400,7 +408,7 @@ export class IncidentsService {
   async processIncidentResolution() {
     const { data: activeIncidents, error } = await this.db
       .from('incidents')
-      .select('id, severity, created_at, updated_at')
+      .select('id, severity, event_type, created_at, updated_at')
       .in('status', ['alert', 'monitor']);
 
     if (error || !activeIncidents) return;
@@ -417,7 +425,11 @@ export class IncidentsService {
 
     let requiredSilenceHours = 1;
     if (incident.severity === 'medium') requiredSilenceHours = 4;
-    if (incident.severity === 'high') requiredSilenceHours = 12;
+
+    if (incident.severity === 'high') {
+      const eventType = incident.event_type || 'other';
+      requiredSilenceHours = MAX_SIGNAL_AGE[eventType] || MAX_SIGNAL_AGE['other'];
+    }
 
     if (diffHours < requiredSilenceHours) {
       return;

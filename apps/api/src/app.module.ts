@@ -12,6 +12,7 @@ import { DatabaseModule } from './database/database.module';
 import { TiktokModule } from './sources/tiktok/tiktok.module';
 import { RssModule } from './sources/rss/rss.module';
 import { ReportsModule } from './sources/reports/reports.module';
+import { BmkgModule } from './sources/bmkg/bmkg.module';
 import { GuidesModule } from './guides/guides.module';
 import { EmergencyContactsModule } from './emergency-contacts/emergency-contacts.module';
 
@@ -27,7 +28,9 @@ import { EmergencyContactsModule } from './emergency-contacts/emergency-contacts
     DatabaseModule,
     TiktokModule,
     RssModule,
+    RssModule,
     ReportsModule,
+    BmkgModule,
     GuidesModule,
     EmergencyContactsModule,
   ],

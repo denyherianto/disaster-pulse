@@ -30,22 +30,19 @@ export class SignalsService {
       console.warn('Severity Check Failed, defaulting to low', e);
     }
 
-    if (severityResult.event_type === 'other') {
-      this.logger.error(`Signal event_type is ${severityResult.event_type}. Not clustering.`);
+    const eventType = payload.event_type || severityResult.event_type
+
+    if (eventType === 'other') {
+      this.logger.error(`Signal event_type is ${eventType}. Not clustering.`);
       return;
     }
 
-    if (severityResult.event_type === 'other') {
-      this.logger.error(`Signal event_type is ${severityResult.event_type}. Not clustering.`);
-      return;
-    }
-
-    if (!severityResult.event_type) {
+    if (!eventType) {
       this.logger.error(`Signal event_type is null/undefined. Rejecting signal.`);
       return;
     }
 
-    this.logger.log(`Ingesting signal with resolved type: ${severityResult.event_type}`);
+    this.logger.log(`Ingesting signal with resolved type: ${eventType}`);
 
     // 2. Persist Signal
     const { data, error } = await (this.supabase.getClient()
@@ -59,7 +56,7 @@ export class SignalsService {
         media_type: payload.media_type || null,
         thumbnail_url: payload.thumbnail_url || null,
         city_hint: severityResult.location || payload.city_hint || null,
-        event_type: severityResult.event_type,
+        event_type: eventType,
         raw_payload: payload.raw_payload || null,
         status: 'pending',
         happened_at: payload.happened_at || undefined,
@@ -84,6 +81,7 @@ export class SignalsService {
         lat: payload.lat,
         lng: payload.lng,
         severity: severityResult.severity,
+        happened_at: payload.happened_at,
       },
       {
         priority,
