@@ -136,6 +136,7 @@ export interface Incident {
   severity: 'low' | 'medium' | 'high' | null
   confidence_score: number | null
   status: 'monitor' | 'alert' | 'suppress' | 'resolved'
+  summary: string | null
   created_at: string
   updated_at: string
 }
@@ -147,6 +148,7 @@ export interface IncidentInsert {
   severity?: 'low' | 'medium' | 'high' | null
   confidence_score?: number | null
   status: 'monitor' | 'alert' | 'suppress' | 'resolved'
+  summary?: string | null
   created_at?: string
   updated_at?: string
 }
@@ -158,6 +160,7 @@ export interface IncidentUpdate {
   severity?: 'low' | 'medium' | 'high' | null
   confidence_score?: number | null
   status?: 'monitor' | 'alert' | 'suppress' | 'resolved'
+  summary?: string | null
   created_at?: string
   updated_at?: string
 }

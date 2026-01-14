@@ -210,6 +210,18 @@ export default function IncidentDetailPage() {
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto bg-slate-50 pb-24">
+
+                {/* Summary Section */}
+                {incident.summary && (
+                    <div className="px-6 py-4">
+                        <h3 className="text-sm font-semibold text-slate-900 mb-3">{t('incidentDetail.summary')}</h3>
+                        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                            <p className="text-sm text-slate-700 leading-relaxed">
+                                {incident.summary}
+                            </p>
+                        </div>
+                    </div>
+                )}
                 {/* Lifecycle Timeline */}
                 <div className="px-6 py-4">
                     <h3 className="text-sm font-semibold text-slate-900 mb-3">{t('incidentDetail.timeline')}</h3>

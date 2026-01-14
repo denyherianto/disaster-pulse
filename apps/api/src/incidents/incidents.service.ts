@@ -340,6 +340,7 @@ export class IncidentsService {
             event_type: targetEventType,
             severity: newSeverity,
             confidence_score: newConfidence,
+            summary: conclusion.description,
             updated_at: new Date().toISOString()
           })
           .eq('id', currentIncident.id);
@@ -378,6 +379,7 @@ export class IncidentsService {
         confidence_score: conclusion.confidence_score,
         severity: conclusion.severity,
         event_type: conclusion.final_classification || eventType,
+        summary: conclusion.description,
         updated_at: new Date().toISOString()
       })
       .eq('id', incidentId);
