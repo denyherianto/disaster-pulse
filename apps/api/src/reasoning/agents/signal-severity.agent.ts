@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { GeminiAgent } from './base.agent';
+import { GoogleMapsTool } from '../tools/google-maps.tool';
 import OpenAI from 'openai';
 
 export type SignalSeverityInput = {
@@ -26,8 +27,19 @@ export class SignalSeverityAgent extends GeminiAgent<SignalSeverityInput, Signal
   protected readonly role = 'SignalSeverity';
   protected readonly model = 'maia/gemini-3-pro-preview'; // High speed model
 
-  constructor(maia: OpenAI) {
+  constructor(
+    maia: OpenAI,
+    private readonly googleMapsTool: GoogleMapsTool
+  ) {
     super(maia);
+    this.tools = [this.googleMapsTool.definition];
+  }
+
+  protected async executeTool(name: string, args: any): Promise<any> {
+    if (name === 'geocode_location') {
+      return this.googleMapsTool.geocode(args.address);
+    }
+    throw new Error(`Unknown tool: ${name}`);
   }
 
   buildPrompt(input: SignalSeverityInput): string {
@@ -57,8 +69,12 @@ export class SignalSeverityAgent extends GeminiAgent<SignalSeverityInput, Signal
         "location": Infer location (City/Province) from title/description/lat & lng/city_hint if possible with this format: "City, Province". If not possible, return null,
         "event_type": "disaster type inferred from text",
         "lat": "Infer latitude from location if possible. Center of the location.",
-        "lng": "Infer longitude from location if possible. Center of the location.",
+        "event_type": "disaster type inferred from text",
+        "lat": "Latitude from tool or null",
+        "lng": "Longitude from tool or null",
       }
+      
+      IMPORTANT: If the signal text contains a specific location (e.g. 'Fire at Pasar Senen') but you don't have coordinates, USE the 'geocode_location' tool to get accurate lat/lng.
     `;
   }
 }

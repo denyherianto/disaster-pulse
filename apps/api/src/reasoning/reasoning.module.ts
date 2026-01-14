@@ -12,6 +12,7 @@ import { SignalSeverityAgent } from './agents/signal-severity.agent';
 import { VideoAnalysisAgent } from './agents/video-analysis.agent';
 import { NewsAnalysisAgent } from './agents/news-analysis.agent';
 import { IncidentResolutionAgent } from './agents/incident-resolution.agent';
+import { GoogleMapsTool } from './tools/google-maps.tool';
 
 @Module({
   imports: [ConfigModule, SupabaseModule],
@@ -26,6 +27,7 @@ import { IncidentResolutionAgent } from './agents/incident-resolution.agent';
     VideoAnalysisAgent,
     NewsAnalysisAgent,
     IncidentResolutionAgent,
+    GoogleMapsTool,
     {
       provide: OpenAI,
       useFactory: (configService: ConfigService) => new OpenAI({
