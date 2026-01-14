@@ -79,7 +79,7 @@ export const translations = {
     map: {
       filter: {
         location: 'Location',
-        allIndonesia: 'All Indonesia'
+        allIndonesia: 'Indonesia'
       }
     },
     alerts: {

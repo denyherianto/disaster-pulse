@@ -1,9 +1,10 @@
 'use client';
 
-import { Home, Briefcase, Users, Plus, MapPin, X } from 'lucide-react';
+import { Home, Briefcase, Users, Plus, MapPin, X, Globe } from 'lucide-react';
 import { useZone } from '@/components/providers/ZoneProvider';
 import { useState } from 'react';
 import AddZoneDialog from './AddZoneDialog';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 // Helper to get icon based on label
 const getIcon = (label: string) => {
@@ -17,6 +18,7 @@ const getIcon = (label: string) => {
 export default function ZoneSelector() {
     const { zones, selectedZoneId, setSelectedZoneId, deleteZone } = useZone();
     const [isAddOpen, setIsAddOpen] = useState(false);
+    const { t } = useLanguage();
 
     const handleDelete = (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
@@ -29,6 +31,23 @@ export default function ZoneSelector() {
       <>
           <section className="px-6 py-4 overflow-x-auto no-scrollbar">
               <div className="flex gap-3 min-w-max">
+                  {/* All Indonesia Option */}
+                  <div className="relative group">
+                      <button
+                          onClick={() => setSelectedZoneId('all')}
+                          className={`flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full transition-all duration-200 ${selectedZoneId === 'all'
+                              ? 'bg-slate-900 text-white shadow-sm ring-2 ring-slate-100 ring-offset-1'
+                              : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                              }`}
+                      >
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center ${selectedZoneId === 'all' ? 'bg-slate-700' : 'bg-blue-50 text-blue-600'
+                              }`}>
+                              <Globe size={12} />
+                          </div>
+                          <span className="text-xs font-medium capitalize">{t('map.filter.allIndonesia')}</span>
+                      </button>
+                  </div>
+
                   {zones.map((zone) => {
                       const isActive = zone.id === selectedZoneId;
                       return (

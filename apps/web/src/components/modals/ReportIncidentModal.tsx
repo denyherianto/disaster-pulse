@@ -5,6 +5,7 @@ import { useMutation } from '@tanstack/react-query';
 import { API_BASE_URL } from '@/lib/config';
 
 import { useLanguage } from '@/components/providers/LanguageProvider';
+import { useToast } from '@/hooks/use-toast';
 
 type ReportModalProps = {
     isOpen: boolean;
@@ -15,6 +16,7 @@ type IncidentType = 'flood' | 'earthquake' | 'fire' | 'landslide' | 'other';
 
 export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProps) {
     const { t } = useLanguage();
+    const { toast } = useToast();
     const [eventType, setEventType] = useState<IncidentType | null>(null);
     const [description, setDescription] = useState('');
     const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -88,10 +90,18 @@ export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProp
             setDescription('');
             onClose();
             // Optionally trigger a toast or refresh
-            alert('Report submitted successfully! Thank you for your help.');
+            toast({
+                title: t('report.success'),
+                type: 'success',
+                duration: 4000
+            });
         },
         onError: (err) => {
-            alert(`Error: ${err.message}`);
+            toast({
+                title: t('common.error'),
+                description: err.message,
+                type: 'destructive'
+            });
         }
 
     });
