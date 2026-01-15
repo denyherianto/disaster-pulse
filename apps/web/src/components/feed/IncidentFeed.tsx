@@ -1,8 +1,9 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CloudRain, Zap, Flame, Mountain, MapPin, Database, ChevronRight } from 'lucide-react';
+import { Database, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
+import GoogleIcon from '@/components/ui/GoogleIcon';
 
 type FeedIncident = {
     id: string;
@@ -30,13 +31,13 @@ import { useLanguage } from '@/components/providers/LanguageProvider';
 
 // ... (helper functions getIncidentIcon, getIncidentColor unchanged)
 
-const getIncidentIcon = (type: string) => {
+const getIncidentIconName = (type: string) => {
     switch (type) {
-        case 'flood': return CloudRain;
-        case 'earthquake': return Zap;
-        case 'fire': return Flame;
-        case 'landslide': return Mountain;
-        default: return Zap;
+        case 'flood': return 'flood';
+        case 'earthquake': return 'earthquake';
+        case 'fire': return 'local_fire_department';
+        case 'landslide': return 'landslide';
+        default: return 'warning';
     }
 };
 
@@ -157,7 +158,7 @@ export default function IncidentFeed() {
 
             <div className="space-y-3">
                 {incidents?.map((inc) => {
-                    const IconComponent = getIncidentIcon(inc.type);
+                    const iconName = getIncidentIconName(inc.type);
                     // Use a more subtle background for the icon container to match the clean look
                     const colorClasses = getIncidentColor(inc.type).replace('rounded-full', '');
                     const feedbackCount = inc.incident_feedback?.filter(f => f.type === 'confirm').length || 0;
@@ -169,7 +170,7 @@ export default function IncidentFeed() {
                                 {/* Top Section: Icon, Content, Confidence */}
                                 <div className="flex items-start gap-4">
                                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${colorClasses}`}>
-                                        <IconComponent size={24} strokeWidth={1.5} />
+                                        <GoogleIcon name={iconName} size={24} />
                                     </div>
 
                                     <div className="flex-1 min-w-0">

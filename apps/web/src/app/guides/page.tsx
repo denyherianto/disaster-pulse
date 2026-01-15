@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { CloudRain, Zap, Flame, Mountain, ChevronLeft, Download, ChevronRight, BookOpen, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import Link from 'next/link';
 import BottomNav from '@/components/navigation/BottomNav';
 import { API_BASE_URL } from '@/lib/config';
 import { useLanguage } from '@/components/providers/LanguageProvider';
 import GuideAISearch from '@/components/guides/GuideAISearch';
+import GoogleIcon from '@/components/ui/GoogleIcon';
 
 
 // Mock guides data (would come from API)
@@ -49,13 +50,13 @@ const mockGuides = [
     },
 ];
 
-const getIconByType = (type: string) => {
+const getIconNameByType = (type: string) => {
     switch (type) {
-        case 'flood': return CloudRain;
-        case 'earthquake': return Zap;
-        case 'fire': return Flame;
-        case 'landslide': return Mountain;
-        default: return BookOpen;
+        case 'flood': return 'flood';
+        case 'earthquake': return 'earthquake'; // closest match in standard set
+        case 'fire': return 'local_fire_department';
+        case 'landslide': return 'landslide';
+        default: return 'menu_book';
     }
 };
 
@@ -76,11 +77,11 @@ export default function GuidesPage() {
 
 
     const DISASTER_TYPES = useMemo(() => [
-        { id: 'all', label: t('common.disasterTypes.all'), icon: BookOpen },
-        { id: 'flood', label: t('common.disasterTypes.flood'), icon: CloudRain },
-        { id: 'earthquake', label: t('common.disasterTypes.earthquake'), icon: Zap },
-        { id: 'fire', label: t('common.disasterTypes.fire'), icon: Flame },
-        { id: 'landslide', label: t('common.disasterTypes.landslide'), icon: Mountain },
+        { id: 'all', label: t('common.disasterTypes.all'), icon: 'menu_book' },
+        { id: 'flood', label: t('common.disasterTypes.flood'), icon: 'flood' },
+        { id: 'earthquake', label: t('common.disasterTypes.earthquake'), icon: 'tsunami' },
+        { id: 'fire', label: t('common.disasterTypes.fire'), icon: 'local_fire_department' },
+        { id: 'landslide', label: t('common.disasterTypes.landslide'), icon: 'landslide' },
     ], [t]);
 
     // Fetch guides from API
@@ -123,7 +124,6 @@ export default function GuidesPage() {
                         <div className="mt-4 pb-2">
                             <div className="flex flex-wrap gap-2">
                                 {DISASTER_TYPES.map(type => {
-                                    const IconComponent = type.icon;
                                     return (
                                         <button
                                             key={type.id}
@@ -133,7 +133,7 @@ export default function GuidesPage() {
                                                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                                 }`}
                                         >
-                                            <IconComponent size={14} />
+                                            <GoogleIcon name={type.icon} size={14} />
                                             {type.label}
                                         </button>
                                     );
@@ -162,7 +162,7 @@ export default function GuidesPage() {
                     ) : (
                         <div className="space-y-3">
                             {filteredGuides.map((guide: any) => {
-                                const IconComponent = getIconByType(guide.disaster_type);
+                                const iconName = getIconNameByType(guide.disaster_type);
                                 const colorClasses = getColorByType(guide.disaster_type);
 
                                 return (
@@ -170,7 +170,7 @@ export default function GuidesPage() {
                                         <div className="bg-white rounded-2xl border border-slate-200 p-4 hover:border-slate-300 transition-colors cursor-pointer mb-2">
                                             <div className="flex items-start gap-3">
                                                 <div className={`w-12 h-12 rounded-xl border flex items-center justify-center shrink-0 ${colorClasses}`}>
-                                                    <IconComponent size={22} />
+                                                    <GoogleIcon name={iconName} size={22} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <h3 className="font-semibold text-slate-900">{guide.title}</h3>

@@ -2,11 +2,12 @@
 
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { CloudRain, Zap, Flame, Mountain, ChevronLeft, Download, CheckCircle, BookOpen } from 'lucide-react';
+import { ChevronLeft, Download, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import BottomNav from '@/components/navigation/BottomNav';
 import { API_BASE_URL } from '@/lib/config';
+import GoogleIcon from '@/components/ui/GoogleIcon';
 
 // Mock guide data
 const mockGuides: Record<string, any> = {
@@ -131,13 +132,13 @@ const mockGuides: Record<string, any> = {
     },
 };
 
-const getIconByType = (type: string) => {
+const getIconNameByType = (type: string) => {
     switch (type) {
-        case 'flood': return CloudRain;
-        case 'earthquake': return Zap;
-        case 'fire': return Flame;
-        case 'landslide': return Mountain;
-        default: return BookOpen;
+        case 'flood': return 'flood';
+        case 'earthquake': return 'earthquake';
+        case 'fire': return 'local_fire_department';
+        case 'landslide': return 'landslide';
+        default: return 'menu_book';
     }
 };
 
@@ -221,7 +222,7 @@ export default function GuideDetailPage() {
         );
     }
 
-    const IconComponent = getIconByType(guideData.disaster_type);
+    const iconName = getIconNameByType(guideData.disaster_type);
     const bgColor = getColorByType(guideData.disaster_type);
 
     return (
@@ -258,7 +259,7 @@ export default function GuideDetailPage() {
 
                     <div className="flex items-center gap-4 mb-2">
                         <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center">
-                            <IconComponent size={28} />
+                            <GoogleIcon name={iconName} size={28} />
                         </div>
                         <div>
                             <h1 className="text-2xl font-bold">{guideData.title}</h1>
