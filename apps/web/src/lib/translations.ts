@@ -45,7 +45,9 @@ export const translations = {
             high: 'High',
             medium: 'Medium',
             low: 'Low'
-        }
+      },
+      verifiedBy: 'Verified by',
+      people: 'people'
     },
     report: {
       title: 'Report Incident',
@@ -79,7 +81,19 @@ export const translations = {
     map: {
       filter: {
         location: 'Location',
-        allIndonesia: 'Indonesia'
+        allIndonesia: 'Indonesia',
+        addZone: 'Add New Place'
+      },
+      addZone: {
+        label: 'Label',
+        placeholder: 'e.g. Home, Office, Parents',
+        location: 'Location',
+        useCurrentLocation: 'Use Current Location',
+        orSearch: 'OR SEARCH / PICK ON MAP',
+        change: 'Change',
+        locationSelected: 'Location selected',
+        saving: 'Saving...',
+        submit: 'Add Place'
       }
     },
     alerts: {
@@ -196,7 +210,9 @@ export const translations = {
             high: 'Tinggi',
             medium: 'Sedang',
             low: 'Rendah'
-        }
+      },
+      verifiedBy: 'Diverifikasi oleh',
+      people: 'orang'
     },
     report: {
       title: 'Lapor Kejadian',
@@ -230,7 +246,19 @@ export const translations = {
     map: {
       filter: {
         location: 'Lokasi',
-        allIndonesia: 'Semua Indonesia'
+        allIndonesia: 'Semua Indonesia',
+        addZone: 'Tambah Tempat Baru'
+      },
+      addZone: {
+        label: 'Label',
+        placeholder: 'misal: Rumah, Kantor, Orang Tua',
+        location: 'Lokasi',
+        useCurrentLocation: 'Gunakan Lokasi Saat Ini',
+        orSearch: 'ATAU CARI / PILIH DI PETA',
+        change: 'Ubah',
+        locationSelected: 'Lokasi terpilih',
+        saving: 'Menyimpan...',
+        submit: 'Tambah Tempat'
       }
     },
     alerts: {

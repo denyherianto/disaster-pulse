@@ -297,7 +297,7 @@ export default function AlertsPage() {
                                                             ))}
                                                         </div>
                                                         <span className="text-slate-400 text-xs">
-                                                            Verified by {inc.incident_feedback?.filter(f => f.type === 'confirm').length} people
+                                                            {t('incidentFeed.verifiedBy')} {inc.incident_feedback?.filter(f => f.type === 'confirm').length} {t('incidentFeed.people')}
                                                         </span>
                                                     </div>
                                                 </>

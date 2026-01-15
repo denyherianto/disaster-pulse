@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/components';
 import { AlertCircle, ChevronRight, Users, ChevronDown, CheckCircle2, Activity } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -18,11 +18,10 @@ type HeroIncident = {
 
 import { API_BASE_URL } from '@/lib/config';
 import { useZone } from '@/components/providers/ZoneProvider';
+import ZoneSelector from '@/components/dashboard/ZoneSelector';
 
 export default function HeroStatus() {
     const { selectedZone } = useZone();
-    // const [isExpanded, setIsExpanded] = useState(false); // Removed
-    // const [isVerified, setIsVerified] = useState(false); // Removed
     const [currentIndex, setCurrentIndex] = useState(0);
     const [animPhase, setAnimPhase] = useState<'idle' | 'out' | 'snap'>('idle');
     const [slideDir, setSlideDir] = useState<'left' | 'right'>('left');
@@ -61,14 +60,12 @@ export default function HeroStatus() {
                 const res = await fetch(`${API_BASE_URL}/incidents/nearby?lat=${selectedZone.lat}&lng=${selectedZone.lng}&radius=${selectedZone.radius_m}`);
                 if (!res.ok) throw new Error("Failed to fetch nearby");
                 const data = await res.json() as HeroIncident[];
-                console.log('Hero Data Raw:', data);
                 return data.filter(i => ['monitor', 'alert'].includes(i.status.toLowerCase())); 
             } else {
                 // Global fallback (viewport centered at 0,0 default or Jakarta)
                 const res = await fetch(`${API_BASE_URL}/incidents/map?minLat=-90&maxLat=90&minLng=-180&maxLng=180`);
                 if (!res.ok) throw new Error("Failed to fetch hero");
                 const all = await res.json() as HeroIncident[];
-                console.log('Hero Data Global Raw:', all);
                 // Filter: Only active (monitor/alert)
                 const active = all.filter(i => ['monitor', 'alert'].includes(i.status.toLowerCase()));
 
@@ -84,7 +81,7 @@ export default function HeroStatus() {
     const total = activeIncidents.length;
 
     // Reset index when zone changes
-    // useEffect(() => setCurrentIndex(0), [selectedZone?.id]); 
+    useEffect(() => setCurrentIndex(0), [selectedZone?.id]); 
 
     if (isLoading) return (
         <section className="px-6 pt-6 pb-2">
@@ -103,8 +100,6 @@ export default function HeroStatus() {
         </section>
     );
 
-    // handleVerify removed
-
     const nextIncident = (e: React.MouseEvent) => {
         e.stopPropagation();
         triggerSlide('next', total);
@@ -115,18 +110,10 @@ export default function HeroStatus() {
         triggerSlide('prev', total);
     };
 
-    // Navigate on click
-    // const router = useRouter(); // Moved to top
-
     return (
-        <section className="px-6 pb-2 relative">
-            <div className="flex items-center justify-between mb-3 px-1">
-                <div className="flex items-center gap-1.5 text-slate-500">
-                    <Users size={12} />
-                    <span className="text-xs font-medium truncate max-w-[120px]">
-                        {selectedZone ? selectedZone.label : 'Global Monitoring'}
-                    </span>
-                </div>
+        <section className="px-6 py-4 relative">
+            <div className="flex items-center justify-between mb-3 px-1 min-h-[28px]">
+                <ZoneSelector />
 
                 {total > 1 && (
                     <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-full px-2 py-1 shadow-sm z-20">

@@ -16,7 +16,6 @@ export default function DashboardPage() {
               <DashboardHeader />
 
 
-              <ZoneSelector />
 
               <HeroStatus />
 

@@ -200,7 +200,7 @@ export default function IncidentFeed() {
                                                 ))}
                                             </div>
                                             <span className="text-slate-400 text-xs">
-                                                Verified by {feedbackCount} people
+                                                {t('incidentFeed.verifiedBy')} {feedbackCount} {t('incidentFeed.people')}
                                             </span>
                                         </div>
                                     </>
