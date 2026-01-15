@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
-import { GuideAssistantAgent, GuideAssistantOutput } from './agents/guide-assistant.agent';
+import { GuideAssistantAgent, GuideAssistantOutput } from '../reasoning/agents/guide-assistant.agent';
 
 type Guide = {
   id: string;

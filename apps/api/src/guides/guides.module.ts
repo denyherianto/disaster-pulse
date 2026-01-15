@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { GuidesController } from './guides.controller';
 import { GuidesService } from './guides.service';
-import { GuideAssistantAgent } from './agents/guide-assistant.agent';
+import { GuideAssistantAgent } from '../reasoning/agents/guide-assistant.agent';
 import { SupabaseModule } from '../supabase/supabase.module';
 
 @Module({

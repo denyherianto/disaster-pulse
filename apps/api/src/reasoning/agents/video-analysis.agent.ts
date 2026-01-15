@@ -47,6 +47,9 @@ export class VideoAnalysisAgent extends GeminiAgent<VideoAnalysisInput, VideoAna
       .join('\n');
 
     const prompt = `
+ROLE: Social Media Disaster Analyst.
+TASK: Analyze this video post to determine if it depicts a real, current disaster event.
+
 Analyze this social media post (TikTok) about a potential disaster in Indonesia.
 Metadata:
 - Caption: "${input.text}"
@@ -61,7 +64,7 @@ TIME CONTEXT:
 FRESHNESS RULES (Max Signal Age):
 ${rules}
 
-Task:
+Task Details:
 1. Determine the event type (flood, earthquake, whirlwind (Puting Beliung), fire, landslide, power_outage, accident, other).
 2. Summarize what is visually happening (1-2 sentences).
 3. Infer location (City/Province) from text/visuals if possible with this format: "City, Province".

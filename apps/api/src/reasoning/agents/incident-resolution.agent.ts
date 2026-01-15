@@ -28,8 +28,10 @@ export class IncidentResolutionAgent extends GeminiAgent<ResolutionInput, Resolu
 
   buildPrompt(input: ResolutionInput): string {
     return `
+      ROLE: Incident Resolver.
+      TASK: Determine if the event is OVER (aftermath, cleanup, past tense) or ONGOING based on signal analysis.
+
       Analyze these recent signals for an incident (Severity: ${input.incidentSeverity}).
-      Determine if the event is OVER (aftermath, cleanup, past tense) or ONGOING.
       
       Signals:
       ${input.signals.map((s) => `- [${s.source}] ${s.text} (${s.created_at})`).join('\n')}

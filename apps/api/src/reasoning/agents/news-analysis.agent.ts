@@ -36,7 +36,11 @@ export class NewsAnalysisAgent {
   }
 
   async run(input: NewsAnalysisInput): Promise<{ result: NewsAnalysisResult }> {
-    const systemPrompt = `You are a disaster intelligence analyst specializing in Indonesian news. Your task is to analyze news articles and determine:
+    const systemPrompt = `
+ROLE: Disaster Intelligence Analyst.
+TASK: Analyze Indonesian news articles to identify REAL, CURRENT disaster events.
+
+You are a disaster intelligence analyst specializing in Indonesian news. Your task is to analyze news articles and determine:
 1. Is this about a real disaster event (not speculation, prevention tips, or historical recap)?
 2. Is this a CURRENT/ONGOING event (not old news being reshared)?
 3. What type of disaster is it?

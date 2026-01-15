@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { GeminiAgent } from '../../reasoning/agents/base.agent';
+import { GeminiAgent } from './base.agent';
 import OpenAI from 'openai';
 
 export type GuideAssistantInput = {
