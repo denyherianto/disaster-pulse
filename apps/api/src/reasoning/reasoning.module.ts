@@ -8,7 +8,7 @@ import { ClassifierAgent } from './agents/classifier.agent';
 import { SkepticAgent } from './agents/skeptic.agent';
 import { SynthesizerAgent } from './agents/synthesizer.agent';
 import { ActionAgent } from './agents/action.agent';
-import { SignalSeverityAgent } from './agents/signal-severity.agent';
+import { SignalEnrichmentAgent } from './agents/signal-enrichment.agent';
 import { VideoAnalysisAgent } from './agents/video-analysis.agent';
 import { NewsAnalysisAgent } from './agents/news-analysis.agent';
 import { IncidentResolutionAgent } from './agents/incident-resolution.agent';
@@ -23,7 +23,7 @@ import { GoogleMapsTool } from './tools/google-maps.tool';
     SkepticAgent,
     SynthesizerAgent,
     ActionAgent,
-    SignalSeverityAgent,
+    SignalEnrichmentAgent,
     VideoAnalysisAgent,
     NewsAnalysisAgent,
     IncidentResolutionAgent,
@@ -37,6 +37,6 @@ import { GoogleMapsTool } from './tools/google-maps.tool';
       inject: [ConfigService],
     }
   ],
-  exports: [ReasoningService, SignalSeverityAgent, VideoAnalysisAgent, NewsAnalysisAgent, IncidentResolutionAgent],
+  exports: [ReasoningService, SignalEnrichmentAgent, VideoAnalysisAgent, NewsAnalysisAgent, IncidentResolutionAgent],
 })
 export class ReasoningModule {}

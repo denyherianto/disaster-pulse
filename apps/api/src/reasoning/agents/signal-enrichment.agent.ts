@@ -22,9 +22,9 @@ export type SignalSeverityOutput = {
 };
 
 @Injectable()
-export class SignalSeverityAgent extends GeminiAgent<SignalSeverityInput, SignalSeverityOutput> {
-  protected readonly logger = new Logger(SignalSeverityAgent.name);
-  protected readonly role = 'SignalSeverity';
+export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, SignalSeverityOutput> {
+  protected readonly logger = new Logger(SignalEnrichmentAgent.name);
+  protected readonly role = 'SignalEnrichment';
   protected readonly model = 'maia/gemini-3-pro-preview'; // High speed model
 
   constructor(

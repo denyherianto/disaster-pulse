@@ -2,7 +2,7 @@ import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common
 import { SupabaseService } from '../supabase/supabase.service';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
-import { SignalSeverityAgent } from '../reasoning/agents/signal-severity.agent';
+import { SignalEnrichmentAgent } from '../reasoning/agents/signal-enrichment.agent';
 
 @Injectable()
 export class SignalsService {
@@ -10,7 +10,7 @@ export class SignalsService {
   constructor(
     private readonly supabase: SupabaseService,
     @InjectQueue('clustering-queue') private readonly clusteringQueue: Queue,
-    private readonly severityAgent: SignalSeverityAgent,
+    private readonly enrichmentAgent: SignalEnrichmentAgent,
   ) { }
 
   async createSignal(payload: any) {
@@ -18,7 +18,7 @@ export class SignalsService {
     // 1. Analyze Severity (Fast Agent)
     let severityResult: any = { severity: 'low', urgency_score: 0.1, location: null, event_type: 'other' };
     try {
-      const { result } = await this.severityAgent.run({
+      const { result } = await this.enrichmentAgent.run({
         text: payload.text || '',
         source: payload.source,
         lat: payload.lat,
