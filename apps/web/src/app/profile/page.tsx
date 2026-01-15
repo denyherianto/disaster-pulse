@@ -1,18 +1,11 @@
 'use client';
 
-import { User, FileText, CheckCircle, XCircle, MapPin, Bell, ChevronRight, Settings, LogOut, Shield } from 'lucide-react';
+import { User, FileText, CheckCircle, XCircle, MapPin, Bell, ChevronRight, Settings, LogOut, Shield, Loader2 } from 'lucide-react';
 import BottomNav from '@/components/navigation/BottomNav';
 import Link from 'next/link';
 import { useLanguage } from '@/components/providers/LanguageProvider';
-
-// Mocked user data
-const mockUser = {
-    id: '00000000-0000-0000-0000-000000000000',
-    name: 'Budi Santoso',
-    email: 'budi@example.com',
-    avatar: null,
-    joined: '2024-06-15',
-};
+import { useAuth } from '@/components/providers/AuthProvider';
+import { useRouter } from 'next/navigation';
 
 const mockStats = {
     totalReports: 12,
@@ -22,6 +15,21 @@ const mockStats = {
 
 export default function ProfilePage() {
     const { t } = useLanguage();
+    const { user, isLoading, signOut } = useAuth();
+    const router = useRouter();
+
+    const handleSignOut = async () => {
+        await signOut();
+        router.push('/login');
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex-1 flex items-center justify-center">
+                <Loader2 className="animate-spin text-slate-400" size={32} />
+            </div>
+        );
+    }
 
     return (
         <>
@@ -38,18 +46,21 @@ export default function ProfilePage() {
                 <div className="px-6 py-4">
                     <div className="bg-white rounded-2xl border border-slate-200 p-6">
                         <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white">
-                                {mockUser.avatar ? (
-                                    <img src={mockUser.avatar} alt="" className="w-full h-full rounded-full object-cover" />
+                            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white overflow-hidden">
+                                {user?.user_metadata?.avatar_url ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={user.user_metadata.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
                                 ) : (
                                     <User size={28} />
                                 )}
                             </div>
                             <div className="flex-1">
-                                <h2 className="text-lg font-semibold text-slate-900">{mockUser.name}</h2>
-                                <p className="text-sm text-slate-500">{mockUser.email}</p>
+                                <h2 className="text-lg font-semibold text-slate-900">
+                                    {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'}
+                                </h2>
+                                <p className="text-sm text-slate-500">{user?.email}</p>
                                 <p className="text-xs text-slate-400 mt-1">
-                                    {t('profile.memberSince')} {new Date(mockUser.joined).toLocaleDateString()}
+                                    {t('profile.memberSince')} {user?.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}
                                 </p>
                             </div>
                         </div>
@@ -150,7 +161,10 @@ export default function ProfilePage() {
 
                 {/* Sign Out */}
                 <div className="px-6 py-4">
-                    <button className="w-full flex items-center justify-center gap-2 py-3 bg-slate-100 text-slate-600 rounded-xl font-medium hover:bg-slate-200 transition-colors">
+                    <button
+                        onClick={handleSignOut}
+                        className="w-full flex items-center justify-center gap-2 py-3 bg-slate-100 text-slate-600 rounded-xl font-medium hover:bg-slate-200 transition-colors"
+                    >
                         <LogOut size={18} />
                         {t('profile.signOut')}
                     </button>
@@ -163,3 +177,4 @@ export default function ProfilePage() {
         </>
     );
 }
+

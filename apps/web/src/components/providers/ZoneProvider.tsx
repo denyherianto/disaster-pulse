@@ -4,9 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { API_BASE_URL } from '@/lib/config';
-
-// Mock User ID for MVP
-const TIM_USER_ID = '00000000-0000-0000-0000-000000000000'; // Replace with real auth later
+import { useAuth } from '@/components/providers/AuthProvider';
 
 export type Zone = {
     id: string;
@@ -40,17 +38,21 @@ export const useZone = () => useContext(ZoneContext);
 
 export default function ZoneProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
+    const { user } = useAuth();
+
     // 1. Fetch Zones
     const { data: zones = [], isLoading } = useQuery({
-        queryKey: ['user-zones', TIM_USER_ID],
+        queryKey: ['user-zones', user?.id],
         queryFn: async () => {
-             const res = await fetch(`${API_BASE_URL}/user/places?user_id=${TIM_USER_ID}`);
+            if (!user?.id) return [];
+            const res = await fetch(`${API_BASE_URL}/user/places?user_id=${user.id}`);
              if (!res.ok) {
                  // Fallback if backend is empty or fails, return empty list or mock default
                  return [];
              }
              return res.json() as Promise<Zone[]>;
         },
+        enabled: !!user?.id,
         staleTime: 1000 * 60 * 60, // 1 hour
     });
 
@@ -86,11 +88,12 @@ export default function ZoneProvider({ children }: { children: React.ReactNode }
 
     // Mutation: Add Zone
     const addZone = async (payload: Omit<Zone, 'id' | 'user_id'>) => {
+        if (!user?.id) return;
         try {
             const res = await fetch(`${API_BASE_URL}/user/places`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...payload, user_id: TIM_USER_ID })
+                body: JSON.stringify({ ...payload, user_id: user.id })
             });
             if (!res.ok) {
                 const err = await res.json();
@@ -131,3 +134,4 @@ export default function ZoneProvider({ children }: { children: React.ReactNode }
         </ZoneContext.Provider>
     );
 }
+

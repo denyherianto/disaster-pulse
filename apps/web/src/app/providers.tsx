@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import NetworkStatusProvider from '@/components/providers/NetworkStatusProvider';
 import ZoneProvider from '@/components/providers/ZoneProvider';
 import { LanguageProvider } from '@/components/providers/LanguageProvider';
+import AuthProvider from '@/components/providers/AuthProvider';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -36,11 +37,13 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     return (
       <NetworkStatusProvider>
         <LanguageProvider>
-          <QueryClientProvider client={queryClient}>
-            <ZoneProvider>
-              {children}
-            </ZoneProvider>
-          </QueryClientProvider>
+          <AuthProvider>
+            <QueryClientProvider client={queryClient}>
+              <ZoneProvider>
+                {children}
+              </ZoneProvider>
+            </QueryClientProvider>
+          </AuthProvider>
         </LanguageProvider>
       </NetworkStatusProvider>
     );
@@ -49,14 +52,16 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <NetworkStatusProvider>
       <LanguageProvider>
-        <PersistQueryClientProvider
-          client={queryClient}
-          persistOptions={{ persister }}
-        >
-          <ZoneProvider>
-            {children}
-          </ZoneProvider>
-        </PersistQueryClientProvider>
+        <AuthProvider>
+          <PersistQueryClientProvider
+            client={queryClient}
+            persistOptions={{ persister }}
+          >
+            <ZoneProvider>
+              {children}
+            </ZoneProvider>
+          </PersistQueryClientProvider>
+        </AuthProvider>
       </LanguageProvider>
     </NetworkStatusProvider>
   );

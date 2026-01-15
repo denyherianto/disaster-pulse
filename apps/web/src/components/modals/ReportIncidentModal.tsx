@@ -6,6 +6,7 @@ import { API_BASE_URL } from '@/lib/config';
 
 import { useLanguage } from '@/components/providers/LanguageProvider';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 type ReportModalProps = {
     isOpen: boolean;
@@ -17,6 +18,7 @@ type IncidentType = 'flood' | 'earthquake' | 'fire' | 'landslide' | 'other';
 export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProps) {
     const { t } = useLanguage();
     const { toast } = useToast();
+    const { user } = useAuth();
     const [eventType, setEventType] = useState<IncidentType | null>(null);
     const [description, setDescription] = useState('');
     const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -92,7 +94,7 @@ export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProp
             // Optionally trigger a toast or refresh
             toast({
                 title: t('report.success'),
-                type: 'success',
+                variant: 'success',
                 duration: 4000
             });
         },
@@ -100,7 +102,7 @@ export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProp
             toast({
                 title: t('common.error'),
                 description: err.message,
-                type: 'destructive'
+                variant: 'destructive'
             });
         }
 
@@ -108,10 +110,10 @@ export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProp
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!eventType || !description || !location) return;
+        if (!eventType || !description || !location || !user?.id) return;
 
         mutation.mutate({
-            user_id: '00000000-0000-0000-0000-000000000000', // Hardcoded for now per requirements
+            user_id: user.id,
             event_type: eventType,
             description,
             lat: location.lat,

@@ -3,14 +3,14 @@ import { useState, useEffect } from "react"
 const TOAST_LIMIT = 5
 const TOAST_REMOVE_DELAY = 1000
 
-type ToastType = "default" | "success" | "destructive"
+type ToastVariant = "default" | "success" | "destructive"
 
 type Toast = {
   id: string
   title?: string
   description?: string
   action?: React.ReactNode
-  type?: ToastType
+  variant?: ToastVariant
   open?: boolean
 }
 
@@ -116,11 +116,11 @@ function dispatch(action: ActionType) {
 type ToastProps = {
     title?: string
     description?: string
-    type?: ToastType
+  variant?: ToastVariant
     duration?: number
 }
 
-function toast({ title, description, type = "default", duration = 4000 }: ToastProps) {
+function toast({ title, description, variant = "default", duration = 4000 }: ToastProps) {
   const id = genId()
 
   const update = (props: Toast) =>
@@ -137,7 +137,7 @@ function toast({ title, description, type = "default", duration = 4000 }: ToastP
       id,
       title,
       description,
-      type,
+      variant,
       open: true,
     },
   })
@@ -175,3 +175,4 @@ function useToast() {
 }
 
 export { useToast, toast }
+

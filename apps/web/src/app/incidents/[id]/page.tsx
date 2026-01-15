@@ -8,6 +8,7 @@ import Link from 'next/link';
 import BottomNav from '@/components/navigation/BottomNav';
 import { API_BASE_URL } from '@/lib/config';
 import { useLanguage } from '@/components/providers/LanguageProvider';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 const CollapsibleSection = ({ children, maxHeight = 200 }: { children: React.ReactNode, maxHeight?: number }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -77,6 +78,7 @@ export default function IncidentDetailPage() {
     const incidentId = params.id as string;
     const queryClient = useQueryClient();
     const { t } = useLanguage();
+    const { user } = useAuth();
 
     // Fetch incident details
     const { data: incident, isLoading } = useQuery({
@@ -112,10 +114,11 @@ export default function IncidentDetailPage() {
     // Feedback mutation
     const feedbackMutation = useMutation({
         mutationFn: async (type: 'confirm' | 'reject') => {
+            if (!user?.id) throw new Error('Not authenticated');
             const res = await fetch(`${API_BASE_URL}/incidents/${incidentId}/feedback`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: '00000000-0000-0000-0000-000000000000', type }),
+                body: JSON.stringify({ user_id: user.id, type }),
             });
             return res.json();
         },
@@ -265,30 +268,30 @@ export default function IncidentDetailPage() {
                                 onClick={() => feedbackMutation.mutate('confirm')}
                                 disabled={feedbackMutation.isPending}
                                 className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-colors disabled:opacity-50 text-sm ${
-                                    incident.incident_feedback?.some((f: any) => f.user_id === '00000000-0000-0000-0000-000000000000' && f.type === 'confirm')
+                                    incident.incident_feedback?.some((f: any) => f.user_id === user?.id && f.type === 'confirm')
                                     ? 'bg-green-100 text-green-700 border-2 border-green-500'
                                     : 'bg-green-50 text-green-700 hover:bg-green-100'
                                 }`}
                             >
                                 <ThumbsUp size={18} />
-                                {incident.incident_feedback?.some((f: any) => f.user_id === '00000000-0000-0000-0000-000000000000' && f.type === 'confirm') ? t('incidentDetail.verification.confirmed') : t('incidentDetail.verification.confirm')}
+                                {incident.incident_feedback?.some((f: any) => f.user_id === user?.id && f.type === 'confirm') ? t('incidentDetail.verification.confirmed') : t('incidentDetail.verification.confirm')}
                             </button>
                             <button 
                                 onClick={() => feedbackMutation.mutate('reject')}
                                 disabled={feedbackMutation.isPending}
                                 className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-colors disabled:opacity-50 text-sm ${
-                                    incident.incident_feedback?.some((f: any) => f.user_id === '00000000-0000-0000-0000-000000000000' && f.type === 'reject')
+                                    incident.incident_feedback?.some((f: any) => f.user_id === user?.id && f.type === 'reject')
                                     ? 'bg-red-100 text-red-700 border-2 border-red-500'
                                     : 'bg-red-50 text-red-700 hover:bg-red-100'
                                 }`}
                             >
                                 <ThumbsDown size={18} />
-                                {incident.incident_feedback?.some((f: any) => f.user_id === '00000000-0000-0000-0000-000000000000' && f.type === 'reject') ? t('incidentDetail.verification.reportedFalse') : t('incidentDetail.verification.falseAlarm')}
+                                {incident.incident_feedback?.some((f: any) => f.user_id === user?.id && f.type === 'reject') ? t('incidentDetail.verification.reportedFalse') : t('incidentDetail.verification.falseAlarm')}
                             </button>
                         </div>
 
                         {/* Feedback Statistics - Only visible after voting */}
-                        {incident.incident_feedback?.some((f: any) => f.user_id === '00000000-0000-0000-0000-000000000000') && (
+                        {incident.incident_feedback?.some((f: any) => f.user_id === user?.id) && (
                             <div className="mt-4 pt-4 border-t border-slate-100">
                                 <div className="flex items-center justify-between text-xs font-medium text-slate-500 mb-2">
                                     <span>{t('incidentDetail.verification.communityStats')}</span>
