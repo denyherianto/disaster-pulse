@@ -197,7 +197,7 @@ export default function IncidentMap({
                     spiderfyOnMaxZoom={true}
                     iconCreateFunction={createClusterCustomIcon}
                 >
-                    {incidents?.map((inc) => (
+                    {incidents?.filter(inc => ['monitor', 'alert'].includes(inc.status)).map((inc) => (
                         <Marker
                             key={inc.id}
                             position={[inc.lat, inc.lng]}
