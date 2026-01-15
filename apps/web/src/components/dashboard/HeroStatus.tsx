@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/components';
-import { AlertCircle, ChevronRight, Users, ChevronDown, CheckCircle2, Activity } from 'lucide-react';
+import { AlertCircle, ChevronRight, ChevronDown, Activity } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 
@@ -14,14 +14,17 @@ type HeroIncident = {
     status: string;
     confidence: number;
     signal_count?: number;
+    summary?: string;
 }
 
 import { API_BASE_URL } from '@/lib/config';
 import { useZone } from '@/components/providers/ZoneProvider';
 import ZoneSelector from '@/components/dashboard/ZoneSelector';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 
 export default function HeroStatus() {
     const { selectedZone } = useZone();
+    const { t } = useLanguage();
     const [currentIndex, setCurrentIndex] = useState(0);
     const [animPhase, setAnimPhase] = useState<'idle' | 'out' | 'snap'>('idle');
     const [slideDir, setSlideDir] = useState<'left' | 'right'>('left');
@@ -93,8 +96,8 @@ export default function HeroStatus() {
         <section className="px-6 pb-2">
              <Card className="bg-slate-50 border-dashed border-slate-300">
                 <div className="flex flex-col items-center justify-center p-6 text-slate-400">
-                    <span className="font-medium">All systems normal</span>
-                    <span className="text-xs">No active incidents detected.</span>
+                    <span className="font-medium">{t('dashboard.status.uptodate')}</span>
+                    <span className="text-xs">{t('incidentFeed.empty')}</span>
                 </div>
              </Card>
         </section>
@@ -108,6 +111,12 @@ export default function HeroStatus() {
     const prevIncident = (e: React.MouseEvent) => {
         e.stopPropagation();
         triggerSlide('prev', total);
+    };
+
+    // Get translated event type
+    const getEventTypeName = (type: string) => {
+        const typeKey = type.toLowerCase().replace(' ', '_') as keyof typeof t;
+        return t(`common.disasterTypes.${type}` as any) || type.replace('_', ' ');
     };
 
     return (
@@ -168,16 +177,23 @@ export default function HeroStatus() {
                                 <AlertCircle size={14} />
                             </span>
                             <span className="text-xs font-semibold uppercase tracking-wider text-amber-600">
-                                Advisory
+                                {t('incidentFeed.alert')}
                             </span>
                         </div>
 
-                        <h2 className="text-3xl font-semibold tracking-tight text-slate-900 mb-2 leading-tight capitalize">
-                            {currentIncident.type.replace('_', ' ')} detected.
+                        <h2 className="text-2xl font-semibold tracking-tight text-slate-900 mb-1 leading-tight capitalize">
+                            {getEventTypeName(currentIncident.type)}
                         </h2>
-                        <p className="text-slate-500 leading-relaxed text-base">
-                            Reported near <span className="text-slate-900 font-medium">{currentIncident.city}</span>.
+                        <p className="text-slate-500 text-sm mb-2">
+                            {currentIncident.city}
                         </p>
+
+                        {/* AI Summary */}
+                        {currentIncident.summary && (
+                            <p className="text-slate-600 text-sm leading-relaxed line-clamp-2">
+                                {currentIncident.summary}
+                            </p>
+                        )}
                     </div>
 
                     {/* Metrics Bar */}
@@ -193,7 +209,7 @@ export default function HeroStatus() {
                             </div>
                             <div title="User Reports" className="flex items-center gap-1">
                                 <span className="font-semibold text-slate-900">{currentIncident.signal_count}</span>
-                                <span>Reports</span>
+                                <span>{t('incidentDetail.reports')}</span>
                             </div>
                         </div>
 
@@ -206,3 +222,4 @@ export default function HeroStatus() {
         </section>
     );
 }
+

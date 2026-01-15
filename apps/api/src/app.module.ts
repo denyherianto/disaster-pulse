@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SignalsModule } from './signals/signals.module';
 import { UserPlacesModule } from './user-places/user-places.module';
+import { UsersModule } from './users/users.module';
 import { IncidentsModule } from './incidents/incidents.module';
 import { ReasoningModule } from './reasoning/reasoning.module';
 import { DatabaseModule } from './database/database.module';
@@ -23,11 +24,11 @@ import { EmergencyContactsModule } from './emergency-contacts/emergency-contacts
     SupabaseModule,
     SignalsModule,
     UserPlacesModule,
+    UsersModule,
     IncidentsModule,
     ReasoningModule,
     DatabaseModule,
     TiktokModule,
-    RssModule,
     RssModule,
     ReportsModule,
     BmkgModule,
@@ -38,3 +39,4 @@ import { EmergencyContactsModule } from './emergency-contacts/emergency-contacts
   providers: [AppService],
 })
 export class AppModule {}
+

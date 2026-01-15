@@ -31,13 +31,14 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Protected routes - require authentication
-  const protectedPaths = ['/profile', '/settings']
-  const isProtectedPath = protectedPaths.some(path => 
+  // Public paths - do not require authentication
+  const publicPaths = ['/login', '/auth/callback']
+  const isPublicPath = publicPaths.some(path => 
     request.nextUrl.pathname.startsWith(path)
   )
 
-  if (isProtectedPath && !user) {
+  // Redirect to login if not authenticated and not on public path
+  if (!isPublicPath && !user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
@@ -58,3 +59,4 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
+

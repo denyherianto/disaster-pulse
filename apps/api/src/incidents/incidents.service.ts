@@ -492,6 +492,7 @@ export class IncidentsService {
         event_type,
         confidence_score,
         city,
+        summary,
         created_at,
         updated_at,
         incident_signals!inner (
@@ -529,6 +530,7 @@ export class IncidentsService {
         lat: avgLat,
         lng: avgLng,
         city: inc.city,
+        summary: inc.summary,
         status: inc.status,
         created_at: inc.created_at,
         updated_at: inc.updated_at,
@@ -554,6 +556,7 @@ export class IncidentsService {
         event_type,
         confidence_score,
         city,
+        summary,
         created_at,
         updated_at,
         incident_signals!inner (
@@ -584,6 +587,7 @@ export class IncidentsService {
         severity: inc.severity,
         confidence: inc.confidence_score,
         city: inc.city,
+        summary: inc.summary,
         status: inc.status,
         created_at: inc.created_at,
         updated_at: inc.updated_at,

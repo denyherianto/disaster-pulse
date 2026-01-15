@@ -1,8 +1,9 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase';
+import { API_BASE_URL } from '@/lib/config';
 
 type AuthContextType = {
   user: User | null;
@@ -27,6 +28,38 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const supabase = createClient();
+  const syncedUserIds = useRef<Set<string>>(new Set());
+
+  // Sync user to backend database
+  const syncUserToBackend = async (authUser: User) => {
+    // Prevent duplicate syncs for the same user in this session
+    if (syncedUserIds.current.has(authUser.id)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: authUser.id,
+          email: authUser.email,
+          name: authUser.user_metadata?.full_name || authUser.user_metadata?.name,
+          avatar_url: authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture,
+          auth_provider: authUser.app_metadata?.provider || 'google',
+        }),
+      });
+
+      if (response.ok) {
+        syncedUserIds.current.add(authUser.id);
+        console.log('User synced to backend successfully');
+      } else {
+        console.error('Failed to sync user to backend:', await response.text());
+      }
+    } catch (error) {
+      console.error('Error syncing user to backend:', error);
+    }
+  };
 
   useEffect(() => {
     // Get initial session
@@ -34,14 +67,24 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
+
+      // Sync user to backend if logged in
+      if (session?.user) {
+        syncUserToBackend(session.user);
+      }
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setIsLoading(false);
+
+        // Sync user on sign in
+        if (event === 'SIGNED_IN' && session?.user) {
+          syncUserToBackend(session.user);
+        }
       }
     );
 
@@ -67,3 +110,4 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     </AuthContext.Provider>
   );
 }
+

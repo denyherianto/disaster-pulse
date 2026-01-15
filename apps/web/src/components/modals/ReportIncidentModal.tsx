@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, CloudRain, Zap, Flame, Mountain, AlertTriangle, Loader2, MapPin } from 'lucide-react';
+import { X, CloudRain, Zap, Flame, Mountain, Loader2, MapPin } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 import { API_BASE_URL } from '@/lib/config';
 
@@ -22,6 +22,7 @@ export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProp
     const [eventType, setEventType] = useState<IncidentType | null>(null);
     const [description, setDescription] = useState('');
     const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+    const [locationName, setLocationName] = useState<string | null>(null);
     const [locationError, setLocationError] = useState<string | null>(null);
     const [isLocating, setIsLocating] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -31,9 +32,54 @@ export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProp
         return () => setMounted(false);
     }, []);
 
+    // Reverse geocode to get location name
+    const reverseGeocode = async (lat: number, lng: number) => {
+        try {
+            const res = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14&addressdetails=1`,
+                {
+                    headers: {
+                        'User-Agent': 'disaster-pulse/1.0',
+                        'Accept-Language': 'id,en'
+                    }
+                }
+            );
+
+            if (!res.ok) return null;
+
+            const data = await res.json();
+            const addr = data.address ?? {};
+
+            // Build location string: District/Suburb, City, Province
+            const parts: string[] = [];
+
+            // District level
+            if (addr.suburb || addr.village || addr.neighbourhood) {
+                parts.push(addr.suburb || addr.village || addr.neighbourhood);
+            }
+
+            // City level
+            if (addr.city || addr.town || addr.municipality || addr.county) {
+                parts.push(addr.city || addr.town || addr.municipality || addr.county);
+            }
+
+            // Province level
+            if (addr.state) {
+                parts.push(addr.state);
+            }
+
+            return parts.length > 0 ? parts.join(', ') : null;
+        } catch (err) {
+            console.error('Reverse geocoding failed:', err);
+            return null;
+        }
+    };
+
     const detectLocation = () => {
         setIsLocating(true);
         setLocationError(null);
+        setLocationName(null);
+
         if (!navigator.geolocation) {
             setLocationError('Geolocation is not supported');
             setIsLocating(false);
@@ -41,11 +87,16 @@ export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProp
         }
 
         navigator.geolocation.getCurrentPosition(
-            (position) => {
-                setLocation({
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude
-                });
+            async (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+
+                setLocation({ lat, lng });
+
+                // Get location name
+                const name = await reverseGeocode(lat, lng);
+                setLocationName(name);
+
                 setIsLocating(false);
             },
             (error) => {
@@ -90,6 +141,7 @@ export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProp
             // Reset and close
             setEventType(null);
             setDescription('');
+            setLocationName(null);
             onClose();
             // Optionally trigger a toast or refresh
             toast({
@@ -143,7 +195,7 @@ export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProp
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${location ? 'bg-green-100 text-green-600' : locationError ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
                             {isLocating ? <Loader2 size={16} className="animate-spin" /> : <MapPin size={16} />}
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                             {isLocating ? (
                                 <p className="text-slate-500">{t('report.location.detecting')}</p>
                             ) : locationError ? (
@@ -157,10 +209,14 @@ export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProp
                                             {t('common.retry')}
                                     </button>
                                 </div>
-                            ) : (
+                                ) : location ? (
+                                    <div>
                                         <p className="text-green-600 font-medium">{t('report.location.detected')}</p>
-                            )}
-                            {location && <p className="text-[10px] text-slate-400 font-mono">{location.lat.toFixed(6)}, {location.lng.toFixed(6)}</p>}
+                                            {locationName && (
+                                                <p className="text-xs text-slate-600 truncate">{locationName}</p>
+                                            )}
+                                </div>
+                            ) : null}
                         </div>
                     </div>
 
@@ -230,3 +286,4 @@ export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProp
         document.body
     );
 }
+
