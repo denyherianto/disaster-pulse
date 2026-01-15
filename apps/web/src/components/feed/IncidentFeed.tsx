@@ -4,6 +4,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Database, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import GoogleIcon from '@/components/ui/GoogleIcon';
+import StatusBadge from '@/components/ui/StatusBadge';
+import SignalBars from '@/components/ui/SignalBars';
+import VerificationAvatars from '@/components/ui/VerificationAvatars';
+import { timeAgo } from '@/lib/utils';
 
 type FeedIncident = {
     id: string;
@@ -38,55 +42,7 @@ import { getIncidentIconName, getIncidentColorClass } from '@/lib/incidents';
 
 
 
-// Helper function for timeAgo - added to ensure syntactical correctness
-const timeAgo = (dateString?: string) => {
-    if (!dateString) return 'Unknown time';
-    const date = new Date(dateString);
-    const now = new Date();
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    let interval = seconds / 31536000;
-    if (interval > 1) return Math.floor(interval) + " years ago";
-    interval = seconds / 2592000;
-    if (interval > 1) return Math.floor(interval) + " months ago";
-    interval = seconds / 86400;
-    if (interval > 1) return Math.floor(interval) + " days ago";
-    interval = seconds / 3600;
-    if (interval > 1) return Math.floor(interval) + " hours ago";
-    interval = seconds / 60;
-    if (interval > 1) return Math.floor(interval) + " minutes ago";
-    return Math.floor(seconds) + " seconds ago";
-};
-
-const SignalBars = ({ confidence }: { confidence: number }) => {
-    const percentage = Math.round(confidence * 100);
-    const level = confidence > 0.7 ? 3 : confidence > 0.4 ? 2 : 1;
-
-    // Dynamic color based on confidence level
-    const getColor = (barIndex: number) => {
-        if (barIndex > level) return 'bg-slate-200';
-        if (level === 3) return 'bg-emerald-500'; // High - Green
-        if (level === 2) return 'bg-amber-500';   // Med - Yellow/Amber
-        return 'bg-red-500';                      // Low - Red
-    };
-
-    return (
-        <div className="flex items-center gap-2">
-            <div className="flex items-end gap-0.5 h-4">
-                {[1, 2, 3].map((bar) => (
-                    <div
-                        key={bar}
-                        className={`w-1 rounded-sm ${getColor(bar)}`}
-                        style={{ height: `${bar * 33}%` }}
-                    />
-                ))}
-            </div>
-            <span className={`text-xs font-bold ${level === 3 ? 'text-emerald-600' : level === 2 ? 'text-amber-600' : 'text-red-600'}`}>
-                {percentage}%
-            </span>
-        </div>
-    );
-};
 
 export default function IncidentFeed() {
     const { selectedZone } = useZone();
@@ -150,7 +106,6 @@ export default function IncidentFeed() {
                     const colorClasses = getIncidentColorClass(inc.type, 'feed').replace('rounded-full', '');
                     const feedbackCount = inc.incident_feedback?.filter(f => f.type === 'confirm').length || 0;
                     const isVerified = inc.confidence > 0.8 || inc.status === 'alert' || feedbackCount >= 2;
-                    const confirmers = inc.incident_feedback?.filter(f => f.type === 'confirm').slice(0, 3) || [];
 
                     return (
                         <Link key={inc.id} href={`/incidents/${inc.id}`}>
@@ -169,38 +124,20 @@ export default function IncidentFeed() {
                                             <SignalBars confidence={inc.confidence} />
                                         </div>
 
-                                        <div className="text-slate-400 text-sm">
+                                        <div className="text-slate-400 text-sm flex items-center gap-2 mt-1">
                                             {timeAgo(inc.updated_at || inc.created_at)} • {inc.city || 'Unknown Location'}
+                                        </div>
+                                        <div className="mt-1">
+                                            <StatusBadge status={inc.status} />
                                         </div>
                                     </div>
                                 </div>
 
                                 {feedbackCount > 0 && (
-                                    <>
-                                        <div className="mt-6"></div>
-                                        <div className="flex items-center gap-2">
-                                            <div className="flex -space-x-1.5">
-                                                {confirmers.map((fb, i) => {
-                                                    const user = fb.users;
-                                                    const initials = user?.name
-                                                        ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
-                                                        : 'UI';
-                                                    return (
-                                                        <div key={i} className={`w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold overflow-hidden bg-slate-100 text-slate-600`}>
-                                                            {user?.avatar_url ? (
-                                                                <img src={user.avatar_url} alt={user.name || 'User'} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <span>{initials}</span>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                            <span className="text-slate-400 text-xs">
-                                                {t('incidentFeed.verifiedBy')} {feedbackCount} {t('incidentFeed.people')}
-                                            </span>
-                                        </div>
-                                    </>
+                                    <VerificationAvatars
+                                        feedback={inc.incident_feedback || []}
+                                        count={feedbackCount}
+                                    />
                                 )}
                             </div>
                         </Link>

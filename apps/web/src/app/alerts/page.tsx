@@ -8,6 +8,12 @@ import BottomNav from '@/components/navigation/BottomNav';
 import { API_BASE_URL } from '@/lib/config';
 import { useZone } from '@/components/providers/ZoneProvider';
 import { useLanguage } from '@/components/providers/LanguageProvider';
+import GoogleIcon from '@/components/ui/GoogleIcon';
+import StatusBadge from '@/components/ui/StatusBadge';
+import SignalBars from '@/components/ui/SignalBars';
+import VerificationAvatars from '@/components/ui/VerificationAvatars';
+import { timeAgo } from '@/lib/utils';
+import { getIncidentIconName, getIncidentColorClass } from '@/lib/incidents';
 
 type AlertIncident = {
     id: string;
@@ -31,74 +37,7 @@ type AlertIncident = {
 
 const DISASTER_TYPES = ['all', 'flood', 'earthquake', 'fire', 'landslide', 'power_outage'];
 
-const getIncidentIcon = (type: string) => {
-    switch (type) {
-        case 'flood': return CloudRain;
-        case 'earthquake': return Zap;
-        case 'fire': return Flame;
-        case 'landslide': return Mountain;
-        default: return Zap;
-    }
-};
 
-const getIncidentColor = (type: string) => {
-    switch (type) {
-        case 'flood': return 'bg-blue-50 border-blue-100 text-blue-500';
-        case 'earthquake': return 'bg-amber-50 border-amber-100 text-amber-500';
-        case 'fire': return 'bg-red-50 border-red-100 text-red-500';
-        case 'landslide': return 'bg-orange-50 border-orange-100 text-orange-500';
-        default: return 'bg-slate-50 border-slate-100 text-slate-400';
-    }
-};
-
-const timeAgo = (dateString?: string) => {
-    if (!dateString) return 'Unknown time';
-    const date = new Date(dateString);
-    const now = new Date();
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-    let interval = seconds / 31536000;
-    if (interval > 1) return Math.floor(interval) + " years ago";
-    interval = seconds / 2592000;
-    if (interval > 1) return Math.floor(interval) + " months ago";
-    interval = seconds / 86400;
-    if (interval > 1) return Math.floor(interval) + " days ago";
-    interval = seconds / 3600;
-    if (interval > 1) return Math.floor(interval) + " hours ago";
-    interval = seconds / 60;
-    if (interval > 1) return Math.floor(interval) + " minutes ago";
-    return Math.floor(seconds) + " seconds ago";
-};
-
-const SignalBars = ({ confidence }: { confidence: number }) => {
-    const percentage = Math.round(confidence * 100);
-    const level = confidence > 0.7 ? 3 : confidence > 0.4 ? 2 : 1;
-
-    // Dynamic color based on confidence level
-    const getColor = (barIndex: number) => {
-        if (barIndex > level) return 'bg-slate-200';
-        if (level === 3) return 'bg-emerald-500'; // High - Green
-        if (level === 2) return 'bg-amber-500';   // Med - Yellow/Amber
-        return 'bg-red-500';                      // Low - Red
-    };
-
-    return (
-        <div className="flex items-center gap-2">
-            <div className="flex items-end gap-0.5 h-4">
-                {[1, 2, 3].map((bar) => (
-                    <div
-                        key={bar}
-                        className={`w-1 rounded-sm ${getColor(bar)}`}
-                        style={{ height: `${bar * 33}%` }}
-                    />
-                ))}
-            </div>
-            <span className={`text-xs font-bold ${level === 3 ? 'text-emerald-600' : level === 2 ? 'text-amber-600' : 'text-red-600'}`}>
-                {percentage}%
-            </span>
-        </div>
-    );
-};
 
 export default function AlertsPage() {
     const { t } = useLanguage();
@@ -253,8 +192,8 @@ export default function AlertsPage() {
                     ) : (
                         <>
                             {allIncidents.map((inc, index) => {
-                                const IconComponent = getIncidentIcon(inc.type);
-                                const colorClasses = getIncidentColor(inc.type);
+                                const iconName = getIncidentIconName(inc.type);
+                                const colorClasses = getIncidentColorClass(inc.type, 'feed');
                                 const isLast = index === allIncidents.length - 1;
 
                                 return (
@@ -266,7 +205,7 @@ export default function AlertsPage() {
                                             {/* Top Section: Icon, Content, Confidence */}
                                             <div className="flex items-start gap-4">
                                                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${colorClasses.replace('rounded-full', '')}`}>
-                                                    <IconComponent size={24} strokeWidth={1.5} />
+                                                    <GoogleIcon name={iconName} size={24} />
                                                 </div>
 
                                                 <div className="flex-1 min-w-0">
@@ -277,30 +216,20 @@ export default function AlertsPage() {
                                                         <SignalBars confidence={inc.confidence} />
                                                     </div>
 
-                                                    <div className="text-slate-400 text-sm">
+                                                    <div className="text-slate-400 text-sm flex items-center gap-2 mt-1">
                                                         {timeAgo(inc.updated_at || inc.created_at)} • {inc.city || 'Unknown Location'}
+                                                    </div>
+                                                    <div className="mt-1">
+                                                        <StatusBadge status={inc.status} />
                                                     </div>
                                                 </div>
                                             </div>
 
                                             {(inc.incident_feedback?.filter(f => f.type === 'confirm').length || 0) > 0 && (
-                                                <>
-                                                    <div className="mt-6"></div>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="flex -space-x-1.5">
-                                                            {[...Array(Math.min(3, inc.incident_feedback?.filter(f => f.type === 'confirm').length || 0))].map((_, i) => (
-                                                                <div key={i} className={`w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold
-                                                                    ${['bg-indigo-100 text-indigo-600', 'bg-emerald-100 text-emerald-600', 'bg-slate-100 text-slate-600'][i % 3]}
-                                                                `}>
-                                                                    {['JD', 'AS', '+'][i % 3]}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                        <span className="text-slate-400 text-xs">
-                                                            {t('incidentFeed.verifiedBy')} {inc.incident_feedback?.filter(f => f.type === 'confirm').length} {t('incidentFeed.people')}
-                                                        </span>
-                                                    </div>
-                                                </>
+                                                <VerificationAvatars
+                                                    feedback={inc.incident_feedback || []}
+                                                    count={inc.incident_feedback?.filter(f => f.type === 'confirm').length || 0}
+                                                />
                                             )}
                                         </div>
                                     </Link>
