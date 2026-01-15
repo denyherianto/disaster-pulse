@@ -503,7 +503,11 @@ export class IncidentsService {
         ),
         incident_feedback (
             user_id,
-            type
+            type,
+            users (
+                name,
+                avatar_url
+            )
         )
       `)
       .in('status', ['alert', 'monitor', 'resolved']);
@@ -564,7 +568,11 @@ export class IncidentsService {
         ),
         incident_feedback (
             user_id,
-            type
+            type,
+            users (
+                name,
+                avatar_url
+            )
         )
       `)
       .in('status', ['alert', 'monitor', 'resolved']);
@@ -644,7 +652,11 @@ export class IncidentsService {
             user_id,
             type,
             comment,
-            created_at
+            created_at,
+            users (
+                name,
+                avatar_url
+            )
         ),
         incident_lifecycle (
             id,

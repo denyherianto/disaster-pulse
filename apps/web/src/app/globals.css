@@ -76,3 +76,16 @@ body {
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+
+/* Ensure Material Symbols render correctly inside Leaflet DivIcons */
+.leaflet-div-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.custom-div-icon span.material-symbols-rounded {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}

@@ -22,34 +22,21 @@ type FeedIncident = {
         user_id: string;
         type: 'confirm' | 'reject';
         created_at: string;
+        users?: {
+            name: string | null;
+            avatar_url: string | null;
+        } | null;
     }[];
 }
 
 import { API_BASE_URL } from '@/lib/config';
 import { useZone } from '@/components/providers/ZoneProvider';
 import { useLanguage } from '@/components/providers/LanguageProvider';
+import { getIncidentIconName, getIncidentColorClass } from '@/lib/incidents';
 
 // ... (helper functions getIncidentIcon, getIncidentColor unchanged)
 
-const getIncidentIconName = (type: string) => {
-    switch (type) {
-        case 'flood': return 'flood';
-        case 'earthquake': return 'earthquake';
-        case 'fire': return 'local_fire_department';
-        case 'landslide': return 'landslide';
-        default: return 'warning';
-    }
-};
 
-const getIncidentColor = (type: string) => {
-    switch (type) {
-        case 'flood': return 'bg-blue-50 border-blue-100 text-blue-500';
-        case 'earthquake': return 'bg-amber-50 border-amber-100 text-amber-500';
-        case 'fire': return 'bg-red-50 border-red-100 text-red-500';
-        case 'landslide': return 'bg-orange-50 border-orange-100 text-orange-500';
-        default: return 'bg-slate-50 border-slate-100 text-slate-400';
-    }
-};
 
 // Helper function for timeAgo - added to ensure syntactical correctness
 const timeAgo = (dateString?: string) => {
@@ -160,9 +147,10 @@ export default function IncidentFeed() {
                 {incidents?.map((inc) => {
                     const iconName = getIncidentIconName(inc.type);
                     // Use a more subtle background for the icon container to match the clean look
-                    const colorClasses = getIncidentColor(inc.type).replace('rounded-full', '');
+                    const colorClasses = getIncidentColorClass(inc.type, 'feed').replace('rounded-full', '');
                     const feedbackCount = inc.incident_feedback?.filter(f => f.type === 'confirm').length || 0;
                     const isVerified = inc.confidence > 0.8 || inc.status === 'alert' || feedbackCount >= 2;
+                    const confirmers = inc.incident_feedback?.filter(f => f.type === 'confirm').slice(0, 3) || [];
 
                     return (
                         <Link key={inc.id} href={`/incidents/${inc.id}`}>
@@ -192,13 +180,21 @@ export default function IncidentFeed() {
                                         <div className="mt-6"></div>
                                         <div className="flex items-center gap-2">
                                             <div className="flex -space-x-1.5">
-                                                {[...Array(Math.min(3, feedbackCount))].map((_, i) => (
-                                                    <div key={i} className={`w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold
-                                                        ${['bg-indigo-100 text-indigo-600', 'bg-emerald-100 text-emerald-600', 'bg-slate-100 text-slate-600'][i % 3]}
-                                                    `}>
-                                                        {['JD', 'AS', '+'][i % 3]}
-                                                    </div>
-                                                ))}
+                                                {confirmers.map((fb, i) => {
+                                                    const user = fb.users;
+                                                    const initials = user?.name
+                                                        ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+                                                        : 'UI';
+                                                    return (
+                                                        <div key={i} className={`w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold overflow-hidden bg-slate-100 text-slate-600`}>
+                                                            {user?.avatar_url ? (
+                                                                <img src={user.avatar_url} alt={user.name || 'User'} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <span>{initials}</span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                             <span className="text-slate-400 text-xs">
                                                 {t('incidentFeed.verifiedBy')} {feedbackCount} {t('incidentFeed.people')}

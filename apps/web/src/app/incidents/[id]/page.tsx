@@ -3,12 +3,14 @@
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { CloudRain, Zap, Flame, Mountain, MapPin, ChevronLeft, ThumbsUp, ThumbsDown, Clock, Phone, FileDown, ExternalLink, AlertTriangle, CheckCircle, Eye, Newspaper, Video, AlarmCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import { MapPin, ChevronLeft, ThumbsUp, ThumbsDown, Clock, Phone, FileDown, ExternalLink, AlertTriangle, CheckCircle, Eye, AlarmCheck, ChevronDown, ChevronUp } from 'lucide-react';
 import Link from 'next/link';
 import BottomNav from '@/components/navigation/BottomNav';
 import { API_BASE_URL } from '@/lib/config';
 import { useLanguage } from '@/components/providers/LanguageProvider';
 import { useAuth } from '@/components/providers/AuthProvider';
+import GoogleIcon from '@/components/ui/GoogleIcon';
+import { getIncidentIconName, getIncidentColorClass } from '@/lib/incidents';
 
 const CollapsibleSection = ({ children, maxHeight = 200 }: { children: React.ReactNode, maxHeight?: number }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -37,25 +39,7 @@ const CollapsibleSection = ({ children, maxHeight = 200 }: { children: React.Rea
     );
 };
 
-const getIncidentIcon = (type: string) => {
-    switch (type) {
-        case 'flood': return CloudRain;
-        case 'earthquake': return Zap;
-        case 'fire': return Flame;
-        case 'landslide': return Mountain;
-        default: return Zap;
-    }
-};
 
-const getIncidentColor = (type: string) => {
-    switch (type) {
-        case 'flood': return 'bg-blue-500';
-        case 'earthquake': return 'bg-amber-500';
-        case 'fire': return 'bg-red-500';
-        case 'landslide': return 'bg-orange-500';
-        default: return 'bg-slate-500';
-    }
-};
 
 const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -146,7 +130,7 @@ export default function IncidentDetailPage() {
         );
     }
 
-    const IconComponent = getIncidentIcon(incident.event_type);
+    const iconName = getIncidentIconName(incident.event_type);
 
     // Use real lifecycle data from API
     // If empty (legacy incidents), fallback to created_at
@@ -165,7 +149,7 @@ export default function IncidentDetailPage() {
     return (
         <>
             {/* Header */}
-            <div className={`shrink-0 ${getIncidentColor(incident.event_type)} text-white`}>
+            <div className={`shrink-0 ${getIncidentColorClass(incident.event_type, 'header')} text-white`}>
                 <div className="px-6 py-4">
                     <div className="flex items-center justify-between mb-6">
                         <Link href="/" className="p-2 -ml-2 text-white/80 hover:text-white">
@@ -180,7 +164,7 @@ export default function IncidentDetailPage() {
 
                     <div className="flex items-center gap-4 mb-4">
                         <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center">
-                            <IconComponent size={28} />
+                            <GoogleIcon name={iconName} size={28} />
                         </div>
                         <div>
                             <h1 className="text-2xl font-bold capitalize">{t(`common.disasterTypes.${incident.event_type}`) || incident.event_type?.replace('_', ' ')}</h1>

@@ -9,7 +9,8 @@ import { API_BASE_URL } from '@/lib/config';
 import L from 'leaflet';
 import { useZone } from '@/components/providers/ZoneProvider';
 import { renderToString } from 'react-dom/server';
-import { CloudRain, Zap, Flame, Mountain, AlertTriangle, Eye } from 'lucide-react';
+import GoogleIcon from '@/components/ui/GoogleIcon';
+import { getIncidentIconName, getIncidentColorClass } from '@/lib/incidents';
 
 // Fix Leaflet default icon issue
 // We are replacing this with custom icons anyway, but good to keep for fallbacks if needed
@@ -45,35 +46,13 @@ const INDONESIA_ZOOM = 5;
 
 // Helper to create custom markers
 const createIncidentIcon = (type: string, severity: string) => {
-    let IconComponent = Eye;
-    let colorClass = 'bg-slate-500';
+    // 1. Get Icon Name & Color Class from Central Config
+    const iconName = getIncidentIconName(type);
+    const colorClass = getIncidentColorClass(type, 'mapMarker'); // returns e.g. 'bg-blue-500'
 
-    // 1. Determine Icon & Color based on Type
-    switch (type) {
-        case 'flood':
-            IconComponent = CloudRain;
-            colorClass = 'bg-blue-500';
-            break;
-        case 'earthquake':
-            IconComponent = Zap;
-            colorClass = 'bg-amber-500';
-            break;
-        case 'fire':
-            IconComponent = Flame;
-            colorClass = 'bg-red-500';
-            break;
-        case 'landslide':
-            IconComponent = Mountain;
-            colorClass = 'bg-orange-500';
-            break;
-        default:
-            IconComponent = AlertTriangle;
-            colorClass = 'bg-slate-500';
-            break;
-    }
-
-    // 2. Render Icon to HTML
-    const iconHtml = renderToString(<IconComponent color="white" size={20} />);
+    // 2. Render Icon to HTML using GoogleIcon
+    // Note: We use renderToString to convert the React component to an HTML string
+    const iconHtml = renderToString(<GoogleIcon name={iconName} size={20} className="text-white" />);
 
     // 3. Create DivIcon
     // We add a 'pulse' effect for high severity
