@@ -5,7 +5,7 @@ export const translations = {
     common: {
       loading: 'Loading...',
       error: 'An error occurred',
-      retry: 'Retry',
+      retry: 'Sync Again',
       back: 'Back',
       save: 'Save',
       cancel: 'Cancel',
@@ -173,7 +173,7 @@ export const translations = {
     common: {
       loading: 'Memuat...',
       error: 'Terjadi kesalahan',
-      retry: 'Coba Lagi',
+      retry: 'Sinkronisasi',
       back: 'Kembali',
       save: 'Simpan',
       cancel: 'Batal',
