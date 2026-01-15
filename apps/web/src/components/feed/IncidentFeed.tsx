@@ -15,6 +15,13 @@ type FeedIncident = {
     status: string;
     created_at?: string;
     updated_at?: string;
+    incident_feedback?: {
+        id: string;
+        incident_id: string;
+        user_id: string;
+        type: 'confirm' | 'reject';
+        created_at: string;
+    }[];
 }
 
 import { API_BASE_URL } from '@/lib/config';
@@ -41,6 +48,56 @@ const getIncidentColor = (type: string) => {
         case 'landslide': return 'bg-orange-50 border-orange-100 text-orange-500';
         default: return 'bg-slate-50 border-slate-100 text-slate-400';
     }
+};
+
+// Helper function for timeAgo - added to ensure syntactical correctness
+const timeAgo = (dateString?: string) => {
+    if (!dateString) return 'Unknown time';
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + " years ago";
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + " months ago";
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + " days ago";
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + " hours ago";
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + " minutes ago";
+    return Math.floor(seconds) + " seconds ago";
+};
+
+const SignalBars = ({ confidence }: { confidence: number }) => {
+    const percentage = Math.round(confidence * 100);
+    const level = confidence > 0.7 ? 3 : confidence > 0.4 ? 2 : 1;
+
+    // Dynamic color based on confidence level
+    const getColor = (barIndex: number) => {
+        if (barIndex > level) return 'bg-slate-200';
+        if (level === 3) return 'bg-emerald-500'; // High - Green
+        if (level === 2) return 'bg-amber-500';   // Med - Yellow/Amber
+        return 'bg-red-500';                      // Low - Red
+    };
+
+    return (
+        <div className="flex items-center gap-2">
+            <div className="flex items-end gap-0.5 h-4">
+                {[1, 2, 3].map((bar) => (
+                    <div
+                        key={bar}
+                        className={`w-1 rounded-sm ${getColor(bar)}`}
+                        style={{ height: `${bar * 33}%` }}
+                    />
+                ))}
+            </div>
+            <span className={`text-xs font-bold ${level === 3 ? 'text-emerald-600' : level === 2 ? 'text-amber-600' : 'text-red-600'}`}>
+                {percentage}%
+            </span>
+        </div>
+    );
 };
 
 export default function IncidentFeed() {
@@ -101,47 +158,53 @@ export default function IncidentFeed() {
             <div className="space-y-3">
                 {incidents?.map((inc) => {
                     const IconComponent = getIncidentIcon(inc.type);
-                    const colorClasses = getIncidentColor(inc.type);
+                    // Use a more subtle background for the icon container to match the clean look
+                    const colorClasses = getIncidentColor(inc.type).replace('rounded-full', '');
+                    const feedbackCount = inc.incident_feedback?.filter(f => f.type === 'confirm').length || 0;
+                    const isVerified = inc.confidence > 0.8 || inc.status === 'alert' || feedbackCount >= 2;
 
                     return (
                         <Link key={inc.id} href={`/incidents/${inc.id}`}>
-                            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm active:scale-[0.99] transition-transform cursor-pointer hover:border-slate-300 mb-2">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex gap-3 items-center">
-                                        <div className={`w-10 h-10 rounded-full border flex items-center justify-center shrink-0 ${colorClasses}`}>
-                                            <IconComponent size={18} />
+                            <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm active:scale-[0.99] transition-transform cursor-pointer hover:border-slate-300 hover:shadow-md mb-3">
+                                {/* Top Section: Icon, Content, Confidence */}
+                                <div className="flex items-start gap-4">
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${colorClasses}`}>
+                                        <IconComponent size={24} strokeWidth={1.5} />
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-start justify-between">
+                                            <h4 className="text-lg font-bold text-slate-900 capitalize leading-tight mb-1 truncate pr-2">
+                                                {inc.type.replace('_', ' ')}
+                                            </h4>
+                                            <SignalBars confidence={inc.confidence} />
                                         </div>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <h4 className="text-base font-semibold text-slate-900 capitalize">{inc.type.replace('_', ' ')}</h4>
-                                                {inc.status === 'alert' && (
-                                                    <span className="bg-red-100 text-red-600 text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase">{t('incidentFeed.alert')}</span>
-                                                )}
-                                                {inc.status === 'resolved' && (
-                                                    <span className="bg-slate-100 text-slate-600 text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase">Resolved</span>
-                                                )}
-                                            </div>
-                                            <div className="flex items-center gap-2 mt-0.5 text-sm text-slate-500">
-                                                <MapPin size={12} />
-                                                <span>{inc.city || t('incidentFeed.unknownLocation')}</span>
-                                            </div>
+
+                                        <div className="text-slate-400 text-sm">
+                                            {timeAgo(inc.updated_at || inc.created_at)} • {inc.city || 'Unknown Location'}
                                         </div>
                                     </div>
-                                    <ChevronRight className="text-slate-300" size={20} />
                                 </div>
 
-                                {/* Confidence indicator */}
-                                <div className="mt-3 flex items-center gap-2">
-                                    <div className="h-1.5 flex-1 bg-slate-100 rounded-full overflow-hidden">
-                                        <div
-                                            className={`h-full rounded-full ${inc.confidence >= 0.7 ? 'bg-green-400' : inc.confidence >= 0.4 ? 'bg-amber-400' : 'bg-slate-300'}`}
-                                            style={{ width: `${(inc.confidence || 0.3) * 100}%` }}
-                                        />
-                                    </div>
-                                    <span className="text-xs text-slate-400 font-medium w-16 text-right">
-                                        {inc.confidence >= 0.7 ? t('incidentFeed.confidence.high') : inc.confidence >= 0.4 ? t('incidentFeed.confidence.medium') : t('incidentFeed.confidence.low')}
-                                    </span>
-                                </div>
+                                {feedbackCount > 0 && (
+                                    <>
+                                        <div className="mt-6"></div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex -space-x-1.5">
+                                                {[...Array(Math.min(3, feedbackCount))].map((_, i) => (
+                                                    <div key={i} className={`w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold
+                                                        ${['bg-indigo-100 text-indigo-600', 'bg-emerald-100 text-emerald-600', 'bg-slate-100 text-slate-600'][i % 3]}
+                                                    `}>
+                                                        {['JD', 'AS', '+'][i % 3]}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <span className="text-slate-400 text-xs">
+                                                Verified by {feedbackCount} people
+                                            </span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </Link>
                     );

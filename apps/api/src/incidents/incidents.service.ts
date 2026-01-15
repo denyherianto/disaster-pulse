@@ -533,7 +533,7 @@ export class IncidentsService {
         created_at: inc.created_at,
         updated_at: inc.updated_at,
         signal_count: sigs.length,
-        user_feedback: inc.incident_feedback || []
+        incident_feedback: inc.incident_feedback || []
       };
     }).filter(inc => inc !== null);
 
@@ -591,7 +591,7 @@ export class IncidentsService {
         lng: avgLng,
         distance: 0,
         signal_count: sigs.length,
-        user_feedback: inc.incident_feedback || []
+        incident_feedback: inc.incident_feedback || []
       };
     }).filter(x => x !== null);
 

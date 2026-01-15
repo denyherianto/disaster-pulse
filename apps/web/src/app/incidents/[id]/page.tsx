@@ -191,7 +191,7 @@ export default function IncidentDetailPage() {
                     {/* Quick Stats */}
                     <div className="grid grid-cols-3 gap-3 mt-4">
                         <div className="bg-white/10 rounded-xl p-3 text-center">
-                            <div className="text-2xl font-bold">{Math.round((incident.confidence_score || 0.5) * 100)}%</div>
+                            <div className="text-2xl font-bold">{Math.round((incident.confidence_score || 0) * 100)}%</div>
                             <div className="text-xs text-white/70">{t('incidentDetail.confidence')}</div>
                         </div>
                         <div className="bg-white/10 rounded-xl p-3 text-center">
