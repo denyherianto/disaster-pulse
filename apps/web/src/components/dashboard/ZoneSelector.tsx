@@ -60,7 +60,7 @@ export default function ZoneSelector() {
 
                 {/* Dropdown Menu */}
                 {isOpen && (
-                    <div className="absolute top-full left-6 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                    <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                         <div className="max-h-[60vh] overflow-y-auto">
                             {/* All Indonesia Option */}
                             <button

@@ -67,11 +67,6 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
-
-      // Sync user to backend if logged in
-      if (session?.user) {
-        syncUserToBackend(session.user);
-      }
     });
 
     // Listen for auth changes

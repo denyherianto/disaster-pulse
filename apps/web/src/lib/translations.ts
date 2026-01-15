@@ -34,7 +34,10 @@ export const translations = {
         expand: 'Expand Map'
       },
       recentAlerts: 'Recent Alerts',
-      reportIncident: 'Report Incident'
+      reportIncident: 'Report Incident',
+      noActiveIncidents: 'No active incidents',
+      immediateAreaQuiet: 'Your immediate area is quiet. Monitoring BMKG, News, Social Media, and Reports.',
+      liveUpdates: 'LIVE UPDATES'
     },
     incidentFeed: {
         empty: 'No recent alerts nearby.',
@@ -199,7 +202,10 @@ export const translations = {
         expand: 'Buka Peta'
       },
       recentAlerts: 'Peringatan Terkini',
-      reportIncident: 'Lapor Kejadian'
+      reportIncident: 'Lapor Kejadian',
+      noActiveIncidents: 'Tidak ada status aktif',
+      immediateAreaQuiet: 'Area sekitar Anda aman. Memantau BMKG, Berita, Medsos, dan Laporan.',
+      liveUpdates: 'UPDATE LANGSUNG'
     },
     incidentFeed: {
         empty: 'Tidak ada peringatan terkini di sekitar.',

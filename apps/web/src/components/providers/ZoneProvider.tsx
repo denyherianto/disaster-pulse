@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { API_BASE_URL } from '@/lib/config';
 import { useAuth } from '@/components/providers/AuthProvider';
@@ -38,6 +38,7 @@ export const useZone = () => useContext(ZoneContext);
 
 export default function ZoneProvider({ children }: { children: React.ReactNode }) {
     const router = useRouter();
+    const queryClient = useQueryClient();
     const { user } = useAuth();
 
     // 1. Fetch Zones
@@ -53,7 +54,7 @@ export default function ZoneProvider({ children }: { children: React.ReactNode }
              return res.json() as Promise<Zone[]>;
         },
         enabled: !!user?.id,
-        staleTime: 1000 * 60 * 60, // 1 hour
+        staleTime: 1000 * 60 * 5, // 5 minutes
     });
 
     // 2. State for Selection
@@ -95,18 +96,24 @@ export default function ZoneProvider({ children }: { children: React.ReactNode }
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...payload, user_id: user.id })
             });
+            
+            const result = await res.json();
+            
             if (!res.ok) {
-                const err = await res.json();
-                console.error('Create Zone Failed', err);
-                throw new Error(err.message || 'Failed to create zone');
+                console.error('Create Zone Failed', result);
+                throw new Error(result.message || 'Failed to create zone');
             }
-            // Invalidate/Refetch
-            // For MVP simpler to just reload page or rely on react-query invalidation if we had access to queryClient here.
-            // But we can just use window.location.reload() for now or assume parent re-renders if we used queryClient.invalidate.
-            // Better: use queryClient.invalidateQueries
-            window.location.reload(); 
+
+            // Invalidate and refetch zones
+            await queryClient.invalidateQueries({ queryKey: ['user-zones', user.id] });
+
+            // Select the newly added zone
+            if (result.id) {
+                handleSetZone(result.id);
+            }
         } catch (error) {
             console.error(error);
+            throw error;
         }
     };
 
@@ -117,14 +124,17 @@ export default function ZoneProvider({ children }: { children: React.ReactNode }
                 method: 'DELETE',
             });
             if (!res.ok) throw new Error('Failed to delete zone');
+
+            // Invalidate and refetch zones
+            await queryClient.invalidateQueries({ queryKey: ['user-zones', user?.id] });
+
             if (selectedZoneId === id) {
                 setSelectedZoneId(null);
-                router.push('/'); // Fallback to Home
-            } else {
-                window.location.reload();
+                localStorage.removeItem('vigilant_selected_zone');
             }
         } catch (error) {
             console.error(error);
+            throw error;
         }
     };
 
@@ -134,4 +144,5 @@ export default function ZoneProvider({ children }: { children: React.ReactNode }
         </ZoneContext.Provider>
     );
 }
+
 

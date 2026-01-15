@@ -49,10 +49,10 @@ export default function PrivacyPolicyPage() {
                                 : "Sistem kami mengumpulkan \"Sinyal\" dari berbagai sumber publik. Sinyal-sinyal ini dianalisis untuk mendeteksi potensi bencana."}
                         </p>
                         <ul className="text-sm text-slate-600 space-y-2 list-disc list-inside ml-1">
-                            <li><strong>Social Media:</strong> {isEn ? "Public posts from platforms like TikTok and X (Twitter) used solely for disaster detection." : "Postingan publik dari platform seperti TikTok dan X (Twitter) yang digunakan hanya untuk deteksi bencana."}</li>
-                            <li><strong>News Feeds:</strong> {isEn ? "RSS feeds from verified news outlets and official agencies." : "Feed RSS dari outlet berita terverifikasi dan lembaga resmi."}</li>
+                            <li><strong>Social Media:</strong> {isEn ? "Public posts from platforms like TikTok used solely for disaster detection." : "Postingan publik dari platform seperti TikTok yang digunakan hanya untuk deteksi bencana."}</li>
+                            <li><strong>Official Agencies:</strong> {isEn ? "Real-time alerts from BMKG (Meteorology, Climatology, and Geophysics Agency) and BNPB." : "Peringatan real-time dari BMKG (Badan Meteorologi, Klimatologi, dan Geofisika) dan BNPB."}</li>
+                            <li><strong>News Feeds:</strong> {isEn ? "RSS feeds from verified news outlets." : "Feed RSS dari outlet berita terverifikasi."}</li>
                             <li><strong>User Reports:</strong> {isEn ? "Direct submissions from community members like you." : "Laporan langsung dari anggota komunitas seperti Anda."}</li>
-                            <li><strong>Sensors:</strong> {isEn ? "Public IoT and geological sensor data." : "Data sensor IoT dan geologi publik."}</li>
                         </ul>
                     </div>
                 </section>

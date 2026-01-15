@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/components';
-import { AlertCircle, ChevronRight, ChevronDown, Activity } from 'lucide-react';
+import { AlertCircle, ChevronRight, ChevronDown, Activity, ShieldCheck } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 
@@ -93,11 +93,32 @@ export default function HeroStatus() {
     );
 
     if (!currentIncident) return (
-        <section className="px-6 pb-2">
-             <Card className="bg-slate-50 border-dashed border-slate-300">
-                <div className="flex flex-col items-center justify-center p-6 text-slate-400">
-                    <span className="font-medium">{t('dashboard.status.uptodate')}</span>
-                    <span className="text-xs">{t('incidentFeed.empty')}</span>
+        <section className="px-6 py-4 relative space-y-3">
+            <ZoneSelector />
+            <Card className="bg-white border text-center p-6 shadow-sm rounded-3xl">
+                <div className="flex flex-col items-center justify-center space-y-4">
+                    <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mb-2">
+                        <ShieldCheck className="text-green-500 w-8 h-8" strokeWidth={2} />
+                    </div>
+
+                    <div className="space-y-2">
+                        <h3 className="text-xl font-semibold text-slate-900">
+                            {t('dashboard.noActiveIncidents')}
+                        </h3>
+                        <p className="text-slate-500 text-sm max-w-[280px] mx-auto leading-relaxed">
+                            {t('dashboard.immediateAreaQuiet')}
+                        </p>
+                    </div>
+
+                    <div className="pt-6 flex items-center gap-2 justify-center">
+                        <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">
+                            {t('dashboard.liveUpdates')}
+                        </span>
+                    </div>
                 </div>
              </Card>
         </section>
@@ -121,7 +142,7 @@ export default function HeroStatus() {
 
     return (
         <section className="px-6 py-4 relative">
-            <div className="flex items-center justify-between mb-3 px-1 min-h-[28px]">
+            <div className="flex justify-between mb-3 px-1 min-h-[28px]">
                 <ZoneSelector />
 
                 {total > 1 && (
@@ -184,7 +205,7 @@ export default function HeroStatus() {
                         <h2 className="text-2xl font-semibold tracking-tight text-slate-900 mb-1 leading-tight capitalize">
                             {getEventTypeName(currentIncident.type)}
                         </h2>
-                        <p className="text-slate-500 text-sm mb-2">
+                        <p className="text-slate-500 text-sm mb-6">
                             {currentIncident.city}
                         </p>
 
