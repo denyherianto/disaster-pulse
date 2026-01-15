@@ -225,7 +225,7 @@ export default function GuideDetailPage() {
     const bgColor = getColorByType(guideData.disaster_type);
 
     return (
-        <>
+        <div className="absolute inset-0 flex flex-col bg-white">
             {/* Header */}
             <div className={`shrink-0 ${bgColor} text-white`}>
                 <div className="px-6 py-4">
@@ -289,6 +289,6 @@ export default function GuideDetailPage() {
             <nav className="absolute bottom-0 w-full bg-white/90 backdrop-blur-xl border-t border-slate-200 pb-safe z-40">
                 <BottomNav />
             </nav>
-        </>
+        </div>
     );
 }

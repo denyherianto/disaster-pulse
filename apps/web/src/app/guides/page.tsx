@@ -7,6 +7,7 @@ import Link from 'next/link';
 import BottomNav from '@/components/navigation/BottomNav';
 import { API_BASE_URL } from '@/lib/config';
 import { useLanguage } from '@/components/providers/LanguageProvider';
+import GuideAISearch from '@/components/guides/GuideAISearch';
 
 
 // Mock guides data (would come from API)
@@ -100,7 +101,7 @@ export default function GuidesPage() {
         : guides.filter((g: any) => g.disaster_type === typeFilter);
 
     return (
-        <>
+        <div className="absolute inset-0 flex flex-col bg-slate-50">
             {/* Header */}
             <div className="shrink-0 bg-white z-20 relative border-b border-slate-100">
                 <div className="px-6 py-4">
@@ -143,9 +144,15 @@ export default function GuidesPage() {
                 </div>
             </div>
 
+
+
             {/* Content */}
             <div className="flex-1 overflow-y-auto no-scrollbar bg-slate-50 pb-24">
                 <div className="px-6 py-4">
+                    {/* AI Search */}
+                    <div className="mb-6">
+                        <GuideAISearch />
+                    </div>
                     {isLoading ? (
                         <div className="text-center text-slate-400 text-sm py-12">{t('guides.loading')}</div>
                     ) : filteredGuides.length === 0 ? (
@@ -185,6 +192,6 @@ export default function GuidesPage() {
             <nav className="absolute bottom-0 w-full bg-white/90 backdrop-blur-xl border-t border-slate-200 pb-safe z-40">
                 <BottomNav />
             </nav>
-        </>
+        </div>
     );
 }

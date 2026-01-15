@@ -1,38 +1,27 @@
-import { Controller, Get, Query, Param } from '@nestjs/common';
-import { SupabaseService } from '../supabase/supabase.service';
+import { Controller, Get, Post, Query, Param, Body } from '@nestjs/common';
+import { GuidesService } from './guides.service';
+
+type AskQuestionDto = {
+  query: string;
+  lang?: 'en' | 'id';
+};
 
 @Controller('guides')
 export class GuidesController {
-  constructor(private readonly supabase: SupabaseService) {}
-
-  private get db() {
-    return this.supabase.getClient() as any;
-  }
+  constructor(private readonly guidesService: GuidesService) { }
 
   @Get()
   async getAll(@Query('type') type?: string) {
-    let query = this.db
-      .from('guides')
-      .select('id, title, description, disaster_type, pdf_url, created_at')
-      .order('created_at', { ascending: false });
-
-    if (type && type !== 'all') {
-      query = query.eq('disaster_type', type);
-    }
-
-    const { data, error } = await query;
-    return error ? [] : data;
+    return this.guidesService.getAll(type);
   }
 
   @Get(':id')
   async getOne(@Param('id') id: string) {
-    const { data, error } = await this.db
-      .from('guides')
-      .select('*')
-      .eq('id', id)
-      .single();
+    return this.guidesService.getById(id);
+  }
 
-    if (error) return null;
-    return data;
+  @Post('ask')
+  async askQuestion(@Body() dto: AskQuestionDto) {
+    return this.guidesService.askQuestion(dto.query, dto.lang || 'en');
   }
 }
