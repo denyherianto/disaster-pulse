@@ -113,12 +113,29 @@ function MapUpdater({ zoomLevel = 13 }: { zoomLevel?: number }) {
 interface IncidentMapProps {
     interactive?: boolean;
     zoomLevel?: number;
+    dragging?: boolean;
+    zoomControl?: boolean;
+    scrollWheelZoom?: boolean;
+    doubleClickZoom?: boolean;
+    touchZoom?: boolean;
 }
 
 export default function IncidentMap({
     interactive = true,
-    zoomLevel = 13
+    zoomLevel = 13,
+    dragging,
+    zoomControl,
+    scrollWheelZoom,
+    doubleClickZoom,
+    touchZoom
 }: IncidentMapProps) {
+    // Default granular props to the value of 'interactive' if not explicitly provided
+    const isDragging = dragging ?? interactive;
+    const isZoomControl = zoomControl ?? interactive;
+    const isScrollWheelZoom = scrollWheelZoom ?? interactive;
+    const isDoubleClickZoom = doubleClickZoom ?? interactive;
+    const isTouchZoom = touchZoom ?? interactive;
+
     const [isMounted, setIsMounted] = useState(false);
     const { selectedZone } = useZone();
 
@@ -150,11 +167,11 @@ export default function IncidentMap({
             <MapContainer 
                 center={INDONESIA_CENTER}
                 zoom={INDONESIA_ZOOM}
-                scrollWheelZoom={interactive}
-                dragging={interactive}
-                zoomControl={interactive}
-                doubleClickZoom={interactive}
-                touchZoom={interactive}
+                scrollWheelZoom={isScrollWheelZoom}
+                dragging={isDragging}
+                zoomControl={isZoomControl}
+                doubleClickZoom={isDoubleClickZoom}
+                touchZoom={isTouchZoom}
                 boxZoom={interactive}
                 keyboard={interactive} 
                 className="w-full h-full"

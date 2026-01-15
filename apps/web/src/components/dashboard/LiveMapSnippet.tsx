@@ -35,8 +35,13 @@ export default function LiveMapSnippet() {
                 {/* Map Component */}
                 <div className="absolute inset-0 opacity-100">
                     <IncidentMap
-                        interactive
+                        interactive={true}
                         zoomLevel={10}
+                        dragging={true}
+                        zoomControl={false}
+                        scrollWheelZoom={false}
+                        doubleClickZoom={false}
+                        touchZoom={false}
                     />
                 </div>
 
