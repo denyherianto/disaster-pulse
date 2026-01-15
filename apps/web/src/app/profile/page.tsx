@@ -1,22 +1,37 @@
 'use client';
 
-import { User, FileText, CheckCircle, XCircle, MapPin, Bell, ChevronRight, Settings, LogOut, Shield, Loader2 } from 'lucide-react';
+import { User, FileText, CheckCircle, XCircle, Bell, ChevronRight, Settings, LogOut, Shield, Loader2 } from 'lucide-react';
 import BottomNav from '@/components/navigation/BottomNav';
 import Link from 'next/link';
 import { useLanguage } from '@/components/providers/LanguageProvider';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useRouter } from 'next/navigation';
-
-const mockStats = {
-    totalReports: 12,
-    confirmedEvents: 8,
-    hoaxReports: 4,
-};
+import { useQuery } from '@tanstack/react-query';
+import { API_BASE_URL } from '@/lib/config';
 
 export default function ProfilePage() {
     const { t } = useLanguage();
     const { user, isLoading, signOut } = useAuth();
     const router = useRouter();
+
+    // Fetch user stats from API
+    const { data: stats, isLoading: statsLoading } = useQuery({
+        queryKey: ['user-stats', user?.id],
+        queryFn: async () => {
+            if (!user?.id) return { totalReports: 0, confirmedEvents: 0, hoaxReports: 0 };
+
+            // Fetch user reports count
+            const reportsRes = await fetch(`${API_BASE_URL}/user/stats?user_id=${user.id}`);
+            if (reportsRes.ok) {
+                return reportsRes.json();
+            }
+
+            // Fallback if endpoint doesn't exist yet
+            return { totalReports: 0, confirmedEvents: 0, hoaxReports: 0 };
+        },
+        enabled: !!user?.id,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
 
     const handleSignOut = async () => {
         await signOut();
@@ -30,6 +45,8 @@ export default function ProfilePage() {
             </div>
         );
     }
+
+    const userStats = stats || { totalReports: 0, confirmedEvents: 0, hoaxReports: 0 };
 
     return (
         <>
@@ -75,21 +92,27 @@ export default function ProfilePage() {
                             <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-2">
                                 <FileText size={18} className="text-blue-600" />
                             </div>
-                            <div className="text-2xl font-bold text-slate-900">{mockStats.totalReports}</div>
+                            <div className="text-2xl font-bold text-slate-900">
+                                {statsLoading ? '-' : userStats.totalReports}
+                            </div>
                             <div className="text-xs text-slate-500">{t('profile.reports')}</div>
                         </div>
                         <div className="bg-white rounded-2xl border border-slate-200 p-4 text-center">
                             <div className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-2">
                                 <CheckCircle size={18} className="text-green-600" />
                             </div>
-                            <div className="text-2xl font-bold text-slate-900">{mockStats.confirmedEvents}</div>
+                            <div className="text-2xl font-bold text-slate-900">
+                                {statsLoading ? '-' : userStats.confirmedEvents}
+                            </div>
                             <div className="text-xs text-slate-500">{t('profile.confirmed')}</div>
                         </div>
                         <div className="bg-white rounded-2xl border border-slate-200 p-4 text-center">
                             <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-2">
                                 <XCircle size={18} className="text-red-600" />
                             </div>
-                            <div className="text-2xl font-bold text-slate-900">{mockStats.hoaxReports}</div>
+                            <div className="text-2xl font-bold text-slate-900">
+                                {statsLoading ? '-' : userStats.hoaxReports}
+                            </div>
                             <div className="text-xs text-slate-500">{t('profile.hoax')}</div>
                         </div>
                     </div>
@@ -99,21 +122,6 @@ export default function ProfilePage() {
                 <div className="px-6 py-4">
                     <h3 className="text-sm font-semibold text-slate-900 mb-3">{t('settings.title')}</h3>
                     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                        <Link href="/profile/places" className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600">
-                                    <MapPin size={18} />
-                                </div>
-                                <div>
-                                    <div className="font-medium text-slate-900">{t('profile.myPlaces')}</div>
-                                    <div className="text-sm text-slate-500">{t('profile.myPlacesDesc')}</div>
-                                </div>
-                            </div>
-                            <ChevronRight className="text-slate-300" size={20} />
-                        </Link>
-                        
-                        <div className="border-t border-slate-100" />
-                        
                         <Link href="/profile/notifications" className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600">
@@ -177,4 +185,5 @@ export default function ProfilePage() {
         </>
     );
 }
+
 

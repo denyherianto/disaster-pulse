@@ -55,4 +55,47 @@ export class UserPlacesService {
 
     return { success: true };
   }
+
+  async getUserStats(userId: string) {
+    const client = this.supabase.getClient();
+
+    // Count user reports
+    const { count: reportsCount, error: reportsError } = await client
+      .from('user_reports')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (reportsError) {
+      console.error('User Reports Count Error:', reportsError);
+    }
+
+    // Count confirmations (type = 'confirm')
+    const { count: confirmCount, error: confirmError } = await client
+      .from('incident_feedback')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('type', 'confirm');
+
+    if (confirmError) {
+      console.error('Confirm Count Error:', confirmError);
+    }
+
+    // Count hoax reports (type = 'reject')
+    const { count: hoaxCount, error: hoaxError } = await client
+      .from('incident_feedback')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('type', 'reject');
+
+    if (hoaxError) {
+      console.error('Hoax Count Error:', hoaxError);
+    }
+
+    return {
+      totalReports: reportsCount || 0,
+      confirmedEvents: confirmCount || 0,
+      hoaxReports: hoaxCount || 0,
+    };
+  }
 }
+

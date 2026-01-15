@@ -130,7 +130,7 @@ export default function IncidentFeed() {
                     const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
                     return timeB - timeA;
                 })
-                .slice(0, 5); // Limit to 5 most recent
+                .slice(0, 3); // Limit to 5 most recent
         }
     });
 

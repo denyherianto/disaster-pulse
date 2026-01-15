@@ -10,11 +10,11 @@ const placeSchema = z.object({
   radius_m: z.number().min(100).max(100000).default(3000), // Default 3km, Max 100km
 });
 
-@Controller('user/places')
+@Controller('user')
 export class UserPlacesController {
   constructor(private readonly userPlacesService: UserPlacesService) {}
 
-  @Post()
+  @Post('places')
   async create(@Body() body: any) {
     const validated = placeSchema.safeParse(body);
 
@@ -28,7 +28,7 @@ export class UserPlacesController {
     return this.userPlacesService.createPlace(validated.data);
   }
 
-  @Get()
+  @Get('places')
   async findAll(@Query('user_id') userId: string) {
     if (!userId) {
       throw new BadRequestException({ error: 'Missing user_id' });
@@ -36,11 +36,20 @@ export class UserPlacesController {
     return this.userPlacesService.getPlaces(userId);
   }
 
-  @Delete(':id')
+  @Delete('places/:id')
   async remove(@Param('id') id: string) {
     if (!id) {
       throw new BadRequestException('Missing ID');
     }
     return this.userPlacesService.deletePlace(id);
   }
+
+  @Get('stats')
+  async getStats(@Query('user_id') userId: string) {
+    if (!userId) {
+      throw new BadRequestException({ error: 'Missing user_id' });
+    }
+    return this.userPlacesService.getUserStats(userId);
+  }
 }
+
