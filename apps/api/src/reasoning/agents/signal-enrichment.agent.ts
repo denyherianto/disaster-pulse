@@ -93,10 +93,25 @@ export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, Sign
       if (!content) throw new Error('Empty response');
 
       const parsed = JSON.parse(content);
-      const results = parsed.results || [];
+      const results: SignalSeverityOutput[] = parsed.results || [];
 
-      // Ensure results map back to inputs even if AI messes up order (though array order is usually preserved)
-      // We'll trust array order for now but could map by ID if needed.
+      // Post-process: Geocode signals that have location but no lat/lng
+      for (const result of results) {
+        if (!result.lat && !result.lng && result.location) {
+          try {
+            this.logger.debug(`[${this.role}] Geocoding: ${result.location}`);
+            const geocodeResult = await this.googleMapsTool.geocode(result.location);
+            if ('lat' in geocodeResult && 'lng' in geocodeResult) {
+              result.lat = String(geocodeResult.lat);
+              result.lng = String(geocodeResult.lng);
+              this.logger.debug(`[${this.role}] Geocoded ${result.location} -> ${result.lat}, ${result.lng}`);
+            }
+          } catch (err) {
+            this.logger.warn(`[${this.role}] Geocoding failed for ${result.location}`, err);
+          }
+        }
+      }
+
       return { results };
 
     } catch (error) {

@@ -3,13 +3,14 @@
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { MapPin, ChevronLeft, ThumbsUp, ThumbsDown, Clock, Phone, FileDown, ExternalLink, AlertTriangle, CheckCircle, Eye, AlarmCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import { MapPin, ChevronLeft, ThumbsUp, ThumbsDown, Clock, Phone, FileDown, ExternalLink, AlertTriangle, CheckCircle, Eye, AlarmCheck, ChevronDown, ChevronUp, Bot } from 'lucide-react';
 import Link from 'next/link';
 import BottomNav from '@/components/navigation/BottomNav';
 import { API_BASE_URL } from '@/lib/config';
 import { useLanguage } from '@/components/providers/LanguageProvider';
 import { useAuth } from '@/components/providers/AuthProvider';
 import GoogleIcon from '@/components/ui/GoogleIcon';
+import GeminiIcon from '@/components/ui/GeminiIcon';
 import { getIncidentIconName, getIncidentColorClass } from '@/lib/incidents';
 
 const CollapsibleSection = ({ children, maxHeight = 200 }: { children: React.ReactNode, maxHeight?: number }) => {
@@ -57,6 +58,295 @@ const getStatusIcon = (status: string) => {
     }
 };
 
+const getStepInfo = (step: string) => {
+    const steps: Record<string, { label: string; color: string; description: string }> = {
+        'observer': { label: 'Observer', color: 'bg-blue-100 text-blue-700', description: 'Analyzed incoming signals and extracted key facts' },
+        'classifier': { label: 'Classifier', color: 'bg-purple-100 text-purple-700', description: 'Generated hypotheses about what might be happening' },
+        'skeptic': { label: 'Skeptic', color: 'bg-orange-100 text-orange-700', description: 'Challenged the hypotheses and identified potential issues' },
+        'synthesizer': { label: 'Synthesizer', color: 'bg-green-100 text-green-700', description: 'Made final judgment weighing all evidence' },
+        'action': { label: 'Action', color: 'bg-red-100 text-red-700', description: 'Decided how to respond to the incident' },
+    };
+    return steps[step?.toLowerCase()] || { label: step, color: 'bg-slate-100 text-slate-700', description: 'Processing step' };
+};
+
+// Helper to format ISO dates in text to human readable
+const formatDateInText = (text: string) => {
+    // Match various ISO date patterns:
+    // - 2026-01-15T18:00:00+07:00
+    // - 2026-01-15T18:00:00Z
+    // - 2026-01-15
+    // - Also patterns like "15 Jan 2026T11:00:00Z" (malformed but common in AI output)
+    return text.replace(
+        /\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(Z|[+\-]\d{2}:\d{2}))?|\d{1,2}\s+\w+\s+\d{4}T\d{2}:\d{2}:\d{2}Z?/g,
+        (match) => {
+            // Clean up malformed patterns like "15 Jan 2026T11:00:00Z"
+            const cleanMatch = match.replace(/(\d{4})(T)/, '$1 ');
+            const date = new Date(cleanMatch.includes('T') ? cleanMatch : match);
+            if (isNaN(date.getTime())) return match;
+            const hasTime = match.includes('T') || match.includes(':');
+            return date.toLocaleDateString('id-ID', { 
+                day: 'numeric', 
+                month: 'short', 
+                year: 'numeric',
+                hour: hasTime ? '2-digit' : undefined,
+                minute: hasTime ? '2-digit' : undefined,
+            });
+        }
+    );
+};
+
+// Human-readable trace content renderer
+const TraceContent = ({ step, output }: { step: string; output: any }) => {
+    if (!output) return null;
+
+    const stepLower = step?.toLowerCase();
+
+    // Observer output
+    if (stepLower === 'observer') {
+        return (
+            <div className="space-y-3">
+                {output.observation_summary && (
+                    <div>
+                        <div className="text-xs font-semibold text-slate-500 uppercase mb-1">Summary</div>
+                        <p className="text-sm text-slate-700">{formatDateInText(output.observation_summary)}</p>
+                    </div>
+                )}
+                {output.key_facts?.length > 0 && (
+                    <div>
+                        <div className="text-xs font-semibold text-slate-500 uppercase mb-1">Key Facts</div>
+                        <ul className="space-y-1">
+                            {output.key_facts.map((fact: string, i: number) => (
+                                <li key={i} className="text-sm text-slate-700 flex items-start gap-2">
+                                    <span className="text-blue-500 mt-0.5">•</span>
+                                    {formatDateInText(fact)}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+                {output.timeline?.length > 0 && (
+                    <div>
+                        <div className="text-xs font-semibold text-slate-500 uppercase mb-1">Timeline</div>
+                        <ul className="space-y-1">
+                            {output.timeline.map((event: string, i: number) => (
+                                <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
+                                    <span className="text-slate-400 font-mono text-xs mt-0.5">{i + 1}.</span>
+                                    {formatDateInText(event)}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // Classifier output
+    if (stepLower === 'classifier') {
+        return (
+            <div className="space-y-3">
+                {output.hypotheses?.map((h: any, i: number) => (
+                    <div key={i} className="bg-purple-50/50 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-purple-800 capitalize">{h.event_type?.replace('_', ' ')}</span>
+                            <span className="text-xs font-semibold text-purple-600">{Math.round((h.likelihood || 0) * 100)}% likely</span>
+                        </div>
+                        <p className="text-sm text-slate-700 mb-2">{h.description}</p>
+                        {h.supporting_evidence?.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                                {h.supporting_evidence.map((e: string, j: number) => (
+                                    <span key={j} className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">{e}</span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
+    // Skeptic output
+    if (stepLower === 'skeptic') {
+        return (
+            <div className="space-y-3">
+                {output.concerns?.length > 0 && (
+                    <div>
+                        <div className="text-xs font-semibold text-orange-600 uppercase mb-1 flex items-center gap-1"><GoogleIcon name="warning" size={14} /> Concerns</div>
+                        <ul className="space-y-1">
+                            {output.concerns.map((c: string, i: number) => (
+                                <li key={i} className="text-sm text-slate-700 flex items-start gap-2">
+                                    <span className="text-orange-500 mt-0.5">•</span>
+                                    {c}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+                {output.contradictions?.length > 0 && (
+                    <div>
+                        <div className="text-xs font-semibold text-red-600 uppercase mb-1 flex items-center gap-1"><GoogleIcon name="cancel" size={14} /> Contradictions</div>
+                        <ul className="space-y-1">
+                            {output.contradictions.map((c: string, i: number) => (
+                                <li key={i} className="text-sm text-slate-700 flex items-start gap-2">
+                                    <span className="text-red-500 mt-0.5">•</span>
+                                    {c}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+                {output.alternative_explanations?.length > 0 && (
+                    <div>
+                        <div className="text-xs font-semibold text-slate-500 uppercase mb-1 flex items-center gap-1"><GoogleIcon name="lightbulb" size={14} /> Alternative Explanations</div>
+                        <ul className="space-y-1">
+                            {output.alternative_explanations.map((e: string, i: number) => (
+                                <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
+                                    <span className="text-slate-400 mt-0.5">•</span>
+                                    {e}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+                {output.assessment && (
+                    <div className="bg-orange-50 rounded-lg p-3 mt-2">
+                        <div className="text-xs font-semibold text-orange-700 uppercase mb-1">Assessment</div>
+                        <p className="text-sm text-slate-700">{output.assessment}</p>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // Synthesizer output
+    if (stepLower === 'synthesizer') {
+        const severityColors: Record<string, string> = {
+            low: 'bg-green-100 text-green-700',
+            medium: 'bg-amber-100 text-amber-700',
+            high: 'bg-red-100 text-red-700'
+        };
+        return (
+            <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-slate-900 capitalize">
+                        {output.final_classification?.replace('_', ' ')}
+                    </span>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${severityColors[output.severity] || 'bg-slate-100 text-slate-700'}`}>
+                        {output.severity?.toUpperCase()}
+                    </span>
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                        {Math.round((output.confidence_score || 0) * 100)}% confident
+                    </span>
+                </div>
+                {output.title && (
+                    <div className="text-sm font-medium text-slate-800">{output.title}</div>
+                )}
+                {output.description && (
+                    <p className="text-sm text-slate-700">{output.description}</p>
+                )}
+                {output.reasoning_trace && (
+                    <div className="bg-green-50 rounded-lg p-3 mt-2">
+                        <div className="text-xs font-semibold text-green-700 uppercase mb-1">Reasoning</div>
+                        <p className="text-sm text-slate-700">{output.reasoning_trace}</p>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // Action output
+    if (stepLower === 'action' || stepLower === 'actionstrategy') {
+        const actionIcons: Record<string, { bg: string; text: string; icon: string }> = {
+            'CREATE_INCIDENT': { bg: 'bg-green-100', text: 'text-green-700', icon: 'check_circle' },
+            'MERGE_INCIDENT': { bg: 'bg-blue-100', text: 'text-blue-700', icon: 'link' },
+            'WAIT_FOR_MORE_DATA': { bg: 'bg-amber-100', text: 'text-amber-700', icon: 'hourglass_empty' },
+            'DISMISS': { bg: 'bg-slate-100', text: 'text-slate-700', icon: 'block' },
+        };
+        const actionStyle = actionIcons[output.action] || actionIcons['DISMISS'];
+
+        return (
+            <div className="space-y-2">
+                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg ${actionStyle.bg}`}>
+                    <GoogleIcon name={actionStyle.icon} size={16} />
+                    <span className={`text-sm font-semibold ${actionStyle.text}`}>
+                        {output.action?.replace(/_/g, ' ')}
+                    </span>
+                </div>
+                {output.reason && (
+                    <p className="text-sm text-slate-700">{output.reason}</p>
+                )}
+            </div>
+        );
+    }
+
+    // Fallback to formatted JSON for unknown steps
+    return (
+        <pre className="text-xs bg-slate-50 rounded-lg p-2 overflow-x-auto text-slate-700 max-h-40 overflow-y-auto">
+            {JSON.stringify(output, null, 2)}
+        </pre>
+    );
+};
+
+// Humanized time formatter
+const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffSecs < 60) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+};
+
+const TraceStep = ({ trace, index }: { trace: any; index: number }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const stepInfo = getStepInfo(trace.step);
+
+    return (
+        <div className="border border-slate-100 rounded-xl overflow-hidden">
+            <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="w-full flex items-center justify-between p-3 hover:bg-slate-50 transition-colors text-left space-x-3"
+            >
+                <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-xs font-medium flex items-center justify-center flex-none">
+                        <div>{index + 1}</div>
+                    </div>
+                    <div>
+                        <span className={`px-2 py-0.5 rounded-md text-xs font-medium ${stepInfo.color}`}>
+                            {stepInfo.label}
+                        </span>
+                        <p className="text-xs text-slate-500 mt-0.5 hidden sm:block">{stepInfo.description}</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-500 flex-none">
+                    <Clock size={12} />
+                    {formatTimeAgo(trace.created_at)}
+                    {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </div>
+            </button>
+            {isExpanded && (
+                <div className="px-3 pb-3 border-t border-slate-100">
+                    <div className="mt-3">
+                        <TraceContent step={trace.step} output={trace.output_result} />
+                    </div>
+                    {trace.model_used && (
+                        <div className="text-xs text-slate-400 mt-3 pt-2 border-t border-slate-100">
+                            Model: {trace.model_used}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 export default function IncidentDetailPage() {
     const params = useParams();
     const incidentId = params.id as string;
@@ -93,6 +383,17 @@ export default function IncidentDetailPage() {
             if (!res.ok) return [];
             return res.json();
         },
+    });
+
+    // Fetch agent traces
+    const { data: traces = [] } = useQuery({
+        queryKey: ['traces', incidentId],
+        queryFn: async () => {
+            const res = await fetch(`${API_BASE_URL}/incidents/${incidentId}/traces`);
+            if (!res.ok) return [];
+            return res.json();
+        },
+        enabled: !!incidentId,
     });
 
     // Feedback mutation
@@ -139,8 +440,8 @@ export default function IncidentDetailPage() {
         time: l.created_at,
         label: l.reason || `Status changed to ${l.to_status}`
     })) : [
-            { status: 'detected', time: incident.created_at, label: t('incidentDetail.firstDetected') },
-            { status: incident.status, time: incident.updated_at, label: `${t('incidentDetail.currentStatus')}: ${incident.status}` }
+        { status: 'detected', time: incident.created_at, label: t('incidentDetail.firstDetected') },
+        { status: incident.status, time: incident.updated_at, label: `${t('incidentDetail.currentStatus')}: ${incident.status}` }
     ];
 
     // Mock signals data (would come from API)  
@@ -155,9 +456,8 @@ export default function IncidentDetailPage() {
                         <Link href="/" className="p-2 -ml-2 text-white/80 hover:text-white">
                             <ChevronLeft size={20} />
                         </Link>
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${
-                            incident.status === 'alert' ? 'bg-white/20' : 'bg-white/10'
-                        }`}>
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${incident.status === 'alert' ? 'bg-white/20' : 'bg-white/10'
+                            }`}>
                             {incident.status}
                         </span>
                     </div>
@@ -201,7 +501,7 @@ export default function IncidentDetailPage() {
                 {/* Summary Section */}
                 {incident.summary && (
                     <div className="px-6 py-4">
-                        <h3 className="text-sm font-semibold text-slate-900 mb-3">{t('incidentDetail.summary')}</h3>
+                        <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2"><GoogleIcon name="auto_awesome_motion" size={16} className="text-blue-600" />{t('incidentDetail.summary')}</h3>
                         <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
                             <p className="text-sm text-slate-700 leading-relaxed">
                                 {incident.summary}
@@ -211,7 +511,7 @@ export default function IncidentDetailPage() {
                 )}
                 {/* Lifecycle Timeline */}
                 <div className="px-6 py-4">
-                    <h3 className="text-sm font-semibold text-slate-900 mb-3">{t('incidentDetail.timeline')}</h3>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2"><GoogleIcon name="timeline" size={16} className="text-slate-600" />{t('incidentDetail.timeline')}</h3>
                     <div className="bg-white rounded-2xl border border-slate-200 p-4">
                         <div className="relative">
                             {lifecycle.map((event: any, i: number) => {
@@ -219,9 +519,8 @@ export default function IncidentDetailPage() {
                                 return (
                                     <div key={i} className="flex gap-3 mb-4 last:mb-0">
                                         <div className="relative">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                                i === lifecycle.length - 1 ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'
-                                            }`}>
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${i === lifecycle.length - 1 ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'
+                                                }`}>
                                                 <StatusIcon size={14} />
                                             </div>
                                             {i < lifecycle.length - 1 && (
@@ -232,7 +531,7 @@ export default function IncidentDetailPage() {
                                             <div className="text-sm font-medium text-slate-900">{event.label}</div>
                                             <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
                                                 <Clock size={10} />
-                                                {new Date(event.time).toLocaleString()}
+                                                {formatTimeAgo(event.time)}
                                             </div>
                                         </div>
                                     </div>
@@ -242,32 +541,49 @@ export default function IncidentDetailPage() {
                     </div>
                 </div>
 
+                {/* Agent Traces Section */}
+                {traces.length > 0 && (
+                    <div className="px-6 py-4">
+                        <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                            <GeminiIcon size={16} />
+                            Gemini Agents Analysis
+                        </h3>
+                        <div className="bg-white rounded-2xl border border-slate-200 p-4">
+                            <CollapsibleSection maxHeight={300}>
+                                <div className="space-y-4">
+                                    {traces.map((trace: any, i: number) => (
+                                        <TraceStep key={trace.id || i} trace={trace} index={i} />
+                                    ))}
+                                </div>
+                            </CollapsibleSection>
+                        </div>
+                    </div>
+                )}
+
                 {/* Feedback Section */}
                 <div className="px-6 py-4">
-                    <h3 className="text-sm font-semibold text-slate-900 mb-3">{t('incidentDetail.verification.title')}</h3>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2"><GoogleIcon name="rate_review" size={16} className="text-green-600" />{t('incidentDetail.verification.title')}</h3>
                     <div className="bg-white rounded-2xl border border-slate-200 p-4">
                         <p className="text-sm text-slate-600 mb-4">{t('incidentDetail.verification.subtitle')}</p>
                         <div className="flex gap-3">
-                            <button 
+                            <button
                                 onClick={() => feedbackMutation.mutate('confirm')}
                                 disabled={feedbackMutation.isPending}
-                                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-colors disabled:opacity-50 text-sm ${
-                                    incident.incident_feedback?.some((f: any) => f.user_id === user?.id && f.type === 'confirm')
-                                    ? 'bg-green-100 text-green-700 border-2 border-green-500'
-                                    : 'bg-green-50 text-green-700 hover:bg-green-100'
-                                }`}
+                                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-colors disabled:opacity-50 text-sm ${incident.incident_feedback?.some((f: any) => f.user_id === user?.id && f.type === 'confirm')
+                                        ? 'bg-green-100 text-green-700 border-2 border-green-500'
+                                        : 'bg-green-50 text-green-700 hover:bg-green-100'
+                                    }`}
                             >
                                 <ThumbsUp size={18} />
                                 {incident.incident_feedback?.some((f: any) => f.user_id === user?.id && f.type === 'confirm') ? t('incidentDetail.verification.confirmed') : t('incidentDetail.verification.confirm')}
                             </button>
-                            <button 
+                            <button
                                 onClick={() => feedbackMutation.mutate('reject')}
                                 disabled={feedbackMutation.isPending}
-                                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-colors disabled:opacity-50 text-sm ${
-                                    incident.incident_feedback?.some((f: any) => f.user_id === user?.id && f.type === 'reject')
-                                    ? 'bg-red-100 text-red-700 border-2 border-red-500'
-                                    : 'bg-red-50 text-red-700 hover:bg-red-100'
-                                }`}
+                                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-colors disabled:opacity-50 text-sm ${incident.incident_feedback?.some((f: any) => f.user_id === user?.id && f.type === 'reject')
+                                        ? 'bg-red-100 text-red-700 border-2 border-red-500'
+                                        : 'bg-red-50 text-red-700 hover:bg-red-100'
+                                    }`}
                             >
                                 <ThumbsDown size={18} />
                                 {incident.incident_feedback?.some((f: any) => f.user_id === user?.id && f.type === 'reject') ? t('incidentDetail.verification.reportedFalse') : t('incidentDetail.verification.falseAlarm')}
@@ -282,11 +598,11 @@ export default function IncidentDetailPage() {
                                     <span>{incident.incident_feedback.length} {t('incidentDetail.reports')}</span>
                                 </div>
                                 <div className="h-2 bg-slate-100 rounded-full overflow-hidden flex">
-                                    <div 
+                                    <div
                                         className="h-full bg-green-500"
                                         style={{ width: `${(incident.incident_feedback.filter((f: any) => f.type === 'confirm').length / incident.incident_feedback.length) * 100}%` }}
                                     />
-                                    <div 
+                                    <div
                                         className="h-full bg-red-500"
                                         style={{ width: `${(incident.incident_feedback.filter((f: any) => f.type === 'reject').length / incident.incident_feedback.length) * 100}%` }}
                                     />
@@ -332,32 +648,32 @@ export default function IncidentDetailPage() {
                                 </h3>
                                 <CollapsibleSection>
                                     <div className="space-y-3">
-                                    {signals.filter((s: any) => s.source === 'news').map((signal: any) => (
-                                        <a 
-                                            key={signal.id} 
-                                            href={signal.media_url}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="block bg-white rounded-xl border border-slate-200 p-3 hover:border-slate-300 transition-colors"
-                                        >
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div>
-                                                    <h4 className="font-medium text-slate-900 line-clamp-2 text-sm mb-1">
-                                                        {signal.text}
-                                                    </h4>
-                                                    <div className="text-xs text-slate-500">
-                                                        {new Date(signal.created_at).toLocaleDateString()} • {t('incidentDetail.sources.readMore')}
+                                        {signals.filter((s: any) => s.source === 'news').map((signal: any) => (
+                                            <a
+                                                key={signal.id}
+                                                href={signal.media_url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="block bg-white rounded-xl border border-slate-200 p-3 hover:border-slate-300 transition-colors"
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <h4 className="font-medium text-slate-900 line-clamp-2 text-sm mb-1">
+                                                            {signal.text}
+                                                        </h4>
+                                                        <div className="text-xs text-slate-500">
+                                                            {new Date(signal.created_at).toLocaleDateString()} • {t('incidentDetail.sources.readMore')}
+                                                        </div>
                                                     </div>
+                                                    {signal.media_type === 'image' && (
+                                                        <div className="w-16 h-16 bg-slate-100 rounded-lg shrink-0 overflow-hidden">
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img src={signal.media_url || '/placeholder.png'} alt="News thumbnail" className="w-full h-full object-cover" />
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                {signal.media_type === 'image' && (
-                                                    <div className="w-16 h-16 bg-slate-100 rounded-lg shrink-0 overflow-hidden">
-                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                        <img src={signal.media_url || '/placeholder.png'} alt="News thumbnail" className="w-full h-full object-cover" />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </a>
-                                    ))}
+                                            </a>
+                                        ))}
                                     </div>
                                 </CollapsibleSection>
                             </div>
@@ -396,15 +712,15 @@ export default function IncidentDetailPage() {
                                                     )}
                                                 </div>
 
-                                            <a href={signal.media_url} target="_blank" rel="noreferrer" className="absolute inset-0 z-10" />
+                                                <a href={signal.media_url} target="_blank" rel="noreferrer" className="absolute inset-0 z-10" />
 
                                                 <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
                                                     <div className="text-xs text-white line-clamp-2 font-medium drop-shadow-md">
-                                                    {signal.text}
+                                                        {signal.text}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))}
                                     </div>
                                 </CollapsibleSection>
                             </div>
@@ -435,7 +751,7 @@ export default function IncidentDetailPage() {
 
                 {/* Safety Measures */}
                 <div className="px-6 py-4">
-                    <h3 className="text-sm font-semibold text-slate-900 mb-3">{t('incidentDetail.safety.title')}</h3>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2"><GoogleIcon name="menu_book" size={16} className="text-blue-600" />{t('incidentDetail.safety.title')}</h3>
                     <Link href={`/guides?type=${incident.event_type}`}>
                         <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl p-4 flex items-center justify-between">
                             <div>
@@ -451,7 +767,7 @@ export default function IncidentDetailPage() {
 
                 {/* Emergency Contacts */}
                 <div className="px-6 py-4">
-                    <h3 className="text-sm font-semibold text-slate-900 mb-3">{t('incidentDetail.emergency.title')}</h3>
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2"><GoogleIcon name="emergency" size={16} className="text-red-600" />{t('incidentDetail.emergency.title')}</h3>
                     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                         {[
                             { name: 'Police', phone: '110' },
@@ -459,12 +775,11 @@ export default function IncidentDetailPage() {
                             { name: 'Ambulance', phone: '118' },
                             { name: 'BNPB', phone: '117' },
                         ].map((contact, i) => (
-                            <a 
+                            <a
                                 key={contact.phone}
                                 href={`tel:${contact.phone}`}
-                                className={`flex items-center justify-between p-4 hover:bg-slate-50 transition-colors ${
-                                    i > 0 ? 'border-t border-slate-100' : ''
-                                }`}
+                                className={`flex items-center justify-between p-4 hover:bg-slate-50 transition-colors ${i > 0 ? 'border-t border-slate-100' : ''
+                                    }`}
                             >
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600">

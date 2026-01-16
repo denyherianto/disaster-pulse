@@ -765,6 +765,20 @@ export class IncidentsService {
     return data || [];
   }
 
+  async getIncidentTraces(incidentId: string) {
+    const { data, error } = await this.db
+      .from('agent_traces')
+      .select('*')
+      .eq('incident_id', incidentId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to fetch traces');
+    }
+
+    return data || [];
+  }
+
   async submitFeedback(incidentId: string, userId: string, type: 'confirm' | 'reject') {
     // Upsert to allow changing feedback
     const { data, error } = await this.db

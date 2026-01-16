@@ -56,6 +56,11 @@ export class IncidentsController {
     return this.incidentsService.getIncidentLifecycle(id);
   }
 
+  @Get(':id/traces')
+  async getTraces(@Param('id') id: string) {
+    return this.incidentsService.getIncidentTraces(id);
+  }
+
   @Patch(':id/resolve')
   async resolve(@Param('id') id: string) {
     return this.incidentsService.resolveIncident(id);
