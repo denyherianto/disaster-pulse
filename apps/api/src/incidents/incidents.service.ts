@@ -204,7 +204,10 @@ export class IncidentsService {
       unlinkedSignals.push(signal as any);
     }
 
-    if (unlinkedSignals.length < MIN_SIGNALS_FOR_INCIDENT) {
+    // Check for trusted source overrides (e.g. BMKG Earthquakes are always real)
+    const isTrustedSource = signal.source === 'bmkg' && eventType === 'earthquake';
+
+    if (unlinkedSignals.length < MIN_SIGNALS_FOR_INCIDENT && !isTrustedSource) {
       this.logger.debug(`Signal ${signal.id} is pending (City: ${city}, Event: ${eventType}, Unlinked neighbors: ${unlinkedSignals.length - 1})`);
       return; // Wait for more signals
     }
