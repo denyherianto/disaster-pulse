@@ -22,7 +22,8 @@ import { useZone } from '@/components/providers/ZoneProvider';
 import ZoneSelector from '@/components/dashboard/ZoneSelector';
 import { useLanguage } from '@/components/providers/LanguageProvider';
 import GoogleIcon from '@/components/ui/GoogleIcon';
-import { getIncidentIconName } from '@/lib/incidents';
+import { getIncidentIconName, getIncidentColorClass } from '@/lib/incidents';
+import { timeAgo } from '@/lib/utils';
 
 export default function HeroStatus() {
     const { selectedZone } = useZone();
@@ -195,27 +196,38 @@ export default function HeroStatus() {
                     `}
                 >
                     <div className="relative z-10 p-6 pb-4">
-                        <div className="flex items-center gap-2 mb-3">
-                            <span className={`flex items-center justify-center w-6 h-6 rounded-full ${currentIncident.status === 'alert' ? 'bg-red-100 text-red-600' :
-                                    currentIncident.status === 'monitor' ? 'bg-amber-100 text-amber-600' :
-                                        'bg-emerald-100 text-emerald-600'
-                                }`}>
-                                <GoogleIcon name={getIncidentIconName(currentIncident.type)} size={14} />
+                        <div className="flex items-start gap-4 mb-4">
+                            <span className={`flex items-center shrink-0 justify-center w-12 h-12 rounded-2xl ${getIncidentColorClass(currentIncident.type, 'feed').replace('rounded-full', '')}`}>
+                                <GoogleIcon name={getIncidentIconName(currentIncident.type)} size={24} />
                             </span>
-                            <span className={`text-xs font-semibold uppercase tracking-wider ${currentIncident.status === 'alert' ? 'text-red-600' :
-                                currentIncident.status === 'monitor' ? 'text-amber-600' :
-                                    'text-emerald-600'
-                                }`}>
-                                {currentIncident.status}
-                            </span>
-                        </div>
 
-                        <h2 className="text-2xl font-semibold tracking-tight text-slate-900 mb-1 leading-tight capitalize">
-                            {getEventTypeName(currentIncident.type)}
-                        </h2>
-                        <p className="text-slate-500 text-sm mb-6">
-                            {currentIncident.city}
-                        </p>
+                            <div className="flex flex-col min-w-0 pt-0.5">
+                                <h2 className="text-xl font-bold tracking-tight text-slate-900 leading-tight capitalize truncate">
+                                    {getEventTypeName(currentIncident.type)}
+                                </h2>
+
+                                <div className="flex items-center gap-2 mt-1 text-xs">
+                                    <span className={`font-bold uppercase tracking-wider ${currentIncident.status === 'alert' ? 'text-red-600' :
+                                        currentIncident.status === 'monitor' ? 'text-amber-600' :
+                                            'text-emerald-600'
+                                        }`}>
+                                        {currentIncident.status}
+                                    </span>
+
+                                    <span className="text-slate-300">•</span>
+
+                                    <span className="text-slate-600 font-medium truncate">
+                                        {currentIncident.city}
+                                    </span>
+
+                                    <span className="text-slate-300">•</span>
+
+                                    <span className="text-slate-400 whitespace-nowrap">
+                                        {timeAgo(currentIncident.updated_at)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
 
                         {/* AI Summary */}
                         {currentIncident.summary && (
