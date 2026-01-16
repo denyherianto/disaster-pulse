@@ -45,7 +45,7 @@
 }
 
 .animate-marquee {
-    animation: marquee 100s linear infinite;
+    animation: marquee 240s linear infinite;
     display: flex;
     white-space: nowrap;
     width: max-content; /* Ensure container fits content */
@@ -54,6 +54,26 @@
 /* Pause animation on hover for readability */
 .animate-marquee:hover {
     animation-play-state: paused;
+}
+
+/* Fade In Animation */
+@keyframes fade-in {
+    0% { opacity: 0; transform: translateY(-4px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+}
+
+/* Slide Down Animation */
+@keyframes slide-down {
+    0% { opacity: 0; max-height: 0; }
+    100% { opacity: 1; max-height: 500px; }
+}
+
+.animate-slide-down {
+    animation: slide-down 0.3s ease-out;
 }
 
 @layer utilities {

@@ -21,6 +21,8 @@ import { API_BASE_URL } from '@/lib/config';
 import { useZone } from '@/components/providers/ZoneProvider';
 import ZoneSelector from '@/components/dashboard/ZoneSelector';
 import { useLanguage } from '@/components/providers/LanguageProvider';
+import GoogleIcon from '@/components/ui/GoogleIcon';
+import { getIncidentIconName } from '@/lib/incidents';
 
 export default function HeroStatus() {
     const { selectedZone } = useZone();
@@ -194,11 +196,17 @@ export default function HeroStatus() {
                 >
                     <div className="relative z-10 p-6 pb-4">
                         <div className="flex items-center gap-2 mb-3">
-                            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-600">
-                                <AlertCircle size={14} />
+                            <span className={`flex items-center justify-center w-6 h-6 rounded-full ${currentIncident.status === 'alert' ? 'bg-red-100 text-red-600' :
+                                    currentIncident.status === 'monitor' ? 'bg-amber-100 text-amber-600' :
+                                        'bg-emerald-100 text-emerald-600'
+                                }`}>
+                                <GoogleIcon name={getIncidentIconName(currentIncident.type)} size={14} />
                             </span>
-                            <span className="text-xs font-semibold uppercase tracking-wider text-amber-600">
-                                {t('incidentFeed.alert')}
+                            <span className={`text-xs font-semibold uppercase tracking-wider ${currentIncident.status === 'alert' ? 'text-red-600' :
+                                currentIncident.status === 'monitor' ? 'text-amber-600' :
+                                    'text-emerald-600'
+                                }`}>
+                                {currentIncident.status}
                             </span>
                         </div>
 

@@ -21,7 +21,7 @@ export default function DashboardPage() {
 
               <LiveMapSnippet />
 
-              <IncidentFeed />
+              {/* <IncidentFeed /> */}
         </div>
 
           {/* Bottom Navigation - remains fixed relative to main container */}

@@ -3,7 +3,7 @@
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { MapPin, ChevronLeft, ThumbsUp, ThumbsDown, Clock, Phone, FileDown, ExternalLink, AlertTriangle, CheckCircle, Eye, AlarmCheck, ChevronDown, ChevronUp, Bot } from 'lucide-react';
+import { MapPin, ChevronLeft, ThumbsUp, ThumbsDown, Clock, Phone, FileDown, ExternalLink, AlertTriangle, CheckCircle, Eye, AlarmCheck, ChevronDown, ChevronUp, Bot, Video } from 'lucide-react';
 import Link from 'next/link';
 import BottomNav from '@/components/navigation/BottomNav';
 import { API_BASE_URL } from '@/lib/config';
