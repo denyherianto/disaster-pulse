@@ -42,6 +42,80 @@ export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, Sign
     throw new Error(`Unknown tool: ${name}`);
   }
 
+
+  async runBatch(inputs: SignalSeverityInput[]): Promise<{ results: SignalSeverityOutput[] }> {
+    if (inputs.length === 0) return { results: [] };
+
+    const batchPrompt = `
+      ROLE: Emergency Triage.
+      TASK: Rate the severity/urgency of multiple incoming signals.
+
+      SIGNALS TO ANALYZE:
+      ${inputs.map((input, index) => `
+      --- SIGNAL ID: ${index} ---
+      SOURCE: ${input.source}
+      TEXT: ${input.text}
+      LOCATION HINT: lat:${input.lat}, lng:${input.lng}, city:${input.city_hint}
+      `).join('\n')}
+
+      GUIDELINES:
+      - TIMEZONE: UTC+7 (WIB).
+      - Classify EACH signal independently.
+      - Return an ARRAY of objects, matching the order of input signals.
+
+      OUTPUT JSON:
+      {
+        "results": [
+          {
+            "id": 0,
+            "severity": "low | medium | high",
+            "urgency_score": 0.0-1.0,
+            "reason": "Max 5 words",
+            "location": "City, Province (inferred) or null",
+            "event_type": "disaster type",
+            "lat": "lat or null",
+            "lng": "lng or null"
+          },
+          ...
+        ]
+      }
+    `;
+
+    try {
+      this.logger.debug(`[${this.role}] Analyzing batch of ${inputs.length} signals...`);
+      const completion = await this.maia.chat.completions.create({
+        model: this.model,
+        messages: [{ role: 'user', content: batchPrompt }],
+        response_format: { type: 'json_object' },
+      });
+
+      const content = completion.choices[0].message.content;
+      if (!content) throw new Error('Empty response');
+
+      const parsed = JSON.parse(content);
+      const results = parsed.results || [];
+
+      // Ensure results map back to inputs even if AI messes up order (though array order is usually preserved)
+      // We'll trust array order for now but could map by ID if needed.
+      return { results };
+
+    } catch (error) {
+      this.logger.error('Batch analysis failed', error);
+      // Fallback: return default low severity for all
+      return {
+        results: inputs.map(() => ({
+          severity: 'low',
+          urgency_score: 0,
+          reason: 'Batch Analysis Failed',
+          location: null,
+          event_type: 'other',
+          lat: null,
+          lng: null
+        }))
+      };
+    }
+  }
+
   buildPrompt(input: SignalSeverityInput): string {
     return `
       ROLE: Emergency Triage.
@@ -70,9 +144,7 @@ export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, Sign
         "location": Infer location (City/Province) from title/description/lat & lng/city_hint if possible with this format: "City, Province". If not possible, return null,
         "event_type": "disaster type inferred from text",
         "lat": "Infer latitude from location if possible. Center of the location.",
-        "event_type": "disaster type inferred from text",
-        "lat": "Latitude from tool or null",
-        "lng": "Longitude from tool or null",
+        "lng": "Longitude from tool or null"
       }
       
       IMPORTANT: If the signal text contains a specific location (e.g. 'Fire at Pasar Senen') but you don't have coordinates, USE the 'geocode_location' tool to get accurate lat/lng.

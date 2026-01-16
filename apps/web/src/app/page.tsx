@@ -3,6 +3,7 @@ import HeroStatus from '@/components/dashboard/HeroStatus';
 import LiveMapSnippet from '@/components/dashboard/LiveMapSnippet';
 import IncidentFeed from '@/components/feed/IncidentFeed';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import LiveIntelligenceTicker from '@/components/dashboard/LiveIntelligenceTicker';
 import { Home, Map as MapIcon, Bookmark, Bell, User, ArrowRight } from 'lucide-react';
 import BottomNav from '@/components/navigation/BottomNav';
 
@@ -12,12 +13,11 @@ export default function DashboardPage() {
           {/* Scrollable Content Container - Header is now inside here */}
           <div className="flex-1 overflow-y-auto no-scrollbar pb-24">
 
-
               <DashboardHeader />
 
-
-
               <HeroStatus />
+
+              <LiveIntelligenceTicker />
 
               <LiveMapSnippet />
 

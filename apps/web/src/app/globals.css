@@ -38,6 +38,24 @@
     background-size: 10px 10px;
 }
 
+/* Marquee Animation */
+@keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+    animation: marquee 100s linear infinite;
+    display: flex;
+    white-space: nowrap;
+    width: max-content; /* Ensure container fits content */
+}
+
+/* Pause animation on hover for readability */
+.animate-marquee:hover {
+    animation-play-state: paused;
+}
+
 @layer utilities {
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);

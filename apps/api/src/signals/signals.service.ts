@@ -13,83 +13,179 @@ export class SignalsService {
     private readonly enrichmentAgent: SignalEnrichmentAgent,
   ) { }
 
-  async createSignal(payload: any) {
-    console.log('payload createSignal', payload)
-    // 1. Analyze Severity (Fast Agent)
-    let severityResult: any = { severity: 'low', urgency_score: 0.1, location: null, event_type: 'other' };
+  private signalBuffer: { payload: any; resolve: (value: any) => void; reject: (reason?: any) => void }[] = [];
+  private readonly BATCH_SIZE = 10;
+  private readonly FLUSH_INTERVAL = 60_000; // 60 seconds
+  private flushTimeout: NodeJS.Timeout | null = null;
+
+  async createSignal(payload: any): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.signalBuffer.push({ payload, resolve, reject });
+
+      if (this.signalBuffer.length >= this.BATCH_SIZE) {
+        this.flushBuffer();
+      } else if (!this.flushTimeout) {
+        this.flushTimeout = setTimeout(() => this.flushBuffer(), this.FLUSH_INTERVAL);
+      }
+    });
+  }
+
+  private async flushBuffer() {
+    if (this.flushTimeout) {
+      clearTimeout(this.flushTimeout);
+      this.flushTimeout = null;
+    }
+
+    if (this.signalBuffer.length === 0) return;
+
+    const batch = [...this.signalBuffer];
+    this.signalBuffer = [];
+    this.logger.log(`Flushing signal buffer: processing ${batch.length} signals...`);
+
     try {
-      const { result } = await this.enrichmentAgent.run({
-        text: payload.text || '',
-        source: payload.source,
-        lat: payload.lat,
-        lng: payload.lng,
-        city_hint: payload.city_hint,
-      });
-      severityResult = result;
-    } catch (e) {
-      console.warn('Severity Check Failed, defaulting to low', e);
+      // 1. Prepare batch inputs for Agent
+      const inputs = batch.map(item => ({
+        text: item.payload.text || '',
+        source: item.payload.source,
+        lat: item.payload.lat,
+        lng: item.payload.lng,
+        city_hint: item.payload.city_hint,
+      }));
+
+      // 2. Call Agent API (Batch)
+      const { results } = await this.enrichmentAgent.runBatch(inputs);
+
+      // 3. Process each result
+      // We process them in parallel for DB insertion to keep it fast, or could use bulk insert but need IDs back.
+      // Parallel single inserts is acceptable for batch size 10.
+      await Promise.all(batch.map(async (item, index) => {
+        const payload = item.payload;
+        // Fallback if result missing (shouldn't happen with correct implementation)
+        const severityResult = results[index] || {
+          severity: 'low',
+          urgency_score: 0.1,
+          location: null,
+          event_type: 'other',
+          lat: null,
+          lng: null
+        };
+
+        const eventType = payload.event_type || severityResult.event_type;
+
+        if (eventType === 'other' || eventType === 'noise') {
+          // We persist "noise" signals for the Ticker to show "Ignored" reasoning, 
+          // but we DO NOT queue them for clustering.
+          try {
+            const { data, error } = await (this.supabase.getClient()
+              .from('signals') as any)
+              .insert({
+                source: payload.source,
+                text: payload.text || null,
+                lat: severityResult.lat || payload.lat,
+                lng: severityResult.lng || payload.lng,
+                media_url: payload.media_url || null,
+                media_type: payload.media_type || null,
+                thumbnail_url: payload.thumbnail_url || null,
+                city_hint: severityResult.location || payload.city_hint || null,
+                event_type: eventType,
+                raw_payload: { ...(payload.raw_payload || {}), ai_analysis: severityResult },
+                status: 'processed', // Mark as processed so it doesn't get picked up again
+                happened_at: payload.happened_at || undefined,
+              })
+              .select('id')
+              .single();
+
+            if (!error) {
+              item.resolve({ success: true, id: data.id, severity: 'low', ignored: true });
+              return;
+            }
+          } catch (e) {
+            // If persistence fails for noise, just ignore it
+            item.resolve(null);
+            return;
+          }
+        }
+
+        if (!eventType) {
+          this.logger.warn(`Signal ${index} missing event_type. Skipped.`);
+          item.resolve(null);
+          return;
+        }
+
+        try {
+          // Persist Signal
+          const { data, error } = await (this.supabase.getClient()
+            .from('signals') as any)
+            .insert({
+              source: payload.source,
+              text: payload.text || null,
+              lat: severityResult.lat || payload.lat,
+              lng: severityResult.lng || payload.lng,
+              media_url: payload.media_url || null,
+              media_type: payload.media_type || null,
+              thumbnail_url: payload.thumbnail_url || null,
+              city_hint: severityResult.location || payload.city_hint || null,
+              event_type: eventType,
+              raw_payload: { ...(payload.raw_payload || {}), ai_analysis: severityResult },
+              status: 'pending',
+              happened_at: payload.happened_at || undefined,
+            })
+            .select('id')
+            .single();
+
+          if (error) {
+            console.error('Supabase Ingestion Error:', error);
+            item.reject(new InternalServerErrorException('Failed to ingest signal'));
+            return;
+          }
+
+          // Publish to Queue
+          const priority = severityResult.severity === 'high' ? 1 : 10;
+          const delay = severityResult.severity === 'high' ? 0 : 300000;
+
+          await this.clusteringQueue.add(
+            'cluster-signals',
+            {
+              signalId: data.id,
+              lat: payload.lat,
+              lng: payload.lng,
+              severity: severityResult.severity,
+              happened_at: payload.happened_at,
+            },
+            {
+              priority,
+              delay,
+              removeOnComplete: true,
+            },
+          );
+
+          item.resolve({ success: true, id: data.id, severity: severityResult.severity });
+
+        } catch (err) {
+          console.error('Error processing individual signal in batch', err);
+          item.reject(err);
+        }
+      }));
+
+    } catch (error) {
+      this.logger.error('Batch processing failed completely', error);
+      // Reject all
+      batch.forEach(item => item.reject(error));
     }
+  }
 
-    const eventType = payload.event_type || severityResult.event_type
-
-    if (eventType === 'other') {
-      this.logger.error(`Signal event_type is ${eventType}. Not clustering.`);
-      return;
-    }
-
-    if (!eventType) {
-      this.logger.error(`Signal event_type is null/undefined. Rejecting signal.`);
-      return;
-    }
-
-    this.logger.log(`Ingesting signal with resolved type: ${eventType}`);
-
-    // 2. Persist Signal
-    const { data, error } = await (this.supabase.getClient()
-      .from('signals') as any)
-      .insert({
-        source: payload.source,
-        text: payload.text || null,
-        lat: severityResult.lat || payload.lat,
-        lng: severityResult.lng || payload.lng,
-        media_url: payload.media_url || null,
-        media_type: payload.media_type || null,
-        thumbnail_url: payload.thumbnail_url || null,
-        city_hint: severityResult.location || payload.city_hint || null,
-        event_type: eventType,
-        raw_payload: payload.raw_payload || null,
-        status: 'pending',
-        happened_at: payload.happened_at || undefined,
-      })
-      .select('id')
-      .single();
+  async getRecentSignals(limit: number = 20) {
+    const { data, error } = await this.supabase.getClient()
+      .from('signals')
+      .select('id, source, text, event_type, city_hint, created_at, status, media_type, raw_payload, incident_id:incident_signals(incident_id)')
+      .order('created_at', { ascending: false })
+      .limit(limit);
 
     if (error) {
-      console.error('Supabase Ingestion Error:', error);
-      throw new InternalServerErrorException('Failed to ingest signal');
+      this.logger.error('Failed to fetch recent signals', error);
+      return [];
     }
 
-    // 3. Publish to Queue
-    const priority = severityResult.severity === 'high' ? 1 : 10;
-    const delay = severityResult.severity === 'high' ? 0 : 300000; // 5m delay for low priority
-    console.log('Publishing signal to queue', { priority, delay });
-
-    await this.clusteringQueue.add(
-      'cluster-signals',
-      {
-        signalId: data.id,
-        lat: payload.lat,
-        lng: payload.lng,
-        severity: severityResult.severity,
-        happened_at: payload.happened_at,
-      },
-      {
-        priority,
-        delay,
-        removeOnComplete: true,
-      },
-    );
-
-    return { success: true, id: data.id, severity: severityResult.severity };
+    return data;
   }
 }

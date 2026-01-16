@@ -135,12 +135,33 @@ export class RssService implements OnModuleInit {
     this.logger.debug(`Analysis for "${item.title?.substring(0, 40)}...": real=${analysis.is_real_event}, conf=${analysis.confidence_score}`);
 
     if (!analysis.is_disaster_related || !analysis.is_current_event || !analysis.is_real_event) {
-      // this.logger.debug(`Article rejected: ${analysis.reason}`);
+      // Create 'noise' signal for transparency
+      await this.signalsService.createSignal({
+        source: 'news',
+        text: analysis.summary || item.title,
+        event_type: 'noise',
+        lat: null, lng: null, city_hint: null,
+        media_url: item.link, media_type: null, happened_at: item.pubDate,
+        raw_payload: {
+          url_hash: urlHash, source_name: sourceName, original_title: item.title, link: item.link,
+          ai_analysis: { ...analysis, reason: `REJECTED: ${analysis.reason}` }
+        }
+      });
       return false;
     }
 
     if (analysis.confidence_score < 0.6) {
-      // this.logger.debug(`Article rejected: Low confidence (${analysis.confidence_score})`);
+      await this.signalsService.createSignal({
+        source: 'news',
+        text: analysis.summary || item.title,
+        event_type: 'noise',
+        lat: null, lng: null, city_hint: null,
+        media_url: item.link, media_type: null, happened_at: item.pubDate,
+        raw_payload: {
+          url_hash: urlHash, source_name: sourceName, original_title: item.title, link: item.link,
+          ai_analysis: { ...analysis, reason: `REJECTED: Low confidence (${analysis.confidence_score}) - ${analysis.reason}` }
+        }
+      });
       return false;
     }
 

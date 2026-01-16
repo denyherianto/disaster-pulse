@@ -13,7 +13,7 @@ import { NewsAnalysisAgent } from '../../reasoning/agents/news-analysis.agent';
     SignalsModule,
     ReasoningModule,
   ],
-  providers: [RssService, NewsAnalysisAgent],
+  providers: [RssService],
   exports: [RssService],
 })
 export class RssModule {}

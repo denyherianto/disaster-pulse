@@ -80,7 +80,7 @@ export default function IncidentFeed() {
 
     if (isLoading) return <div className="p-6 text-center text-slate-400 text-sm">{t('common.loading')}</div>;
     if (!incidents || incidents.length === 0) return (
-         <div className="space-y-4 px-6 pb-24">
+        <div className="space-y-4 px-6 pb-24 mt-6">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold tracking-tight text-slate-900">{t('dashboard.recentAlerts')}</h3>
                 <Database className="text-slate-400" size={18} />

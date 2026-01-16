@@ -1,4 +1,4 @@
-import { Controller, Post, Body, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Body, BadRequestException, Get } from '@nestjs/common';
 import { SignalsService } from './signals.service';
 import { z } from 'zod';
 
@@ -30,5 +30,10 @@ export class SignalsController {
     }
 
     return this.signalsService.createSignal(validated.data);
+  }
+
+  @Get('recent')
+  async getRecent() {
+    return this.signalsService.getRecentSignals();
   }
 }
