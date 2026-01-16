@@ -25,7 +25,7 @@ export type SignalSeverityOutput = {
 export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, SignalSeverityOutput> {
   protected readonly logger = new Logger(SignalEnrichmentAgent.name);
   protected readonly role = 'SignalEnrichment';
-  protected readonly model = 'maia/gemini-3-pro-preview'; // High speed model
+  protected readonly model = 'maia/gemini-2.5-flash'; // High speed model
 
   constructor(
     maia: OpenAI,

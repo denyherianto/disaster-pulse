@@ -20,7 +20,7 @@ export type ResolutionOutput = {
 export class IncidentResolutionAgent extends GeminiAgent<ResolutionInput, ResolutionOutput> {
   protected readonly logger = new Logger(IncidentResolutionAgent.name);
   protected readonly role = 'IncidentResolution';
-  protected readonly model = 'maia/gemini-3-pro-preview';
+  protected readonly model = 'maia/gemini-2.5-flash';
 
   constructor(maia: OpenAI) {
     super(maia);

@@ -16,7 +16,7 @@ export type ObserverOutput = {
 export class ObserverAgent extends GeminiAgent<ObserverInput, ObserverOutput> {
   protected readonly logger = new Logger(ObserverAgent.name);
   protected readonly role = 'Observer';
-  protected readonly model = 'maia/gemini-3-pro-preview';
+  protected readonly model = 'maia/gemini-2.5-flash';
 
   constructor(maia: OpenAI) {
     super(maia);

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { GeminiAgent } from './base.agent';
 import OpenAI from 'openai';
 
 export interface NewsAnalysisInput {
@@ -24,19 +24,17 @@ export interface NewsAnalysisResult {
 }
 
 @Injectable()
-export class NewsAnalysisAgent {
-  private readonly logger = new Logger(NewsAnalysisAgent.name);
-  private readonly openai: OpenAI;
+export class NewsAnalysisAgent extends GeminiAgent<NewsAnalysisInput, NewsAnalysisResult> {
+  protected readonly logger = new Logger(NewsAnalysisAgent.name);
+  protected readonly role = 'NewsAnalysis';
+  protected readonly model = 'maia/gemini-2.5-flash';
 
-  constructor(private readonly configService: ConfigService) {
-    this.openai = new OpenAI({
-      apiKey: this.configService.get<string>('MAIA_API_KEY'),
-      baseURL: 'https://api.maiarouter.ai/v1',
-    });
+  constructor(maia: OpenAI) {
+    super(maia);
   }
 
-  async run(input: NewsAnalysisInput): Promise<{ result: NewsAnalysisResult }> {
-    const systemPrompt = `
+  buildPrompt(input: NewsAnalysisInput): string {
+    return `
 ROLE: Disaster Intelligence Analyst.
 TASK: Analyze Indonesian news articles to identify REAL, CURRENT disaster events.
 CONTEXT: All times are UTC+7 (Western Indonesia Time). Events must be CURRENT/ONGOING relative to this timezone.
@@ -53,9 +51,9 @@ You must be SKEPTICAL. Many articles are:
 - Historical retrospectives
 - Speculative warnings
 
-Only mark as real and current if the article describes an ACTIVE incident with specific details.`;
+Only mark as real and current if the article describes an ACTIVE incident with specific details.
 
-    const userPrompt = `Analyze this news article:
+Analyze this news article:
 
 Title: ${input.title}
 Description: ${input.description}
@@ -76,39 +74,5 @@ Respond in JSON format:
   "happened_at": "ISO timestamp if determinable" or null,
   "reason": "Brief explanation of your assessment"
 }`;
-
-    try {
-      const response = await this.openai.chat.completions.create({
-        model: 'maia/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0,
-        response_format: { type: 'json_object' },
-      });
-
-      const content = response.choices[0]?.message?.content || '{}';
-      const result = JSON.parse(content) as NewsAnalysisResult;
-
-      this.logger.debug(`News analysis for "${input.title}": ${result.is_real_event ? 'VALID' : 'REJECTED'}`);
-
-      return { result };
-    } catch (error) {
-      this.logger.error('Failed to analyze news article', error);
-      return {
-        result: {
-          is_disaster_related: false,
-          is_current_event: false,
-          is_real_event: false,
-          confidence_score: 0,
-          event_type: null,
-          location_inference: null,
-          summary: null,
-          happened_at: null,
-          reason: 'Analysis failed due to error',
-        },
-      };
-    }
   }
 }
