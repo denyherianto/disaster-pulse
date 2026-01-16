@@ -56,6 +56,7 @@ export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, Sign
       - city_hint:  ${input.city_hint}
 
       GUIDELINES:
+      - TIMEZONE: All dates and times are in UTC+7 (Western Indonesia Time / WIB).
       - HIGH: Life-threatening, verified disaster, "HELP", "SOS", widespread destruction.
       - MEDIUM: Property damage, potential threat, warning signs.
       - LOW: News discussion, past event, joke, minor inconvenience.

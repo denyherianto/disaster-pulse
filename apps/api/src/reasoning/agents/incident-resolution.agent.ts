@@ -30,6 +30,7 @@ export class IncidentResolutionAgent extends GeminiAgent<ResolutionInput, Resolu
     return `
       ROLE: Incident Resolver.
       TASK: Determine if the event is OVER (aftermath, cleanup, past tense) or ONGOING based on signal analysis.
+      CONTEXT: All times are UTC+7 (Western Indonesia Time). Evaluated signals against this timezone.
 
       Analyze these recent signals for an incident (Severity: ${input.incidentSeverity}).
       
