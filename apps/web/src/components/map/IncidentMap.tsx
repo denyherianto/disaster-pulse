@@ -1,6 +1,6 @@
 'use client';
 
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import 'leaflet/dist/leaflet.css';
 import { useQuery } from '@tanstack/react-query';
@@ -93,6 +93,12 @@ const createClusterCustomIcon = (cluster: any) => {
     });
 };
 
+// Indonesia bounds for fitBounds
+const INDONESIA_BOUNDS: [[number, number], [number, number]] = [
+    [-11, 95],   // Southwest corner (south Sumatra/Java, west of Sumatra)
+    [6, 141]     // Northeast corner (north Kalimantan, Papua)
+];
+
 // Inner component to handle map updates based on context
 function MapUpdater({ zoomLevel = 13 }: { zoomLevel?: number }) {
     const map = useMap();
@@ -102,8 +108,8 @@ function MapUpdater({ zoomLevel = 13 }: { zoomLevel?: number }) {
         if (selectedZone) {
             map.flyTo([selectedZone.lat, selectedZone.lng], zoomLevel);
         } else {
-            // Reset to Indonesia view
-            map.flyTo(INDONESIA_CENTER, INDONESIA_ZOOM);
+            // Fit to Indonesia bounds to show entire country
+            map.fitBounds(INDONESIA_BOUNDS, { padding: [20, 20] });
         }
     }, [selectedZone, map, zoomLevel]);
 
@@ -118,6 +124,7 @@ interface IncidentMapProps {
     scrollWheelZoom?: boolean;
     doubleClickZoom?: boolean;
     touchZoom?: boolean;
+    showZoneBoundary?: boolean;
 }
 
 export default function IncidentMap({
@@ -127,7 +134,8 @@ export default function IncidentMap({
     zoomControl,
     scrollWheelZoom,
     doubleClickZoom,
-    touchZoom
+    touchZoom,
+    showZoneBoundary = true
 }: IncidentMapProps) {
     // Default granular props to the value of 'interactive' if not explicitly provided
     const isDragging = dragging ?? interactive;
@@ -184,8 +192,20 @@ export default function IncidentMap({
                 />
                 <MapUpdater zoomLevel={zoomLevel} />
                 
-
-
+                {/* Zone Boundary Circle */}
+                {showZoneBoundary && selectedZone && (
+                    <Circle
+                        center={[selectedZone.lat, selectedZone.lng]}
+                        radius={selectedZone.radius_m}
+                        pathOptions={{
+                            color: '#3b82f6',
+                            fillColor: '#3b82f6',
+                            fillOpacity: 0.08,
+                            weight: 2,
+                            dashArray: '8, 4',
+                        }}
+                    />
+                )}
 
                 <MarkerClusterGroup
                     chunkedLoading
