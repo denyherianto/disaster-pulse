@@ -9,6 +9,9 @@ import ReportIncidentModal from '@/components/modals/ReportIncidentModal';
 import { useLanguage } from '@/components/providers/LanguageProvider';
 import Link from 'next/link';
 
+// Feature toggle for User Reports
+const isUserReportsEnabled = process.env.NEXT_PUBLIC_FEATURE_USER_REPORTS === 'true';
+
 export default function DashboardHeader() {
     const { isOnline } = useNetworkStatus();
     const isFetching = useIsFetching();
@@ -55,13 +58,15 @@ export default function DashboardHeader() {
                         </div>
                     )}
                     
-                    <button
-                        onClick={() => setIsReportModalOpen(true)}
-                        className="bg-red-50 text-red-600 hover:bg-red-100 p-2 rounded-full transition-colors flex items-center justify-center relative active:scale-95"
-                    >
-                        <Megaphone size={18} />
-                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-                    </button>
+                    {isUserReportsEnabled && (
+                        <button
+                            onClick={() => setIsReportModalOpen(true)}
+                            className="bg-red-50 text-red-600 hover:bg-red-100 p-2 rounded-full transition-colors flex items-center justify-center relative active:scale-95"
+                        >
+                            <Megaphone size={18} />
+                            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -98,10 +103,12 @@ export default function DashboardHeader() {
             </div>
 
 
-            <ReportIncidentModal
-                isOpen={isReportModalOpen}
-                onClose={() => setIsReportModalOpen(false)}
-            />
+            {isUserReportsEnabled && (
+                <ReportIncidentModal
+                    isOpen={isReportModalOpen}
+                    onClose={() => setIsReportModalOpen(false)}
+                />
+            )}
         </header >
     );
 }
