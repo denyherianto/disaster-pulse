@@ -17,10 +17,13 @@ import { BmkgModule } from './sources/bmkg/bmkg.module';
 import { GuidesModule } from './guides/guides.module';
 import { EmergencyContactsModule } from './emergency-contacts/emergency-contacts.module';
 
+import { SseModule } from './sse/sse.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    SseModule,
     SupabaseModule,
     SignalsModule,
     UserPlacesModule,

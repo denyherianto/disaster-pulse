@@ -42,6 +42,7 @@ export class GoogleMapsTool {
       const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${this.apiKey}`;
       const response = await axios.get(url);
 
+      console.log('response.data', response.data)
       if (response.data.status !== 'OK') {
         this.logger.warn(`Geocoding failed for ${address}: ${response.data.status}`);
         return { error: `Geocoding failed: ${response.data.status}` };

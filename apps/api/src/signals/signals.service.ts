@@ -3,6 +3,8 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
 import { SignalEnrichmentAgent } from '../reasoning/agents/signal-enrichment.agent';
+import { SseService } from '../sse/sse.service';
+import { MessageEvent } from '@nestjs/common';
 
 @Injectable()
 export class SignalsService {
@@ -11,6 +13,7 @@ export class SignalsService {
     private readonly supabase: SupabaseService,
     @InjectQueue('clustering-queue') private readonly clusteringQueue: Queue,
     private readonly enrichmentAgent: SignalEnrichmentAgent,
+    private readonly sseService: SseService,
   ) { }
 
   private signalBuffer: { payload: any; resolve: (value: any) => void; reject: (reason?: any) => void }[] = [];
@@ -96,6 +99,11 @@ export class SignalsService {
               .single();
 
             if (!error) {
+              this.sseService.addEvent({
+                data: { ...data, event_type: eventType, city_hint: severityResult.location || payload.city_hint },
+                type: 'signal_processed'
+              } as MessageEvent);
+
               item.resolve({ success: true, id: data.id, severity: 'low', ignored: true });
               return;
             }
@@ -140,6 +148,11 @@ export class SignalsService {
           }
 
           // Publish to Queue
+          this.sseService.addEvent({
+            data: { ...data, event_type: eventType, city_hint: severityResult.location || payload.city_hint },
+            type: 'signal_processed'
+          } as MessageEvent);
+
           const priority = severityResult.severity === 'high' ? 1 : 10;
           const delay = severityResult.severity === 'high' ? 0 : 300000;
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MapPin, ChevronLeft, ThumbsUp, ThumbsDown, Clock, Phone, FileDown, ExternalLink, AlertTriangle, CheckCircle, Eye, AlarmCheck, ChevronDown, ChevronUp, Bot, Video } from 'lucide-react';
 import Link from 'next/link';
@@ -13,8 +13,8 @@ import GoogleIcon from '@/components/ui/GoogleIcon';
 import GeminiIcon from '@/components/ui/GeminiIcon';
 import { getIncidentIconName, getIncidentColorClass } from '@/lib/incidents';
 
-const CollapsibleSection = ({ children, maxHeight = 200 }: { children: React.ReactNode, maxHeight?: number }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
+const CollapsibleSection = ({ children, maxHeight = 200, defaultExpanded = false }: { children: React.ReactNode, maxHeight?: number, defaultExpanded?: boolean }) => {
+    const [isExpanded, setIsExpanded] = useState(defaultExpanded);
     return (
         <div className="relative">
             <div
@@ -396,6 +396,20 @@ export default function IncidentDetailPage() {
         enabled: !!incidentId,
     });
 
+    const groupedTraces = useMemo(() => {
+        const groups: { [key: string]: any[] } = {};
+        traces.forEach((t: any) => {
+            const sid = t.session_id || 'unknown';
+            if (!groups[sid]) groups[sid] = [];
+            groups[sid].push(t);
+        });
+        return Object.values(groups).sort((a, b) => {
+            const timeA = new Date(a[0].created_at).getTime();
+            const timeB = new Date(b[0].created_at).getTime();
+            return timeB - timeA;
+        });
+    }, [traces]);
+
     // Feedback mutation
     const feedbackMutation = useMutation({
         mutationFn: async (type: 'confirm' | 'reject') => {
@@ -548,14 +562,36 @@ export default function IncidentDetailPage() {
                             <GeminiIcon size={16} />
                             Gemini Agents Analysis
                         </h3>
-                        <div className="bg-white rounded-2xl border border-slate-200 p-4">
-                            <CollapsibleSection maxHeight={300}>
-                                <div className="space-y-4">
-                                    {traces.map((trace: any, i: number) => (
-                                        <TraceStep key={trace.id || i} trace={trace} index={i} />
-                                    ))}
-                                </div>
-                            </CollapsibleSection>
+
+                        <div className="space-y-4">
+                            {groupedTraces.slice(0, 1).map((sessionTraces, sessionIndex) => {
+                                const sessionTime = sessionTraces[0].created_at;
+
+                                return (
+                                    <div key={sessionIndex} className="bg-white rounded-2xl border border-blue-200 shadow-sm overflow-hidden">
+                                        <div className="px-4 py-3 flex items-center justify-between bg-blue-50/50">
+                                            <div className="flex items-center gap-2">
+                                                <div className="text-xs font-semibold uppercase tracking-wider text-blue-700">
+                                                    Latest Analysis
+                                                </div>
+                                                <span className="text-slate-300">•</span>
+                                                <div className="text-xs text-slate-500 flex items-center gap-1">
+                                                    <Clock size={10} />
+                                                    {formatTimeAgo(sessionTime)}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <CollapsibleSection maxHeight={100}>
+                                            <div className="p-4 space-y-4">
+                                                {sessionTraces.map((trace: any, i: number) => (
+                                                    <TraceStep key={trace.id || i} trace={trace} index={i} />
+                                                ))}
+                                            </div>
+                                        </CollapsibleSection>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 )}

@@ -1,5 +1,7 @@
 import { Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { SseService } from '../sse/sse.service';
+import { MessageEvent } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { reverseGeocodeCity } from '../lib/reverseGeocoding';
 import { determineStatus } from '../lib/determineStatus';
@@ -35,6 +37,7 @@ export class IncidentsService {
     private readonly supabase: SupabaseService,
     private readonly reasoningService: ReasoningService,
     private readonly resolutionAgent: IncidentResolutionAgent,
+    private readonly sseService: SseService,
   ) { }
 
   // ============================================================
@@ -212,6 +215,43 @@ export class IncidentsService {
       return; // Wait for more signals
     }
 
+    // ---------------------------------------------------------
+    // REASONING LOOP CHECK (Action Strategy)
+    // ---------------------------------------------------------
+    try {
+      this.logger.log(`Running Reasoning Loop for potential incident in ${city} (${unlinkedSignals.length} signals)...`);
+
+      const reasoningSignals = unlinkedSignals.map((s: any) => ({
+        source: s.source,
+        text: s.text || '',
+        created_at: s.created_at
+      }));
+
+      // We pass empty existingIncidents because we already tried finding matches in processSignal
+      const { decision } = await this.reasoningService.runReasoningLoop(reasoningSignals, []);
+
+      this.logger.log(`Action Strategy Decision: ${decision.action} (Reason: ${decision.reason})`);
+
+      if (decision.action === 'WAIT_FOR_MORE_DATA') {
+        this.logger.log(`Aborting incident creation: Waiting for more data.`);
+        return;
+      }
+
+      if (decision.action === 'DISMISS') {
+        this.logger.log(`Aborting incident creation: Dismissed as benign/noise.`);
+        // Optionally mark signals as dismissed/processed to prevent re-eval?
+        // For now just abort creation.
+        return;
+      }
+
+      // If MERGE or CREATE, we proceed (MERGE might be unexpected here but safe to fallback to create if no target)
+    } catch (err) {
+      this.logger.error(`Reasoning Loop failed, falling back to default creation:`, err);
+      // Fallback: Proceed to create if reasoning fails (fail open) vs fail closed?
+      // Let's fail open (proceed) to avoid missing critical incidents due to AI error,
+      // unless strictly required otherwise.
+    }
+
     // CREATE INCIDENT
     this.logger.log(`Creating NEW Incident in ${city} for ${eventType} with ${unlinkedSignals.length} signals`);
 
@@ -241,6 +281,13 @@ export class IncidentsService {
       this.logger.error('Failed to create incident:', createError);
       return;
     }
+
+
+    // Notify Frontend via SSE
+    this.sseService.addEvent({
+      data: { ...newIncident, city, event_type: eventType, status: 'monitor' },
+      type: 'incident_update'
+    } as MessageEvent);
 
     // Link signals
     const links = unlinkedSignals.map((s: any) => ({
@@ -357,6 +404,19 @@ export class IncidentsService {
           .eq('id', currentIncident.id);
 
         if (error) this.logger.error(`Failed to update incident ${currentIncident.id}`, error);
+        else {
+          this.sseService.addEvent({
+            data: {
+              id: currentIncident.id,
+              event_type: targetEventType,
+              severity: newSeverity,
+              confidence_score: newConfidence,
+              summary: conclusion.description,
+              updated_at: new Date().toISOString()
+            },
+            type: 'incident_update'
+          } as MessageEvent);
+        }
       }
       return;
     }
@@ -394,6 +454,20 @@ export class IncidentsService {
         updated_at: new Date().toISOString()
       })
       .eq('id', incidentId);
+
+    // Notify Frontend via SSE
+    this.sseService.addEvent({
+      data: {
+        id: incidentId,
+        status,
+        confidence_score: conclusion.confidence_score,
+        severity: conclusion.severity,
+        event_type: conclusion.final_classification || eventType,
+        summary: conclusion.description,
+        updated_at: new Date().toISOString()
+      },
+      type: 'incident_update'
+    } as MessageEvent);
   }
 
   // ============================================================

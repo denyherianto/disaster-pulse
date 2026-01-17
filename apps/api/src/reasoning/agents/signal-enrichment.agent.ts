@@ -72,7 +72,7 @@ export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, Sign
             "urgency_score": 0.0-1.0,
             "reason": "Max 5 words",
             "location": "City, Province (inferred) or null",
-            "event_type": "disaster type",
+            "event_type": "disaster type (flood, fire, earthquake, volcano, etc)",
             "lat": "lat or null",
             "lng": "lng or null"
           },

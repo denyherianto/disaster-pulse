@@ -1,3 +1,5 @@
+'use client';
+
 import ZoneSelector from '@/components/dashboard/ZoneSelector';
 import HeroStatus from '@/components/dashboard/HeroStatus';
 import LiveMapSnippet from '@/components/dashboard/LiveMapSnippet';
@@ -6,8 +8,11 @@ import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import LiveIntelligenceTicker from '@/components/dashboard/LiveIntelligenceTicker';
 import { Home, Map as MapIcon, Bookmark, Bell, User, ArrowRight } from 'lucide-react';
 import BottomNav from '@/components/navigation/BottomNav';
+import { useIncidentDataStream } from '@/hooks/useIncidentDataStream';
 
 export default function DashboardPage() {
+    useIncidentDataStream();
+
   return (
       <>
           {/* Scrollable Content Container - Header is now inside here */}

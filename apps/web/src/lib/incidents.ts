@@ -35,6 +35,15 @@ export const INCIDENT_CONFIG = {
             mapMarker: 'bg-orange-500'
         }
     },
+    volcano: {
+        icon: 'volcano',
+        color: 'rose',
+        classes: {
+            feed: 'bg-rose-50 border-rose-100 text-rose-500',
+            header: 'bg-rose-500',
+            mapMarker: 'bg-rose-500'
+        }
+    },
     default: {
         icon: 'warning',
         color: 'slate',

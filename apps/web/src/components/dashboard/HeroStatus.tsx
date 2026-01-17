@@ -15,6 +15,8 @@ type HeroIncident = {
     confidence: number;
     signal_count?: number;
     summary?: string;
+    created_at?: string;
+    updated_at?: string;
 }
 
 import { API_BASE_URL } from '@/lib/config';

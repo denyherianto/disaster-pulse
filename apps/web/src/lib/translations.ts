@@ -17,6 +17,7 @@ export const translations = {
         fire: 'Fire',
         landslide: 'Landslide',
         power_outage: 'Power Outage',
+        volcano: 'Volcano',
         other: 'Other'
       }
     },
@@ -185,6 +186,7 @@ export const translations = {
         fire: 'Kebakaran',
         landslide: 'Tanah Longsor',
         power_outage: 'Mati Listrik',
+        volcano: 'Gunung Meletus',
         other: 'Lainnya'
       }
     },

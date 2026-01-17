@@ -36,7 +36,7 @@ export class ClassifierAgent extends GeminiAgent<ClassifierInput, ClassifierOutp
       {
         "hypotheses": [
           {
-            "event_type": "flood | fire | earthquake | traffic | protest | other",
+            "event_type": "disaster type (flood, fire, earthquake, volcano, etc)",
             "description": "What is happening?",
             "likelihood": 0.0 to 1.0,
             "supporting_evidence": ["Fact 1", "Fact 2"]
