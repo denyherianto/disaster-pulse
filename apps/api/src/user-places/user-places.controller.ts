@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Query, Param, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Patch, Body, Query, Param, BadRequestException } from '@nestjs/common';
 import { UserPlacesService } from './user-places.service';
 import { z } from 'zod';
 
@@ -8,6 +8,10 @@ const placeSchema = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   radius_m: z.number().min(100).max(100000).default(3000), // Default 3km, Max 100km
+});
+
+const notificationSchema = z.object({
+  notify_enabled: z.boolean(),
 });
 
 @Controller('user')
@@ -44,6 +48,23 @@ export class UserPlacesController {
     return this.userPlacesService.deletePlace(id);
   }
 
+  @Patch('places/:id/notifications')
+  async updateNotificationPreference(@Param('id') id: string, @Body() body: any) {
+    if (!id) {
+      throw new BadRequestException('Missing ID');
+    }
+
+    const validated = notificationSchema.safeParse(body);
+    if (!validated.success) {
+      throw new BadRequestException({
+        error: 'Invalid Input',
+        details: validated.error.issues,
+      });
+    }
+
+    return this.userPlacesService.updateNotifyEnabled(id, validated.data.notify_enabled);
+  }
+
   @Get('stats')
   async getStats(@Query('user_id') userId: string) {
     if (!userId) {
@@ -52,4 +73,3 @@ export class UserPlacesController {
     return this.userPlacesService.getUserStats(userId);
   }
 }
-

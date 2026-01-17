@@ -16,6 +16,7 @@ import { ReportsModule } from './sources/reports/reports.module';
 import { BmkgModule } from './sources/bmkg/bmkg.module';
 import { GuidesModule } from './guides/guides.module';
 import { EmergencyContactsModule } from './emergency-contacts/emergency-contacts.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 import { SseModule } from './sse/sse.module';
 
@@ -37,9 +38,11 @@ import { SseModule } from './sse/sse.module';
     BmkgModule,
     GuidesModule,
     EmergencyContactsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}
+
 

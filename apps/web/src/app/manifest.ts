@@ -21,5 +21,9 @@ export default function manifest(): MetadataRoute.Manifest {
         type: 'image/png',
       },
     ],
+    // Required for Firebase Cloud Messaging
+    // @ts-expect-error gcm_sender_id is a valid manifest field for FCM
+    gcm_sender_id: '103953800507',
   };
 }
+

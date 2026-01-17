@@ -128,7 +128,39 @@ export const translations = {
       myPlacesDesc: 'Manage saved locations',
       notifications: 'Notifications',
       notificationsDesc: 'Alert preferences',
-
+      notificationSettings: {
+        pushTitle: 'Push Notifications',
+        pushDesc: 'Receive real-time notifications when disasters occur in your area',
+        notSupported: 'Browser does not support push notifications',
+        notConfigured: 'Push notifications not configured yet',
+        notConfiguredDesc: 'Developer needs to add Firebase configuration',
+        blocked: 'Notifications blocked',
+        blockedDesc: 'Please enable notifications in browser settings',
+        active: 'Notifications Active',
+        inactive: 'Notifications Inactive',
+        activeDesc: 'You will receive disaster alerts',
+        inactiveDesc: 'Click to enable notifications',
+        enabled: 'Enabled',
+        disabled: 'Disabled',
+        monitoredLocations: 'Monitored Locations',
+        monitoredLocationsDesc: 'Receive notifications for disasters in these locations',
+        noLocations: 'No saved locations',
+        addLocationHint: 'Add locations from the Map page to receive alerts',
+        howItWorks: 'How Notifications Work',
+        howItWorksList: [
+          'You will receive alerts when new disasters are detected',
+          'Notifications are sent based on your saved locations',
+          'Make sure browser notification permission is enabled'
+        ],
+        toast: {
+          enabled: 'Notifications Enabled',
+          enabledDesc: 'You will receive disaster alerts in your area',
+          disabled: 'Notifications Disabled',
+          disabledDesc: 'You will not receive push notifications',
+          error: 'Error',
+          errorDesc: 'Failed to update notification settings'
+        }
+      },
       privacyPolicy: 'Privacy Policy',
       privacyPolicyDesc: 'Data sources & user rights',
       settingsDesc: 'App preferences',
@@ -297,7 +329,39 @@ export const translations = {
       myPlacesDesc: 'Kelola lokasi tersimpan',
       notifications: 'Notifikasi',
       notificationsDesc: 'Preferensi peringatan',
-
+      notificationSettings: {
+        pushTitle: 'Push Notifications',
+        pushDesc: 'Terima notifikasi real-time saat terjadi bencana di area Anda',
+        notSupported: 'Browser tidak mendukung notifikasi push',
+        notConfigured: 'Push notifications belum dikonfigurasi',
+        notConfiguredDesc: 'Developer perlu menambahkan konfigurasi Firebase',
+        blocked: 'Notifikasi diblokir',
+        blockedDesc: 'Mohon izinkan notifikasi di pengaturan browser',
+        active: 'Notifikasi Aktif',
+        inactive: 'Notifikasi Nonaktif',
+        activeDesc: 'Anda akan menerima peringatan bencana',
+        inactiveDesc: 'Klik untuk mengaktifkan notifikasi',
+        enabled: 'Aktif',
+        disabled: 'Nonaktif',
+        monitoredLocations: 'Lokasi yang Dipantau',
+        monitoredLocationsDesc: 'Terima notifikasi untuk bencana di lokasi-lokasi berikut',
+        noLocations: 'Belum ada lokasi tersimpan',
+        addLocationHint: 'Tambah lokasi dari halaman Peta untuk menerima peringatan',
+        howItWorks: 'Cara Kerja Notifikasi',
+        howItWorksList: [
+          'Anda akan menerima peringatan saat ada bencana baru terdeteksi',
+          'Notifikasi dikirim berdasarkan lokasi yang Anda simpan',
+          'Pastikan izin notifikasi browser sudah diaktifkan'
+        ],
+        toast: {
+          enabled: 'Notifikasi Aktif',
+          enabledDesc: 'Anda akan menerima peringatan bencana di area Anda',
+          disabled: 'Notifikasi Nonaktif',
+          disabledDesc: 'Anda tidak akan menerima notifikasi push',
+          error: 'Error',
+          errorDesc: 'Gagal mengubah pengaturan notifikasi'
+        }
+      },
       privacyPolicy: 'Kebijakan Privasi',
       privacyPolicyDesc: 'Sumber data & hak pengguna',
       settingsDesc: 'Preferensi aplikasi',

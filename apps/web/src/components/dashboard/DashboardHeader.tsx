@@ -62,10 +62,6 @@ export default function DashboardHeader() {
                         <Megaphone size={18} />
                         <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
                     </button>
-
-                    <Link href="/settings" className="text-slate-400 hover:text-slate-600 transition-colors">
-                        <Settings size={20} />
-                    </Link>
                 </div>
             </div>
 

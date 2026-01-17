@@ -56,6 +56,20 @@ export class UserPlacesService {
     return { success: true };
   }
 
+  async updateNotifyEnabled(id: string, notifyEnabled: boolean) {
+    const { error } = await (this.supabase.getClient() as any)
+      .from('user_places')
+      .update({ notify_enabled: notifyEnabled })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Update Notify Enabled Error:', error);
+      throw new InternalServerErrorException('Failed to update notification preference');
+    }
+
+    return { success: true, notify_enabled: notifyEnabled };
+  }
+
   async getUserStats(userId: string) {
     const client = this.supabase.getClient();
 

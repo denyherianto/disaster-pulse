@@ -8,6 +8,7 @@ import { determineStatus } from '../lib/determineStatus';
 import { ReasoningService } from '../reasoning/reasoning.service';
 import { IncidentResolutionAgent } from '../reasoning/agents/incident-resolution.agent';
 import { MAX_SIGNAL_AGE } from '../common/constants';
+import { NotificationsService } from '../notifications/notifications.service';
 
 // Configuration
 const MIN_SIGNALS_FOR_INCIDENT = 2; // Need at least 2 signals to create an incident
@@ -38,6 +39,7 @@ export class IncidentsService {
     private readonly reasoningService: ReasoningService,
     private readonly resolutionAgent: IncidentResolutionAgent,
     private readonly sseService: SseService,
+    private readonly notificationsService: NotificationsService,
   ) { }
 
   // ============================================================
@@ -300,6 +302,21 @@ export class IncidentsService {
     // Log initial creation
     await this.logLifecycleEvent(newIncident.id, null, 'monitor', 'system', `Initial creation from ${unlinkedSignals.length} signals`);
 
+    // Calculate centroid for notifications
+    const avgLat = unlinkedSignals.reduce((sum: number, s: any) => sum + (s.lat || 0), 0) / unlinkedSignals.length;
+    const avgLng = unlinkedSignals.reduce((sum: number, s: any) => sum + (s.lng || 0), 0) / unlinkedSignals.length;
+
+    // Send push notification for new incident
+    await this.notificationsService.notifyIncident({
+      id: newIncident.id,
+      city,
+      event_type: eventType,
+      severity: 'medium',
+      status: 'monitor',
+      lat: avgLat,
+      lng: avgLng,
+    });
+
     // Initial Evaluation
     await this.evaluateIncidentState(newIncident.id, null);
   }
@@ -468,6 +485,18 @@ export class IncidentsService {
       },
       type: 'incident_update'
     } as MessageEvent);
+
+    // Send push notification if status is alert or severity is high
+    if (status === 'alert' || conclusion.severity === 'high') {
+      await this.notificationsService.notifyIncident({
+        id: incidentId,
+        city: currentIncident?.city || '',
+        event_type: conclusion.final_classification || eventType,
+        severity: conclusion.severity,
+        status,
+        summary: conclusion.description,
+      });
+    }
   }
 
   // ============================================================
