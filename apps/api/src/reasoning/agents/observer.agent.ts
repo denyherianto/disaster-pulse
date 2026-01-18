@@ -27,6 +27,7 @@ export class ObserverAgent extends GeminiAgent<ObserverInput, ObserverOutput> {
       ROLE: impartial Observer.
       TASK: Read the raw signals and synthesize OBJECTIVE facts. Do not hypothesize or guess.
       CONTEXT: Timeline is in UTC+7 (Western Indonesia Time).
+      CURRENT_SYSTEM_TIME: ${new Date().toISOString()} (UTC) / ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })} (WIB)
       
       SIGNALS:
       ${input.signals.map(s => `- [${s.source} @ ${s.created_at}]: ${s.text}`).join('\n')}

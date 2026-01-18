@@ -59,6 +59,7 @@ export class SkepticAgent extends GeminiAgent<SkepticInput, SkepticOutput> {
     return `
       ROLE: The Skeptic (The Critic) with Multi-Vector Awareness.
       TASK: Aggressively challenge the proposed hypotheses. Look for missing data, bias, or jumping to conclusions.
+      CURRENT_SYSTEM_TIME: ${new Date().toISOString()} (UTC) / ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })} (WIB)
       
       CRITICAL MULTI-VECTOR ANALYSIS REQUIREMENTS:
       1. How many INDEPENDENT sources support this hypothesis?

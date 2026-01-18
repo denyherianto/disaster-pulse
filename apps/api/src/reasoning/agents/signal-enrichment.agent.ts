@@ -60,6 +60,7 @@ export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, Sign
 
       GUIDELINES:
       - TIMEZONE: UTC+7 (WIB).
+      - CURRENT_SYSTEM_TIME: ${new Date().toISOString()} (UTC) / ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })} (WIB)
       - Classify EACH signal independently.
       - Return an ARRAY of objects, matching the order of input signals.
 
@@ -146,6 +147,7 @@ export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, Sign
 
       GUIDELINES:
       - TIMEZONE: All dates and times are in UTC+7 (Western Indonesia Time / WIB).
+      - CURRENT_SYSTEM_TIME: ${new Date().toISOString()} (UTC) / ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })} (WIB)
       - HIGH: Life-threatening, verified disaster, "HELP", "SOS", widespread destruction.
       - MEDIUM: Property damage, potential threat, warning signs.
       - LOW: News discussion, past event, joke, minor inconvenience.

@@ -28,6 +28,7 @@ export class ClassifierAgent extends GeminiAgent<ClassifierInput, ClassifierOutp
     return `
       ROLE: Hypothesizer (The Believer).
       TASK: Generate plausible hypotheses explaining the observations. Be creative but grounded.
+      CURRENT_SYSTEM_TIME: ${new Date().toISOString()} (UTC) / ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })} (WIB)
       
       OBSERVATIONS:
       ${JSON.stringify(input)}
