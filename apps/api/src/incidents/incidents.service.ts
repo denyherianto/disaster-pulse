@@ -860,10 +860,18 @@ export class IncidentsService {
     }).filter(inc => inc !== null);
 
     // Bounds Filter
-    return mapIncidents.filter(inc =>
-      inc.lat >= minLat && inc.lat <= maxLat &&
-      inc.lng >= minLng && inc.lng <= maxLng
-    );
+    const isIndonesiaView = Math.abs(minLat - (-11)) < 0.1 && Math.abs(maxLat - 6) < 0.1 && Math.abs(minLng - 95) < 0.1 && Math.abs(maxLng - 141) < 0.1;
+
+    return mapIncidents.filter(inc => {
+      // Special case: If "All Indonesia" is selected, force show all ongoing incidents
+      // This prevents cutting off incidents near the borders or slightly outside the box
+      if (isIndonesiaView && ['alert', 'monitor'].includes(inc.status)) {
+        return true;
+      }
+
+      return inc.lat >= minLat && inc.lat <= maxLat &&
+        inc.lng >= minLng && inc.lng <= maxLng;
+    });
   }
 
   async getNearbyIncidents(lat: number, lng: number, radiusM: number) {

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { API_BASE_URL } from '@/lib/config';
 import DataTable from '@/components/admin/DataTable';
+import PageHeader from '@/components/admin/PageHeader';
 import Link from 'next/link';
 
 interface LifecycleEvent {
@@ -25,7 +26,7 @@ const statusColors: Record<string, string> = {
   suppress: 'bg-slate-100 text-slate-700',
 };
 
-export default function LifecyclePage() {
+function LifecycleContent() {
   const searchParams = useSearchParams();
   const incidentIdFilter = searchParams.get('incidentId');
 
@@ -141,20 +142,17 @@ export default function LifecyclePage() {
 
   return (
     <div className="p-8">
-      <div className="mb-6">
-        <div className="flex items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Lifecycle Log</h1>
-            <p className="text-slate-500 mt-1">Incident status transition audit trail</p>
+      <PageHeader
+        title="Lifecycle Log"
+        description="Incident status transition audit trail"
+      >
+        {incidentIdFilter && (
+          <div className="flex items-center gap-2 bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium">
+            <span>Filtered by Incident: {incidentIdFilter.slice(0, 8)}...</span>
+            <Link href="/admin/lifecycle" className="ml-1 hover:text-blue-900 border-b border-blue-300">Clear</Link>
           </div>
-          {incidentIdFilter && (
-            <div className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-medium">
-              Filtered by Incident: {incidentIdFilter.slice(0, 8)}...
-              <Link href="/admin/lifecycle" className="ml-2 underline">Clear</Link>
-            </div>
-          )}
-        </div>
-      </div>
+        )}
+      </PageHeader>
 
       <DataTable
         columns={columns}
@@ -173,5 +171,13 @@ export default function LifecyclePage() {
         getRowId={(row) => row.id}
       />
     </div>
+  );
+}
+
+export default function LifecyclePage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-slate-500">Loading...</div>}>
+      <LifecycleContent />
+    </Suspense>
   );
 }

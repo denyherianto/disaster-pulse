@@ -68,7 +68,14 @@ export default function HeroStatus() {
                 const res = await fetch(`${API_BASE_URL}/incidents/nearby?lat=${selectedZone.lat}&lng=${selectedZone.lng}&radius=${selectedZone.radius_m}`);
                 if (!res.ok) throw new Error("Failed to fetch nearby");
                 const data = await res.json() as HeroIncident[];
-                return data.filter(i => ['monitor', 'alert'].includes(i.status.toLowerCase())); 
+                // Filter: Active (monitor/alert)
+                const active = data.filter(i => ['monitor', 'alert'].includes(i.status.toLowerCase()));
+                // Sort by created_at DESC (Newest First)
+                return active.sort((a, b) => {
+                    const timeA = new Date(a.created_at || 0).getTime();
+                    const timeB = new Date(b.created_at || 0).getTime();
+                    return timeB - timeA;
+                });
             } else {
                 // Global fallback (viewport centered at 0,0 default or Jakarta)
                 const res = await fetch(`${API_BASE_URL}/incidents/map?minLat=-90&maxLat=90&minLng=-180&maxLng=180`);
@@ -77,19 +84,23 @@ export default function HeroStatus() {
                 // Filter: Only active (monitor/alert)
                 const active = all.filter(i => ['monitor', 'alert'].includes(i.status.toLowerCase()));
 
-                // Sort by severity (high > medium > low)
-                return active.filter(i => i.severity === 'high').concat(active.filter(i => i.severity !== 'high'));
+                // Sort by created_at DESC (Newest First)
+                return active.sort((a, b) => {
+                    const timeA = new Date(a.created_at || 0).getTime();
+                    const timeB = new Date(b.created_at || 0).getTime();
+                    return timeB - timeA;
+                });
             }
         },
-        enabled: true 
+        enabled: true
     });
 
-    const activeIncidents = incidents.slice(0, 5); // Limit to top 5
+    const activeIncidents = incidents; // Show all active incidents
     const currentIncident = activeIncidents[currentIndex];
     const total = activeIncidents.length;
 
     // Reset index when zone changes
-    useEffect(() => setCurrentIndex(0), [selectedZone?.id]); 
+    useEffect(() => setCurrentIndex(0), [selectedZone?.id]);
 
     if (isLoading) return (
         <section className="px-6 pt-6 pb-2">
@@ -125,7 +136,7 @@ export default function HeroStatus() {
                         </span>
                     </div>
                 </div>
-             </Card>
+            </Card>
         </section>
     );
 
@@ -183,7 +194,7 @@ export default function HeroStatus() {
 
                 <div
                     onClick={() => router.push(`/incidents/${currentIncident.id}`)}
-                    className={`relative bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden group z-10 
+                    className={`relative rounded-3xl shadow-sm border overflow-hidden group z-10 
                         cursor-pointer active:scale-[0.99]
                         ${animPhase === 'snap' ? 'transition-none opacity-0' : 'transition-all duration-500 ease-in-out opacity-100'}
                         ${animPhase === 'snap'
@@ -195,37 +206,56 @@ export default function HeroStatus() {
                             : ''
                         }
                         ${animPhase === 'idle' ? 'translate-x-0' : ''}
+                        ${currentIncident.status === 'alert'
+                            ? 'bg-red-600 border-red-500 shadow-red-200 text-white'
+                            : currentIncident.status === 'monitor'
+                                ? 'bg-amber-50 border-amber-200 shadow-amber-100 text-slate-900'
+                                : 'bg-white border-slate-200 text-slate-900'
+                        }
                     `}
                 >
+                    {/* Alert Pulse Effect */}
+                    {currentIncident.status === 'alert' && (
+                        <div className="absolute inset-0 bg-red-500 animate-pulse opacity-20 pointer-events-none" />
+                    )}
+
                     <div className="relative z-10 p-6 pb-4">
                         <div className="flex items-start gap-4 mb-4">
-                            <span className={`flex items-center shrink-0 justify-center w-12 h-12 rounded-2xl ${getIncidentColorClass(currentIncident.type, 'feed').replace('rounded-full', '')}`}>
+                            <span className={`flex items-center shrink-0 justify-center w-12 h-12 rounded-2xl
+                                ${currentIncident.status === 'alert'
+                                    ? 'bg-white/20 text-white'
+                                    : currentIncident.status === 'monitor'
+                                        ? 'bg-amber-100/50 text-amber-700'
+                                        : getIncidentColorClass(currentIncident.type, 'feed').replace('rounded-full', '')
+                                }
+                            `}>
                                 <GoogleIcon name={getIncidentIconName(currentIncident.type)} size={24} />
                             </span>
 
-                            <div className="flex flex-col min-w-0 pt-0.5">
-                                <h2 className="text-xl font-bold tracking-tight text-slate-900 leading-tight capitalize truncate">
-                                    {getEventTypeName(currentIncident.type)}
-                                </h2>
-
-                                <div className="flex items-center gap-2 mt-1 text-xs">
-                                    <span className={`font-bold uppercase tracking-wider ${currentIncident.status === 'alert' ? 'text-red-600' :
-                                        currentIncident.status === 'monitor' ? 'text-amber-600' :
-                                            'text-emerald-600'
-                                        }`}>
+                            <div className="flex flex-col min-w-0 w-full pt-0.5">
+                                <div className="flex justify-between items-center">
+                                    <h2 className={`text-xl font-bold tracking-tight leading-tight capitalize truncate
+                                    ${currentIncident.status === 'alert' ? 'text-white' : 'text-slate-900'}
+                                `}>
+                                        {getEventTypeName(currentIncident.type)}
+                                    </h2>
+                                    <span className={`text-xs font-bold uppercase tracking-wider
+                                        ${currentIncident.status === 'alert' ? 'text-white bg-white/20 px-1.5 py-0.5 rounded' :
+                                            currentIncident.status === 'monitor' ? 'text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200' : 'text-emerald-600'}
+                                    `}>
                                         {currentIncident.status}
                                     </span>
+                                </div>
 
-                                    <span className="text-slate-300">•</span>
-
-                                    <span className="text-slate-600 font-medium truncate">
+                                <div className="flex items-center gap-2 mt-1 text-xs">
+                                    <span className={`font-medium truncate ${currentIncident.status === 'alert' ? 'text-white/90' : 'text-slate-600'}`}>
                                         {currentIncident.city}
                                     </span>
 
-                                    <span className="text-slate-300">•</span>
+                                    <span className={currentIncident.status === 'alert' ? 'text-white/40' : currentIncident.status === 'monitor' ? 'text-amber-300' : 'text-slate-300'}>•</span>
 
-                                    <span className="text-slate-400 whitespace-nowrap">
-                                        {timeAgo(currentIncident.updated_at)}
+                                    <span className={`whitespace-nowrap ${currentIncident.status === 'alert' ? 'text-white/70' : currentIncident.status === 'monitor' ? 'text-slate-500' : 'text-slate-400'}`}>
+                                        {timeAgo(currentIncident.created_at)}
                                     </span>
                                 </div>
                             </div>
@@ -233,30 +263,52 @@ export default function HeroStatus() {
 
                         {/* AI Summary */}
                         {currentIncident.summary && (
-                            <p className="text-slate-600 text-sm leading-relaxed line-clamp-2">
+                            <p className={`text-sm leading-relaxed line-clamp-2 ${currentIncident.status === 'alert' ? 'text-white/90' : 'text-slate-600'}`}>
                                 {currentIncident.summary}
                             </p>
                         )}
                     </div>
 
                     {/* Metrics Bar */}
-                    <div className="bg-slate-50/50 px-6 py-4 border-t border-slate-100 flex items-center justify-between">
-                        <div className="flex gap-4 text-xs text-slate-500">
+                    <div className={`px-6 py-4 border-t flex items-center justify-between
+                        ${currentIncident.status === 'alert'
+                            ? 'bg-black/10 border-white/10'
+                            : currentIncident.status === 'monitor'
+                                ? 'bg-amber-100/30 border-amber-100'
+                                : 'bg-slate-50/50 border-slate-100'
+                        }
+                    `}>
+                        <div className={`flex gap-4 text-xs ${currentIncident.status === 'alert' ? 'text-white/80' : 'text-slate-500'}`}>
                             <div title="Confidence Score" className="flex items-center gap-1">
-                                <Activity size={12} className={currentIncident.confidence > 0.7 ? 'text-green-500' : 'text-slate-400'} />
-                                <span className="font-medium">{Math.round(currentIncident.confidence * 100)}%</span>
+                                <Activity size={12} className={
+                                    currentIncident.status === 'alert'
+                                        ? 'text-white/70'
+                                        : currentIncident.status === 'monitor'
+                                            ? 'text-amber-600'
+                                            : (currentIncident.confidence > 0.7 ? 'text-green-500' : 'text-slate-400')
+                                } />
+                                <span className={currentIncident.status === 'alert' ? 'font-semibold text-white' : 'font-medium'}>
+                                    {Math.round(currentIncident.confidence * 100)}%
+                                </span>
                             </div>
                             <div title="Severity" className="flex items-center gap-1">
-                                <div className={`w-1.5 h-1.5 rounded-full ${currentIncident.severity === 'high' ? 'bg-red-500' : currentIncident.severity === 'medium' ? 'bg-amber-500' : 'bg-green-500'}`} />
+                                <div className={`w-1.5 h-1.5 rounded-full ${currentIncident.status === 'alert'
+                                    ? 'bg-white'
+                                    : (currentIncident.severity === 'high' ? 'bg-red-500' : currentIncident.severity === 'medium' ? 'bg-amber-400' : 'bg-green-500')
+                                    }`} />
                                 <span className="capitalize">{currentIncident.severity}</span>
                             </div>
                             <div title="User Reports" className="flex items-center gap-1">
-                                <span className="font-semibold text-slate-900">{currentIncident.signal_count}</span>
+                                <span className={`font-semibold ${currentIncident.status === 'alert' ? 'text-white' : 'text-slate-900'}`}>
+                                    {currentIncident.signal_count}
+                                </span>
                                 <span>{t('incidentDetail.reports')}</span>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-1 text-[10px] font-medium text-blue-600 uppercase tracking-widest">
+                        <div className={`flex items-center gap-1 text-[10px] font-medium uppercase tracking-widest
+                            ${currentIncident.status === 'alert' ? 'text-white' : currentIncident.status === 'monitor' ? 'text-amber-600' : 'text-blue-600'}
+                        `}>
                             Details <ChevronRight size={12} />
                         </div>
                     </div>

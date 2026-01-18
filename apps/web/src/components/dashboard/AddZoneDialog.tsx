@@ -53,7 +53,7 @@ export default function AddZoneDialog({ isOpen, onClose }: AddZoneDialogProps) {
             label,
             lat: coords.lat,
             lng: coords.lng,
-            radius_m: 15000 // Default 15km for city-wide coverage
+            radius_m: 50000 // Default 50km for city-wide coverage
         });
         setIsLoading(false);
         onClose();

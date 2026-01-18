@@ -47,6 +47,7 @@ export default function AdminDashboard() {
           icon={Radio}
           color="blue"
           trend={stats ? { value: stats.last24h.signals, label: 'last 24h' } : undefined}
+          href="/admin/signals"
         />
         <StatsCard
           title="Total Incidents"
@@ -54,24 +55,28 @@ export default function AdminDashboard() {
           icon={AlertTriangle}
           color="amber"
           trend={stats ? { value: stats.last24h.incidents, label: 'last 24h' } : undefined}
+          href="/admin/incidents"
         />
         <StatsCard
           title="Total Users"
           value={isLoading ? '...' : stats?.totals.users || 0}
           icon={Users}
           color="green"
+          href="/admin/users"
         />
         <StatsCard
           title="AI Evaluations"
           value={isLoading ? '...' : stats?.totals.evaluations || 0}
           icon={Sparkles}
           color="purple"
+          href="/admin/evaluations"
         />
         <StatsCard
           title="AI Traces"
           value={isLoading ? '...' : stats?.totals.traces || 0}
           icon={Brain}
           color="slate"
+          href="/admin/traces"
         />
       </div>
 

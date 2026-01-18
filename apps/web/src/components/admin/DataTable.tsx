@@ -24,6 +24,7 @@ interface DataTableProps<T> {
   isLoading?: boolean;
   expandedContent?: (row: T) => ReactNode;
   getRowId: (row: T) => string;
+  toolbar?: ReactNode;
 }
 
 export default function DataTable<T>({
@@ -39,6 +40,7 @@ export default function DataTable<T>({
   isLoading,
   expandedContent,
   getRowId,
+  toolbar,
 }: DataTableProps<T>) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
@@ -62,6 +64,9 @@ export default function DataTable<T>({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* Optional Toolbar */}
+      {toolbar}
+
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">

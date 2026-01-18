@@ -2,6 +2,8 @@
 
 import { LucideIcon } from 'lucide-react';
 
+import Link from 'next/link';
+
 interface StatsCardProps {
   title: string;
   value: number | string;
@@ -11,6 +13,7 @@ interface StatsCardProps {
     label: string;
   };
   color?: 'blue' | 'green' | 'amber' | 'red' | 'purple' | 'slate';
+  href?: string;
 }
 
 const colorClasses = {
@@ -22,9 +25,9 @@ const colorClasses = {
   slate: 'bg-slate-100 text-slate-600',
 };
 
-export default function StatsCard({ title, value, icon: Icon, trend, color = 'blue' }: StatsCardProps) {
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+export default function StatsCard({ title, value, icon: Icon, trend, color = 'blue', href }: StatsCardProps) {
+  const Content = (
+    <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm p-5 transition-all ${href ? 'hover:shadow-md hover:border-blue-200 cursor-pointer' : ''}`}>
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
@@ -44,4 +47,10 @@ export default function StatsCard({ title, value, icon: Icon, trend, color = 'bl
       </div>
     </div>
   );
+
+  if (href) {
+    return <Link href={href}>{Content}</Link>;
+  }
+
+  return Content;
 }

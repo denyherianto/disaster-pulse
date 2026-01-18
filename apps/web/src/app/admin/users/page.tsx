@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { API_BASE_URL } from '@/lib/config';
 import DataTable from '@/components/admin/DataTable';
+import PageHeader from '@/components/admin/PageHeader';
 
 interface User {
   id: string;
@@ -129,10 +130,10 @@ export default function UsersPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Users Log</h1>
-        <p className="text-slate-500 mt-1">User accounts with trust scores and places</p>
-      </div>
+      <PageHeader
+        title="Users Log"
+        description="User accounts with trust scores and places"
+      />
 
       <DataTable
         columns={columns}

@@ -74,10 +74,10 @@ export default function AlertsPage() {
                 filtered = filtered.filter(inc => inc.type === typeFilter);
             }
 
-            // Sort by updated_at (Recent Activity)
+            // Sort by created_at (Initial Creation)
             filtered.sort((a, b) => {
-                const timeA = new Date(a.updated_at || a.created_at || 0).getTime();
-                const timeB = new Date(b.updated_at || b.created_at || 0).getTime();
+                const timeA = new Date(a.created_at || 0).getTime();
+                const timeB = new Date(b.created_at || 0).getTime();
                 return timeB - timeA;
             });
 
@@ -217,7 +217,7 @@ export default function AlertsPage() {
                                                     </div>
 
                                                     <div className="text-slate-400 text-sm flex items-center gap-2 mt-1">
-                                                        {timeAgo(inc.updated_at || inc.created_at)} • {inc.city || 'Unknown Location'}
+                                                        {timeAgo(inc.created_at)} • {inc.city || 'Unknown Location'}
                                                     </div>
                                                     <div className="mt-1">
                                                         <StatusBadge status={inc.status} />
