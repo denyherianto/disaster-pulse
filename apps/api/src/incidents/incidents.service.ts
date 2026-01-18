@@ -9,6 +9,7 @@ import { ReasoningService } from '../reasoning/reasoning.service';
 import { IncidentResolutionAgent } from '../reasoning/agents/incident-resolution.agent';
 import { MAX_SIGNAL_AGE } from '../common/constants';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RemoteConfigService } from '../config/remote-config.service';
 
 // Configuration
 const MIN_SIGNALS_FOR_INCIDENT = 2; // Need at least 2 signals to create an incident
@@ -24,6 +25,7 @@ type Signal = {
   happened_at?: string;
   status?: string;
   event_type?: string;
+  raw_payload?: Record<string, any>;
 };
 
 @Injectable()
@@ -40,6 +42,7 @@ export class IncidentsService {
     private readonly resolutionAgent: IncidentResolutionAgent,
     private readonly sseService: SseService,
     private readonly notificationsService: NotificationsService,
+    private readonly remoteConfig: RemoteConfigService,
   ) { }
 
   // ============================================================
@@ -171,16 +174,92 @@ export class IncidentsService {
     // 2. Update Incident time_end if signal is newer
     const signalTime = signal.happened_at || signal.created_at;
 
+    // ============================================================
+    // INCREMENTAL UPDATE (No AI Call - Fast Path)
+    // ============================================================
+
+    // Source weights per EVIDENCE_WEIGHTING.md
+    // Synced with reasoning.service.ts multi-vector detection
+    const SOURCE_WEIGHTS: Record<string, number> = {
+      // Official sources (highest trust)
+      bmkg: 0.40,
+      bnpb: 0.40,
+      official: 0.40,
+      // User reports (direct observation)
+      user_report: 0.25,
+      user: 0.25,
+      // Social media (media evidence)
+      social_media: 0.20,
+      tiktok: 0.20,
+      twitter: 0.20,
+      instagram: 0.20,
+      // News (media evidence)
+      news: 0.20,
+      rss: 0.20,
+    };
+
+    const sourceWeight = SOURCE_WEIGHTS[signal.source] || 0.10;
+    const oldConfidence = incident.confidence_score || 0.5;
+    const oldSignalCount = incident.signal_count || 1;
+
+    // Diminishing returns formula: new evidence adds less as confidence grows
+    // This follows the spec: "Independence > volume"
+    const incrementalBonus = sourceWeight * (1 - oldConfidence) * 0.3;
+    const newConfidence = Math.min(oldConfidence + incrementalBonus, 1.0);
+    const newSignalCount = oldSignalCount + 1;
+
+    // 3. Check if this is an URGENT signal (bypass batch, trigger immediate AI)
+    const officialSources = ['bmkg', 'bnpb', 'official'];
+    const isOfficialSource = officialSources.includes(signal.source);
+    const isHighSeveritySignal = signal.raw_payload?.ai_analysis?.severity === 'high';
+    const crossedAlertThreshold = newConfidence >= 0.8 && oldConfidence < 0.8;
+    const crossedMonitorThreshold = newConfidence >= 0.6 && oldConfidence < 0.6;
+
+    const isUrgent = isOfficialSource || isHighSeveritySignal || crossedAlertThreshold;
+
+    this.logger.debug(
+      `Incremental update for ${incidentId}: ` +
+      `confidence ${oldConfidence.toFixed(2)} → ${newConfidence.toFixed(2)} ` +
+      `(+${incrementalBonus.toFixed(3)} from ${signal.source}), ` +
+      `urgent=${isUrgent}`
+    );
+
+    // 4. Update incident with incremental changes
     await this.db
       .from('incidents')
       .update({
         time_end: signalTime > incident.time_end ? signalTime : incident.time_end,
+        confidence_score: newConfidence,
+        signal_count: newSignalCount,
+        needs_full_eval: true, // Mark for batch processing
         updated_at: new Date().toISOString(),
       })
       .eq('id', incidentId);
 
-    // 3. Re-Evaluate incident state
-    await this.evaluateIncidentState(incidentId, incident);
+    // 5. Notify frontend about incremental update via SSE
+    this.sseService.addEvent({
+      data: {
+        id: incidentId,
+        confidence_score: newConfidence,
+        signal_count: newSignalCount,
+        updated_at: new Date().toISOString(),
+        incremental: true, // Flag that this is an incremental update
+      },
+      type: 'incident_update'
+    } as MessageEvent);
+
+    // 6. URGENT signals bypass batch - run full AI evaluation immediately
+    if (isUrgent) {
+      this.logger.log(
+        `⚡ Urgent signal detected (${signal.source}), ` +
+        `triggering immediate AI evaluation for incident ${incidentId}`
+      );
+    } else if (crossedMonitorThreshold) {
+      // Monitor threshold crossed - also trigger immediate evaluation
+      this.logger.log(`📊 Monitor threshold crossed, evaluating incident ${incidentId}`);
+    }
+    await this.evaluateIncidentState(incidentId, { ...incident, confidence_score: newConfidence });
+    // Otherwise, batch cron job will handle full evaluation
   }
 
   private async tryCreateNewIncident(signal: Signal, city: string, eventType: string) {
@@ -416,6 +495,15 @@ export class IncidentsService {
             severity: newSeverity,
             confidence_score: newConfidence,
             summary: conclusion.description,
+            needs_full_eval: false, // Mark as evaluated
+            last_evaluated_at: new Date().toISOString(),
+            cached_reasoning: {
+              conclusion,
+              decision,
+              multiVector: reasoningResult.multiVector,
+              signal_count: signalsContext.length,
+              evaluated_at: new Date().toISOString(),
+            },
             updated_at: new Date().toISOString()
           })
           .eq('id', currentIncident.id);
@@ -459,7 +547,8 @@ export class IncidentsService {
     }
 
     // Always update the incident with the reasoning result (confidence, severity, type)
-    // regardless of whether we alert or not. 
+    // regardless of whether we alert or not.
+    // Also cache the reasoning for future incremental comparisons.
     await this.db
       .from('incidents')
       .update({
@@ -468,6 +557,15 @@ export class IncidentsService {
         severity: conclusion.severity,
         event_type: conclusion.final_classification || eventType,
         summary: conclusion.description,
+        needs_full_eval: false, // Mark as evaluated
+        last_evaluated_at: new Date().toISOString(),
+        cached_reasoning: {
+          conclusion,
+          decision,
+          multiVector: reasoningResult.multiVector,
+          signal_count: signalsContext.length,
+          evaluated_at: new Date().toISOString(),
+        },
         updated_at: new Date().toISOString()
       })
       .eq('id', incidentId);
@@ -505,6 +603,12 @@ export class IncidentsService {
 
   @Cron(CronExpression.EVERY_10_MINUTES)
   async handleResolutionCron() {
+    // Check Remote Config before running cron
+    if (!(await this.remoteConfig.isCronEnabled('incidents'))) {
+      this.logger.debug('Incidents resolution cron is disabled via Remote Config');
+      return;
+    }
+
     this.logger.debug('Running incident resolution job...');
     const result = await this.processIncidentResolution();
     this.logger.debug('Resolution job finished', result);
@@ -578,6 +682,112 @@ export class IncidentsService {
       .from('incidents')
       .update({ status: 'resolved' })
       .eq('id', id);
+  }
+
+  // ============================================================
+  // BATCH EVALUATION CRON (Incremental + Batched Approach)
+  // ============================================================
+
+  @Cron('*/5 * * * *') // Every 5 minutes
+  async handleBatchEvaluationCron() {
+    // Check Remote Config before running cron
+    if (!(await this.remoteConfig.isCronEnabled('batch_eval'))) {
+      this.logger.debug('Batch evaluation cron is disabled via Remote Config');
+      return;
+    }
+
+    this.logger.log('🔄 Running batch AI evaluation job...');
+    const result = await this.processBatchEvaluation();
+    this.logger.log(`Batch evaluation finished: ${result.evaluated} incidents processed`);
+    return result;
+  }
+
+  /**
+   * Process all incidents marked as needs_full_eval
+   * This is the "batched" part of the Incremental + Batched approach
+   */
+  async processBatchEvaluation(): Promise<{ evaluated: number; errors: number }> {
+    let evaluated = 0;
+    let errors = 0;
+
+    // 1. Fetch incidents that need full AI evaluation
+    const { data: pendingIncidents, error } = await this.db
+      .from('incidents')
+      .select('id, city, event_type, severity, confidence_score, signal_count, last_evaluated_at')
+      .eq('needs_full_eval', true)
+      .neq('status', 'resolved')
+      .order('updated_at', { ascending: false })
+      .limit(10); // Process max 10 per batch to avoid overwhelming AI API
+
+    if (error) {
+      this.logger.error('Failed to fetch pending incidents for batch eval', error);
+      return { evaluated: 0, errors: 1 };
+    }
+
+    if (!pendingIncidents?.length) {
+      this.logger.debug('No incidents pending evaluation');
+      return { evaluated: 0, errors: 0 };
+    }
+
+    this.logger.log(`📊 Batch evaluating ${pendingIncidents.length} incidents...`);
+
+    // 2. Process each incident with full AI reasoning
+    for (const incident of pendingIncidents) {
+      try {
+        await this.runFullEvaluation(incident.id, incident);
+        evaluated++;
+      } catch (err) {
+        this.logger.error(`Batch eval failed for incident ${incident.id}:`, err);
+        errors++;
+      }
+    }
+
+    // 3. Also check for stale evaluations (not evaluated in 30+ minutes)
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+
+    const { data: staleIncidents } = await this.db
+      .from('incidents')
+      .select('id, city, event_type, severity, confidence_score')
+      .in('status', ['alert', 'monitor'])
+      .or(`last_evaluated_at.is.null,last_evaluated_at.lt.${thirtyMinutesAgo}`)
+      .limit(5);
+
+    if (staleIncidents?.length) {
+      this.logger.log(`🕐 Found ${staleIncidents.length} stale incidents, refreshing...`);
+
+      for (const incident of staleIncidents) {
+        try {
+          await this.runFullEvaluation(incident.id, incident);
+          evaluated++;
+        } catch (err) {
+          errors++;
+        }
+      }
+    }
+
+    return { evaluated, errors };
+  }
+
+  /**
+   * Run full AI evaluation on a single incident
+   * This is called by:
+   * - Batch cron job (for needs_full_eval = true)
+   * - Urgent signal handler (immediate bypass)
+   */
+  private async runFullEvaluation(incidentId: string, incident: any) {
+    this.logger.debug(`Running full AI evaluation for incident ${incidentId}`);
+
+    // Run the existing evaluateIncidentState logic
+    await this.evaluateIncidentState(incidentId, incident);
+
+    // Mark evaluation as complete and cache the result
+    await this.db
+      .from('incidents')
+      .update({
+        needs_full_eval: false,
+        last_evaluated_at: new Date().toISOString(),
+      })
+      .eq('id', incidentId);
   }
 
   // ============================================================

@@ -5,6 +5,7 @@ import axios from 'axios';
 import { VideoAnalysisAgent } from '../../reasoning/agents/video-analysis.agent';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { SignalsService } from '../../signals/signals.service';
+import { RemoteConfigService } from '../../config/remote-config.service';
 
 interface TiktokVideo {
   aweme_id: string;
@@ -54,6 +55,7 @@ export class TiktokService implements OnModuleInit {
     private readonly supabase: SupabaseService,
     private readonly signalsService: SignalsService,
     private readonly videoAgent: VideoAnalysisAgent,
+    private readonly remoteConfig: RemoteConfigService,
   ) { }
 
   onModuleInit() {
@@ -62,6 +64,12 @@ export class TiktokService implements OnModuleInit {
 
   @Cron(CronExpression.EVERY_10_MINUTES)
   async handleCron() {
+    // Check Remote Config before running cron
+    if (!(await this.remoteConfig.isCronEnabled('tiktok'))) {
+      this.logger.debug('TikTok cron is disabled via Remote Config');
+      return;
+    }
+
     this.logger.log('Starting TikTok Disaster Scan...');
     try {
       // 1. Fetch Videos

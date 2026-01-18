@@ -17,6 +17,7 @@ import { BmkgModule } from './sources/bmkg/bmkg.module';
 import { GuidesModule } from './guides/guides.module';
 import { EmergencyContactsModule } from './emergency-contacts/emergency-contacts.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { RemoteConfigModule } from './config/remote-config.module';
 
 import { SseModule } from './sse/sse.module';
 
@@ -24,6 +25,7 @@ import { SseModule } from './sse/sse.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    RemoteConfigModule,
     SseModule,
     SupabaseModule,
     SignalsModule,

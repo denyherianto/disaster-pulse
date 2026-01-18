@@ -7,6 +7,7 @@ import { NewsAnalysisAgent } from '../../reasoning/agents/news-analysis.agent';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { SignalsService } from '../../signals/signals.service';
 import * as rssSources from '../../common/config/rss_sources.json';
+import { RemoteConfigService } from '../../config/remote-config.service';
 
 interface RssItem {
   title: string;
@@ -28,6 +29,7 @@ export class RssService implements OnModuleInit {
     private readonly supabase: SupabaseService,
     private readonly signalsService: SignalsService,
     private readonly newsAgent: NewsAnalysisAgent,
+    private readonly remoteConfig: RemoteConfigService,
   ) {
     this.parser = new Parser({
       timeout: 30000,
@@ -45,6 +47,12 @@ export class RssService implements OnModuleInit {
 
   @Cron(CronExpression.EVERY_10_MINUTES)
   async handleCron() {
+    // Check Remote Config before running cron
+    if (!(await this.remoteConfig.isCronEnabled('rss'))) {
+      this.logger.debug('RSS cron is disabled via Remote Config');
+      return;
+    }
+
     this.logger.log('Starting RSS Disaster Scan...');
     
     // Process feeds in parallel

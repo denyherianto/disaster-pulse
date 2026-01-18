@@ -5,6 +5,7 @@ import axios from 'axios';
 
 import { SignalsService } from '../../signals/signals.service';
 import { MAX_SIGNAL_AGE } from '../../common/constants';
+import { RemoteConfigService } from '../../config/remote-config.service';
 
 @Injectable()
 export class BmkgService {
@@ -20,11 +21,18 @@ export class BmkgService {
 
   constructor(
     private readonly supabase: SupabaseService,
-    private readonly signalsService: SignalsService
+    private readonly signalsService: SignalsService,
+    private readonly remoteConfig: RemoteConfigService,
   ) {}
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async fetchQuakes() {
+    // Check Remote Config before running cron
+    if (!(await this.remoteConfig.isCronEnabled('bmkg'))) {
+      this.logger.debug('BMKG cron is disabled via Remote Config');
+      return;
+    }
+
     this.logger.log('Fetching earthquake data from BMKG...');
     
     try {
