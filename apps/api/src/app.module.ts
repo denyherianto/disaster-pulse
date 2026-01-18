@@ -18,6 +18,7 @@ import { GuidesModule } from './guides/guides.module';
 import { EmergencyContactsModule } from './emergency-contacts/emergency-contacts.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { RemoteConfigModule } from './config/remote-config.module';
+import { AdminModule } from './admin/admin.module';
 
 import { SseModule } from './sse/sse.module';
 
@@ -41,6 +42,7 @@ import { SseModule } from './sse/sse.module';
     GuidesModule,
     EmergencyContactsModule,
     NotificationsModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

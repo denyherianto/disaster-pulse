@@ -31,13 +31,13 @@ export default function RootLayout({
         <link rel="apple-touch-startup-image" href="/splash_screen.png" />
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
       </head>
-      <body className={clsx(inter.variable, "bg-slate-100 min-h-screen flex items-center justify-center")}>
-        <main className="w-full max-w-md bg-slate-50 h-[100dvh] sm:h-[850px] sm:border sm:border-slate-200 sm:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] relative overflow-hidden flex flex-col font-sans">
-          <Providers>
-            {children}
-            <Toaster />
-          </Providers>
-        </main>
+      {/* Removed "flex items-center justify-center" to allow full-width admin pages. 
+          Mobile simulation logic is now in (mobile)/layout.tsx */}
+      <body className={clsx(inter.variable, "bg-slate-100 min-h-screen")}>
+        <Providers>
+          {children}
+          <Toaster />
+        </Providers>
       </body>
     </html>
   );

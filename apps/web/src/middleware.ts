@@ -51,6 +51,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Admin route protection
+  if (request.nextUrl.pathname.startsWith('/admin')) {
+    const adminWhitelist = process.env.ADMIN_EMAIL_WHITELIST || ''
+    const allowedEmails = adminWhitelist.split(',').map(e => e.trim().toLowerCase())
+    const userEmail = user?.email?.toLowerCase() || ''
+
+    if (!allowedEmails.includes(userEmail)) {
+      // Redirect unauthorized users to home
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
+  }
+
   return supabaseResponse
 }
 
@@ -59,4 +73,3 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
-
