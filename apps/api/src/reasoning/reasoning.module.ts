@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { ReasoningService } from './reasoning.service';
+import { ReasoningCacheService } from './reasoning-cache.service';
 import { ObserverAgent } from './agents/observer.agent';
 import { ClassifierAgent } from './agents/classifier.agent';
 import { SkepticAgent } from './agents/skeptic.agent';
@@ -12,12 +13,14 @@ import { SignalEnrichmentAgent } from './agents/signal-enrichment.agent';
 import { VideoAnalysisAgent } from './agents/video-analysis.agent';
 import { NewsAnalysisAgent } from './agents/news-analysis.agent';
 import { IncidentResolutionAgent } from './agents/incident-resolution.agent';
+import { GuideAssistantAgent } from './agents/guide-assistant.agent';
 import { GoogleMapsTool } from './tools/google-maps.tool';
 
 @Module({
   imports: [ConfigModule, SupabaseModule],
   providers: [
     ReasoningService,
+    ReasoningCacheService,
     ObserverAgent,
     ClassifierAgent,
     SkepticAgent,
@@ -27,6 +30,7 @@ import { GoogleMapsTool } from './tools/google-maps.tool';
     VideoAnalysisAgent,
     NewsAnalysisAgent,
     IncidentResolutionAgent,
+    GuideAssistantAgent,
     GoogleMapsTool,
     {
       provide: OpenAI,
@@ -37,6 +41,14 @@ import { GoogleMapsTool } from './tools/google-maps.tool';
       inject: [ConfigService],
     }
   ],
-  exports: [ReasoningService, SignalEnrichmentAgent, VideoAnalysisAgent, NewsAnalysisAgent, IncidentResolutionAgent],
+  exports: [
+    ReasoningService,
+    ReasoningCacheService,
+    SignalEnrichmentAgent,
+    VideoAnalysisAgent,
+    NewsAnalysisAgent,
+    IncidentResolutionAgent,
+    GuideAssistantAgent,
+  ],
 })
 export class ReasoningModule {}
