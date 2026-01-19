@@ -1,90 +1,36 @@
-/**
- * Incidents Service
- * Core service for incident processing, creation, merging, and lifecycle management.
- *
- * Responsibilities:
- * - Signal processing and routing
- * - Incident creation and merging
- * - AI reasoning integration
- * - Resolution and lifecycle management
- * - Notification triggers
- *
- * Query methods are delegated to IncidentsQueriesService.
- */
-
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
-import { MessageEvent } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-
-// Internal modules
+import { Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { SseService } from '../sse/sse.service';
+import { MessageEvent } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { reverseGeocodeCity } from '../lib/reverseGeocoding';
+import { determineStatus } from '../lib/determineStatus';
 import { ReasoningService } from '../reasoning/reasoning.service';
 import { IncidentResolutionAgent } from '../reasoning/agents/incident-resolution.agent';
+import { MAX_SIGNAL_AGE } from '../common/constants';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RemoteConfigService } from '../config/remote-config.service';
 
-// Lib utilities
-import { reverseGeocodeCity } from '../lib/reverseGeocoding';
-import { determineStatus } from '../lib/determineStatus';
+// Configuration
+const MIN_SIGNALS_FOR_INCIDENT = 2; // Need at least 2 signals to create an incident
 
-// Shared constants
-import {
-  MAX_SIGNAL_AGE,
-  THRESHOLDS,
-  INCIDENT_CONFIG,
-  SSE_EVENT_TYPES,
-  RESOLUTION_SILENCE_HOURS,
-  shouldBypassReasoning,
-} from '../common/constants';
-import {
-  SOURCE_WEIGHTS,
-  DEFAULT_SOURCE_WEIGHT,
-  isOfficialSource,
-  getSourceWeight,
-} from '../common/source-weights';
-
-// Types
-import {
-  Signal,
-  Incident,
-  SignalPool,
-  IncidentStatus,
-  Severity,
-  EventType,
-  ReasoningResult,
-  CachedReasoning,
-  BatchEvaluationResult,
-  IncidentUpdatePayload,
-  IncidentWithCentroid,
-} from './incidents.types';
-
-// Utilities
-import {
-  sortSignalsByTime,
-  getSignalTime,
-  filterFreshSignals,
-  calculateCentroid,
-  getDistanceFromLatLonInM,
-  isValidBBox,
-  transformIncidentWithCentroid,
-  calculateIncrementalConfidenceBonus,
-} from './incidents.utils';
-
-// Queries service
-import { IncidentsQueriesService } from './incidents.queries';
+type Signal = {
+  id: string;
+  source: string;
+  text: string | null;
+  lat: number;
+  lng: number;
+  city_hint?: string;
+  created_at: string;
+  happened_at?: string;
+  status?: string;
+  event_type?: string;
+  raw_payload?: Record<string, any>;
+};
 
 @Injectable()
 export class IncidentsService {
   private readonly logger = new Logger(IncidentsService.name);
-
-  /** Signal pooling: batch signals by city+eventType before AI evaluation */
-  private signalPool = new Map<string, SignalPool>();
 
   private get db() {
     return this.supabase.getClient() as any;
@@ -97,166 +43,93 @@ export class IncidentsService {
     private readonly sseService: SseService,
     private readonly notificationsService: NotificationsService,
     private readonly remoteConfig: RemoteConfigService,
-    private readonly queriesService: IncidentsQueriesService,
   ) { }
 
   // ============================================================
-  // LIFECYCLE HOOKS
-  // ============================================================
-
-  /**
-   * Cleanup pooling timers on module destroy
-   */
-  onModuleDestroy(): void {
-    for (const [, pool] of this.signalPool.entries()) {
-      if (pool.timer) {
-        clearTimeout(pool.timer);
-      }
-    }
-    this.signalPool.clear();
-  }
-
-  // ============================================================
-  // SIGNAL PROCESSING
+  // SIGNAL PROCESSING (formerly in ClusterService)
   // ============================================================
 
   /**
    * Main entry point for processing a single new signal.
    * Invoked by IncidentProcessor.
-   *
-   * @param signalId - UUID of the signal to process
-   * @param lat - Latitude of the signal
-   * @param lng - Longitude of the signal
-   * @param happenedAt - Optional timestamp when the event occurred
    */
-  async processSignal(
-    signalId: string,
-    lat: number,
-    lng: number,
-    happenedAt?: string,
-  ): Promise<void> {
-    this.logger.debug(
-      `Processing signal ${signalId} at ${lat}, ${lng} (HappenedAt: ${happenedAt})`,
-    );
+  async processSignal(signalId: string, lat: number, lng: number, happenedAt?: string) {
+    this.logger.debug(`Processing signal ${signalId} at ${lat}, ${lng} (HappenedAt: ${happenedAt})`);
 
     try {
-      // 1. Fetch and validate signal
-      const signal = await this.fetchAndValidateSignal(signalId);
-      if (!signal) return;
+      // 1. Fetch full signal details
+      const { data: signal, error: fetchError } = await this.db
+        .from('signals')
+        .select('*')
+        .eq('id', signalId)
+        .single();
 
-      // 2. Reverse geocode to get city
-      const city = await this.geocodeAndUpdateSignal(signal, lat, lng, happenedAt);
+      if (fetchError || !signal) {
+        this.logger.error(`Signal ${signalId} not found or error fetching:`, fetchError);
+        return;
+      }
 
-      // 3. Route signal to existing incident or create new
-      const resolvedCity = city ?? signal.city_hint ?? '';
-      const activeIncident = await this.findActiveIncident(
-        resolvedCity,
-        signal.event_type ?? 'other',
-      );
+      if (signal.status === 'processed') {
+        this.logger.debug(`Signal ${signalId} already processed. Skipping.`);
+        return;
+      }
+
+      // Check if already linked to an incident
+      const { data: existingLink } = await this.db
+        .from('incident_signals')
+        .select('incident_id')
+        .eq('signal_id', signalId)
+        .maybeSingle();
+
+      if (existingLink) {
+        this.logger.debug(`Signal ${signalId} already linked to incident ${existingLink.incident_id}. Skipping.`);
+        await this.markSignalStatus(signalId, 'processed');
+        return;
+      }
+
+      // 2. Reverse Geocode to get City
+      const city = await reverseGeocodeCity(lat, lng);
+      if (city) {
+        const updateData: any = { city_hint: city };
+
+        // Ensure happened_at is set if provided (critical for earthquakes)
+        if (happenedAt && !signal.happened_at) {
+          updateData.happened_at = happenedAt;
+          signal.happened_at = happenedAt;
+        }
+
+        await this.db
+          .from('signals')
+          .update(updateData)
+          .eq('id', signalId);
+
+        signal.city_hint = city;
+      }
+
+      // 3. Find Active Incident in this City AND Event Type
+      const activeIncident = await this.findActiveIncident(signal.city_hint, signal.event_type);
 
       if (activeIncident) {
         await this.mergeSignalToIncident(signal, activeIncident);
       } else {
-        await this.tryCreateNewIncident(
-          signal,
-          city ?? signal.city_hint ?? '',
-          signal.event_type ?? 'other',
-        );
+        await this.tryCreateNewIncident(signal, signal.city_hint, signal.event_type);
       }
 
-      // 4. Mark as processed
+      // Mark as successfully processed
       await this.markSignalStatus(signalId, 'processed');
+
     } catch (error) {
       this.logger.error(`Error processing signal ${signalId}:`, error);
-      await this.markSignalStatus(signalId, 'failed').catch((e) =>
-        this.logger.error('Failed to mark signal as failed', e),
-      );
+      await this.markSignalStatus(signalId, 'failed').catch(e => this.logger.error('Failed to mark signal as failed', e));
       throw error;
     }
   }
 
-  /**
-   * Fetch signal from database and validate it's ready for processing
-   */
-  private async fetchAndValidateSignal(signalId: string): Promise<Signal | null> {
-    const { data: signal, error } = await this.db
-      .from('signals')
-      .select('*')
-      .eq('id', signalId)
-      .single();
-
-    if (error || !signal) {
-      this.logger.error(`Signal ${signalId} not found or error fetching:`, error);
-      return null;
-    }
-
-    if (signal.status === 'processed') {
-      this.logger.debug(`Signal ${signalId} already processed. Skipping.`);
-      return null;
-    }
-
-    // Check if already linked to an incident
-    const { data: existingLink } = await this.db
-      .from('incident_signals')
-      .select('incident_id')
-      .eq('signal_id', signalId)
-      .maybeSingle();
-
-    if (existingLink) {
-      this.logger.debug(
-        `Signal ${signalId} already linked to incident ${existingLink.incident_id}. Skipping.`,
-      );
-      await this.markSignalStatus(signalId, 'processed');
-      return null;
-    }
-
-    return signal as Signal;
-  }
-
-  /**
-   * Reverse geocode signal location and update database
-   */
-  private async geocodeAndUpdateSignal(
-    signal: Signal,
-    lat: number,
-    lng: number,
-    happenedAt?: string,
-  ): Promise<string | null> {
-    const city = await reverseGeocodeCity(lat, lng);
-
-    if (city) {
-      const updateData: Partial<Signal> = { city_hint: city };
-
-      // Ensure happened_at is set if provided
-      if (happenedAt && !signal.happened_at) {
-        updateData.happened_at = happenedAt;
-        signal.happened_at = happenedAt;
-      }
-
-      await this.db.from('signals').update(updateData).eq('id', signal.id);
-      signal.city_hint = city;
-    }
-
-    return city;
-  }
-
-  /**
-   * Update signal status in database
-   */
-  private async markSignalStatus(
-    signalId: string,
-    status: 'processed' | 'failed',
-  ): Promise<void> {
+  private async markSignalStatus(signalId: string, status: 'processed' | 'failed') {
     await this.db.from('signals').update({ status }).eq('id', signalId);
   }
 
-  /**
-   * Find active (non-resolved) incident in city for event type
-   */
-  private async findActiveIncident(
-    city: string,
-    eventType: string,
-  ): Promise<Incident | null> {
+  private async findActiveIncident(city: string, eventType: string) {
     const query = this.db
       .from('incidents')
       .select('id, city, status, time_start, time_end, event_type, severity, confidence_score')
@@ -277,236 +150,120 @@ export class IncidentsService {
       return null;
     }
 
-    return data?.[0] ?? null;
+    return data && data.length > 0 ? data[0] : null;
   }
 
-  // ============================================================
-  // SIGNAL MERGING
-  // ============================================================
+  private async mergeSignalToIncident(signal: Signal, incident: any) {
+    this.logger.log(`Merging signal ${signal.id} into existing incident ${incident.id} (${incident.city})`);
 
-  /**
-   * Merge a signal into an existing incident
-   * Uses incremental confidence update (no AI call) for efficiency
-   */
-  private async mergeSignalToIncident(
-    signal: Signal,
-    incident: Incident,
-  ): Promise<void> {
-    this.logger.log(
-      `Merging signal ${signal.id} into existing incident ${incident.id} (${incident.city})`,
-    );
+    const incidentId = incident.id;
 
-    // 1. Link signal to incident
+    // 1. Link Signal to Incident
     const { error: linkError } = await this.db
       .from('incident_signals')
       .upsert(
-        { incident_id: incident.id, signal_id: signal.id },
-        { onConflict: 'incident_id, signal_id', ignoreDuplicates: true },
+        { incident_id: incidentId, signal_id: signal.id },
+        { onConflict: 'incident_id, signal_id', ignoreDuplicates: true }
       );
 
     if (linkError) {
-      this.logger.error(
-        `Failed to link signal ${signal.id} to incident ${incident.id}:`,
-        linkError,
-      );
+      this.logger.error(`Failed to link signal ${signal.id} to incident ${incidentId}:`, linkError);
       return;
     }
 
-    // 2. Calculate incremental confidence update
-    const { newConfidence, newSignalCount, incrementalBonus } =
-      this.calculateIncrementalUpdate(signal, incident);
+    // 2. Update Incident time_end if signal is newer
+    const signalTime = signal.happened_at || signal.created_at;
 
-    // 3. Check if this is an URGENT signal (bypass batch)
-    const isUrgent = this.checkSignalUrgency(signal, incident.confidence_score, newConfidence);
+    // ============================================================
+    // INCREMENTAL UPDATE (No AI Call - Fast Path)
+    // ============================================================
+
+    // Source weights per EVIDENCE_WEIGHTING.md
+    // Synced with reasoning.service.ts multi-vector detection
+    const SOURCE_WEIGHTS: Record<string, number> = {
+      // Official sources (highest trust)
+      bmkg: 0.40,
+      bnpb: 0.40,
+      official: 0.40,
+      // User reports (direct observation)
+      user_report: 0.25,
+      user: 0.25,
+      // Social media (media evidence)
+      social_media: 0.20,
+      tiktok: 0.20,
+      twitter: 0.20,
+      instagram: 0.20,
+      // News (media evidence)
+      news: 0.20,
+      rss: 0.20,
+    };
+
+    const sourceWeight = SOURCE_WEIGHTS[signal.source] || 0.10;
+    const oldConfidence = incident.confidence_score || 0.5;
+    const oldSignalCount = incident.signal_count || 1;
+
+    // Diminishing returns formula: new evidence adds less as confidence grows
+    // This follows the spec: "Independence > volume"
+    const incrementalBonus = sourceWeight * (1 - oldConfidence) * 0.3;
+    const newConfidence = Math.min(oldConfidence + incrementalBonus, 1.0);
+    const newSignalCount = oldSignalCount + 1;
+
+    // 3. Check if this is an URGENT signal (bypass batch, trigger immediate AI)
+    const officialSources = ['bmkg', 'bnpb', 'official'];
+    const isOfficialSource = officialSources.includes(signal.source);
+    const isHighSeveritySignal = signal.raw_payload?.ai_analysis?.severity === 'high';
+    const crossedAlertThreshold = newConfidence >= 0.8 && oldConfidence < 0.8;
+    const crossedMonitorThreshold = newConfidence >= 0.6 && oldConfidence < 0.6;
+
+    const isUrgent = isOfficialSource || isHighSeveritySignal || crossedAlertThreshold;
 
     this.logger.debug(
-      `Incremental update for ${incident.id}: ` +
-      `confidence ${incident.confidence_score.toFixed(2)} → ${newConfidence.toFixed(2)} ` +
-      `(+${incrementalBonus.toFixed(3)} from ${signal.source}), urgent=${isUrgent}`,
+      `Incremental update for ${incidentId}: ` +
+      `confidence ${oldConfidence.toFixed(2)} → ${newConfidence.toFixed(2)} ` +
+      `(+${incrementalBonus.toFixed(3)} from ${signal.source}), ` +
+      `urgent=${isUrgent}`
     );
 
     // 4. Update incident with incremental changes
-    const signalTime = getSignalTime(signal);
     await this.db
       .from('incidents')
       .update({
         time_end: signalTime > incident.time_end ? signalTime : incident.time_end,
         confidence_score: newConfidence,
         signal_count: newSignalCount,
-        needs_full_eval: true,
+        needs_full_eval: true, // Mark for batch processing
         updated_at: new Date().toISOString(),
       })
-      .eq('id', incident.id);
+      .eq('id', incidentId);
 
-    // 5. Notify frontend via SSE
-    this.emitIncidentUpdate({
-      id: incident.id,
-      confidence_score: newConfidence,
-      signal_count: newSignalCount,
-      updated_at: new Date().toISOString(),
-      incremental: true,
-    });
+    // 5. Notify frontend about incremental update via SSE
+    this.sseService.addEvent({
+      data: {
+        id: incidentId,
+        confidence_score: newConfidence,
+        signal_count: newSignalCount,
+        updated_at: new Date().toISOString(),
+        incremental: true, // Flag that this is an incremental update
+      },
+      type: 'incident_update'
+    } as MessageEvent);
 
-    // 6. Handle urgent vs deferred evaluation
+    // 6. URGENT signals bypass batch - run full AI evaluation immediately
     if (isUrgent) {
       this.logger.log(
-        `⚡ Urgent signal detected (${signal.source}), triggering immediate AI evaluation`,
+        `⚡ Urgent signal detected (${signal.source}), ` +
+        `triggering immediate AI evaluation for incident ${incidentId}`
       );
-      await this.evaluateIncidentState(incident.id, {
-        ...incident,
-        confidence_score: newConfidence,
-      });
-    } else {
-      this.logger.debug(
-        `📋 Non-urgent signal, deferring AI evaluation to batch cron`,
-      );
+    } else if (crossedMonitorThreshold) {
+      // Monitor threshold crossed - also trigger immediate evaluation
+      this.logger.log(`📊 Monitor threshold crossed, evaluating incident ${incidentId}`);
     }
+    await this.evaluateIncidentState(incidentId, { ...incident, confidence_score: newConfidence });
+    // Otherwise, batch cron job will handle full evaluation
   }
 
-  /**
-   * Calculate incremental confidence update for signal merge
-   */
-  private calculateIncrementalUpdate(
-    signal: Signal,
-    incident: Incident,
-  ): { newConfidence: number; newSignalCount: number; incrementalBonus: number } {
-    const sourceWeight = getSourceWeight(signal.source);
-    const oldConfidence = incident.confidence_score ?? 0.5;
-    const oldSignalCount = incident.signal_count ?? 1;
-
-    // Diminishing returns formula
-    const incrementalBonus = calculateIncrementalConfidenceBonus(
-      oldConfidence,
-      sourceWeight,
-    );
-    const newConfidence = Math.min(oldConfidence + incrementalBonus, 1.0);
-
-    return {
-      newConfidence,
-      newSignalCount: oldSignalCount + 1,
-      incrementalBonus,
-    };
-  }
-
-  /**
-   * Check if signal warrants immediate AI evaluation (bypassing batch)
-   */
-  private checkSignalUrgency(
-    signal: Signal,
-    oldConfidence: number,
-    newConfidence: number,
-  ): boolean {
-    const isOfficial = isOfficialSource(signal.source);
-    const isHighSeverity = (signal.raw_payload as Record<string, any>)?.ai_analysis?.severity === 'high';
-    const crossedAlertThreshold =
-      newConfidence >= THRESHOLDS.ALERT_CONFIDENCE &&
-      oldConfidence < THRESHOLDS.ALERT_CONFIDENCE;
-
-    return isOfficial || isHighSeverity || crossedAlertThreshold;
-  }
-
-  // ============================================================
-  // INCIDENT CREATION
-  // ============================================================
-
-  /**
-   * Attempt to create a new incident from signal
-   * Uses signal pooling to batch signals before AI evaluation
-   */
-  private async tryCreateNewIncident(
-    signal: Signal,
-    city: string,
-    eventType: string,
-  ): Promise<void> {
-    // 1. Find candidate signals in same city
-    const unlinkedSignals = await this.findCandidateSignals(signal, city);
-
-    // 2. Check trusted source bypass (skip LLM for verified sources)
-    const isTrustedSource = shouldBypassReasoning(signal.source, eventType);
-
-    if (
-      unlinkedSignals.length < INCIDENT_CONFIG.MIN_SIGNALS_FOR_INCIDENT &&
-      !isTrustedSource
-    ) {
-      // Add to pool and wait for more signals
-      const poolKey = `${city}:${eventType}`;
-      this.addSignalToPool(poolKey, signal, city, eventType);
-      this.logger.debug(
-        `Signal ${signal.id} added to pool (Key: ${poolKey}, Pool size: ${this.signalPool.get(poolKey)?.signals.length ?? 1})`,
-      );
-      return;
-    }
-
-    let reasoningResult: ReasoningResult;
-
-    // 3. Either use default for trusted sources or run reasoning loop
-    if (isTrustedSource) {
-      this.logger.log(`⚡ Bypassing reasoning for trusted source: ${signal.source} (${eventType})`);
-      reasoningResult = this.createDefaultReasoningResult(unlinkedSignals, eventType);
-    } else {
-      const result = await this.runReasoningForCreation(unlinkedSignals, city);
-      if (!result) return;
-      reasoningResult = result;
-    }
-
-    // 4. Create incident with reasoning result
-    const newIncident = await this.createIncidentFromSignals(
-      unlinkedSignals,
-      city,
-      eventType,
-      reasoningResult,
-    );
-    if (!newIncident) return;
-
-    // 5. Link signals and send notifications
-    await this.finalizeIncidentCreation(newIncident, unlinkedSignals, reasoningResult);
-
-    // 6. Clear signal pool
-    this.clearSignalPool(`${city}:${eventType}`);
-  }
-
-  /**
-   * Create default reasoning result for trusted sources (no LLM call)
-   */
-  private createDefaultReasoningResult(
-    signals: Signal[],
-    eventType: string,
-  ): ReasoningResult {
-    return {
-      conclusion: {
-        final_classification: eventType,
-        severity: 'high' as Severity,
-        confidence_score: 0.95, // High confidence for official sources
-        description: `Official ${eventType} report`,
-      },
-      decision: {
-        action: 'CREATE_INCIDENT',
-        reason: 'Trusted official source bypass',
-      },
-      sessionId: '',
-      multiVector: {
-        sourceBreakdown: {
-          official: signals.length,
-          user_report: 0,
-          social_media: 0,
-          news: 0,
-          total: signals.length,
-          unique_sources: [...new Set(signals.map(s => s.source))],
-        },
-        diversityBonus: 0.1,
-        categoryCount: 1,
-        hasOfficialSource: true,
-      },
-    };
-  }
-
-  /**
-   * Find unlinked signals in the same city
-   */
-  private async findCandidateSignals(
-    signal: Signal,
-    city: string,
-  ): Promise<Signal[]> {
+  private async tryCreateNewIncident(signal: Signal, city: string, eventType: string) {
+    // 1. Check for unclustered signals in the same city
     const { data: candidates, error } = await this.db
       .from('signals')
       .select('id, city_hint, created_at, happened_at, source, text, lat, lng')
@@ -514,505 +271,263 @@ export class IncidentsService {
       .order('created_at', { ascending: false })
       .limit(20);
 
-    if (error || !candidates) return [signal];
+    if (error || !candidates) return;
 
-    // Filter out already linked signals
-    const candidateIds = candidates.map((c: Signal) => c.id);
+    // Filter out those already linked to incidents
+    const candidateIds = candidates.map((c: any) => c.id);
     const { data: alreadyLinked } = await this.db
       .from('incident_signals')
       .select('signal_id')
       .in('signal_id', candidateIds);
 
-    const linkedSet = new Set(alreadyLinked?.map((al: any) => al.signal_id) ?? []);
-    const unlinkedSignals = candidates.filter((c: Signal) => !linkedSet.has(c.id));
+    const linkedSet = new Set(alreadyLinked?.map((al: any) => al.signal_id) || []);
+    const unlinkedSignals = candidates.filter((c: any) => !linkedSet.has(c.id));
 
-    // Ensure current signal is included
-    if (!unlinkedSignals.find((s: Signal) => s.id === signal.id)) {
-      unlinkedSignals.push(signal);
+    // Ensure current signal is in the list
+    if (!unlinkedSignals.find((s: any) => s.id === signal.id)) {
+      unlinkedSignals.push(signal as any);
     }
 
-    return unlinkedSignals;
-  }
+    // Check for trusted source overrides (e.g. BMKG Earthquakes are always real)
+    const isTrustedSource = signal.source === 'bmkg' && eventType === 'earthquake';
 
-  /**
-   * Run AI reasoning loop and check for CREATE decision
-   */
-  private async runReasoningForCreation(
-    signals: Signal[],
-    city: string,
-  ): Promise<ReasoningResult | null> {
+    if (unlinkedSignals.length < MIN_SIGNALS_FOR_INCIDENT && !isTrustedSource) {
+      this.logger.debug(`Signal ${signal.id} is pending (City: ${city}, Event: ${eventType}, Unlinked neighbors: ${unlinkedSignals.length - 1})`);
+      return; // Wait for more signals
+    }
+
+    // ---------------------------------------------------------
+    // REASONING LOOP CHECK (Action Strategy)
+    // ---------------------------------------------------------
     try {
-      this.logger.log(
-        `Running Reasoning Loop for potential incident in ${city} (${signals.length} signals)...`,
-      );
+      this.logger.log(`Running Reasoning Loop for potential incident in ${city} (${unlinkedSignals.length} signals)...`);
 
-      const reasoningSignals = signals.map((s) => ({
+      const reasoningSignals = unlinkedSignals.map((s: any) => ({
         source: s.source,
-        text: s.text ?? '',
-        created_at: s.created_at,
+        text: s.text || '',
+        created_at: s.created_at
       }));
 
-      const result = await this.reasoningService.runReasoningLoop(reasoningSignals, []);
+      // We pass empty existingIncidents because we already tried finding matches in processSignal
+      const { decision } = await this.reasoningService.runReasoningLoop(reasoningSignals, []);
 
-      this.logger.log(
-        `Action Strategy Decision: ${result.decision.action} (Reason: ${result.decision.reason})`,
-      );
+      this.logger.log(`Action Strategy Decision: ${decision.action} (Reason: ${decision.reason})`);
 
-      if (result.decision.action === 'WAIT_FOR_MORE_DATA') {
+      if (decision.action === 'WAIT_FOR_MORE_DATA') {
         this.logger.log(`Aborting incident creation: Waiting for more data.`);
-        return null;
+        return;
       }
 
-      if (result.decision.action === 'DISMISS') {
+      if (decision.action === 'DISMISS') {
         this.logger.log(`Aborting incident creation: Dismissed as benign/noise.`);
-        return null;
+        // Optionally mark signals as dismissed/processed to prevent re-eval?
+        // For now just abort creation.
+        return;
       }
 
-      return result as ReasoningResult;
+      // If MERGE or CREATE, we proceed (MERGE might be unexpected here but safe to fallback to create if no target)
     } catch (err) {
       this.logger.error(`Reasoning Loop failed, falling back to default creation:`, err);
-      // Fail open: proceed without reasoning result
-      return {
-        conclusion: {
-          final_classification: 'other',
-          severity: 'medium' as Severity,
-          confidence_score: 0.5,
-        },
-        decision: { action: 'CREATE_INCIDENT', reason: 'Fallback due to reasoning error' },
-        sessionId: '',
-        multiVector: {
-          sourceBreakdown: { official: 0, user_report: 0, social_media: 0, news: 0, total: signals.length, unique_sources: [] },
-          diversityBonus: 0,
-          categoryCount: 0,
-          hasOfficialSource: false,
-        },
-      };
+      // Fallback: Proceed to create if reasoning fails (fail open) vs fail closed?
+      // Let's fail open (proceed) to avoid missing critical incidents due to AI error,
+      // unless strictly required otherwise.
     }
-  }
 
-  /**
-   * Create incident record in database
-   */
-  private async createIncidentFromSignals(
-    signals: Signal[],
-    city: string,
-    eventType: string,
-    reasoningResult: ReasoningResult,
-  ): Promise<{ id: string } | null> {
-    const sortedSignals = sortSignalsByTime(signals);
-    const timeStart = getSignalTime(sortedSignals[0]);
-    const timeEnd = getSignalTime(sortedSignals[sortedSignals.length - 1]);
+    // CREATE INCIDENT
+    this.logger.log(`Creating NEW Incident in ${city} for ${eventType} with ${unlinkedSignals.length} signals`);
 
-    const { conclusion, decision, multiVector } = reasoningResult;
+    // Sort by time
+    unlinkedSignals.sort((a: any, b: any) => {
+      const timeA = new Date(a.happened_at || a.created_at).getTime();
+      const timeB = new Date(b.happened_at || b.created_at).getTime();
+      return timeA - timeB;
+    });
 
-    const shouldAlert =
-      decision.action === 'CREATE_INCIDENT' ||
-      decision.action === 'MERGE_INCIDENT' ||
-      conclusion.severity === 'high';
+    const timeStart = unlinkedSignals[0].happened_at || unlinkedSignals[0].created_at;
+    const timeEnd = unlinkedSignals[unlinkedSignals.length - 1].happened_at || unlinkedSignals[unlinkedSignals.length - 1].created_at;
 
-    const initialStatus = shouldAlert
-      ? determineStatus({
-        signalCount: signals.length,
-        confidence: conclusion.confidence_score,
-        severity: conclusion.severity,
-      })
-      : 'monitor';
-
-    this.logger.log(
-      `Creating NEW Incident in ${city} for ${eventType} with ${signals.length} signals`,
-    );
-
-    const { data: newIncident, error } = await this.db
+    const { data: newIncident, error: createError } = await this.db
       .from('incidents')
       .insert({
         city,
-        event_type: conclusion.final_classification || eventType,
+        event_type: eventType,
         time_start: timeStart,
         time_end: timeEnd,
-        status: initialStatus,
-        confidence_score: conclusion.confidence_score,
-        severity: conclusion.severity,
-        summary: conclusion.description ?? null,
-        signal_count: signals.length,
-        needs_full_eval: !reasoningResult.sessionId,
-        last_evaluated_at: reasoningResult.sessionId ? new Date().toISOString() : null,
-        cached_reasoning: reasoningResult.sessionId
-          ? {
-            conclusion,
-            decision,
-            multiVector,
-            signal_count: signals.length,
-            evaluated_at: new Date().toISOString(),
-          }
-          : null,
+        status: 'monitor',
       })
       .select('id')
       .single();
 
-    if (error || !newIncident) {
-      this.logger.error('Failed to create incident:', error);
-      return null;
+    if (createError || !newIncident) {
+      this.logger.error('Failed to create incident:', createError);
+      return;
     }
 
-    return newIncident;
-  }
 
-  /**
-   * Finalize incident creation: link signals, log lifecycle, send notifications
-   */
-  private async finalizeIncidentCreation(
-    incident: { id: string },
-    signals: Signal[],
-    reasoningResult: ReasoningResult,
-  ): Promise<void> {
-    const { conclusion, decision } = reasoningResult;
-
-    // Update agent traces with incident ID
-    if (reasoningResult.sessionId) {
-      await this.reasoningService.updateTracesIncidentId(
-        reasoningResult.sessionId,
-        incident.id,
-      );
-    }
-
-    const initialStatus = conclusion.severity === 'high' ? 'alert' : 'monitor';
-
-    this.logger.log(
-      `✅ Created incident ${incident.id} (confidence: ${conclusion.confidence_score?.toFixed(2) ?? 'N/A'}, status: ${initialStatus})`,
-    );
-
-    // Emit SSE event
+    // Notify Frontend via SSE
     this.sseService.addEvent({
-      data: {
-        id: incident.id,
-        event_type: conclusion.final_classification,
-        status: initialStatus,
-        confidence_score: conclusion.confidence_score,
-        severity: conclusion.severity,
-        summary: conclusion.description,
-      },
-      type: SSE_EVENT_TYPES.INCIDENT_CREATED,
+      data: { ...newIncident, city, event_type: eventType, status: 'monitor' },
+      type: 'incident_update'
     } as MessageEvent);
 
     // Link signals
-    const links = signals.map((s) => ({
-      incident_id: incident.id,
-      signal_id: s.id,
+    const links = unlinkedSignals.map((s: any) => ({
+      incident_id: newIncident.id,
+      signal_id: s.id
     }));
+
     await this.db.from('incident_signals').insert(links);
 
-    // Log lifecycle event
-    await this.logLifecycleEvent(
-      incident.id,
-      null,
-      initialStatus as IncidentStatus,
-      'system',
-      `Initial creation from ${signals.length} signals (AI: ${decision.action})`,
-    );
+    // Log initial creation
+    await this.logLifecycleEvent(newIncident.id, null, 'monitor', 'system', `Initial creation from ${unlinkedSignals.length} signals`);
 
     // Calculate centroid for notifications
-    const centroid = calculateCentroid(
-      signals.map((s) => ({ lat: s.lat, lng: s.lng })),
-    );
+    const avgLat = unlinkedSignals.reduce((sum: number, s: any) => sum + (s.lat || 0), 0) / unlinkedSignals.length;
+    const avgLng = unlinkedSignals.reduce((sum: number, s: any) => sum + (s.lng || 0), 0) / unlinkedSignals.length;
 
-    // Send push notification
+    // Send push notification for new incident
     await this.notificationsService.notifyIncident({
-      id: incident.id,
-      city: signals[0]?.city_hint ?? '',
-      event_type: conclusion.final_classification ?? 'other',
-      severity: conclusion.severity,
-      status: initialStatus,
-      summary: conclusion.description,
-      lat: centroid.lat,
-      lng: centroid.lng,
+      id: newIncident.id,
+      city,
+      event_type: eventType,
+      severity: 'medium',
+      status: 'monitor',
+      lat: avgLat,
+      lng: avgLng,
     });
-  }
 
-  // ============================================================
-  // SIGNAL POOLING
-  // ============================================================
-
-  /**
-   * Add signal to pool for batched processing
-   */
-  private addSignalToPool(
-    poolKey: string,
-    signal: Signal,
-    city: string,
-    eventType: string,
-  ): void {
-    let pool = this.signalPool.get(poolKey);
-
-    if (!pool) {
-      pool = { signals: [], timer: null };
-      this.signalPool.set(poolKey, pool);
-    }
-
-    // Add signal if not already in pool
-    if (!pool.signals.find((s) => s.id === signal.id)) {
-      pool.signals.push(signal);
-    }
-
-    // Reset timer to extend the pooling window
-    if (pool.timer) {
-      clearTimeout(pool.timer);
-    }
-
-    pool.timer = setTimeout(() => {
-      this.processSignalPool(poolKey, city, eventType);
-    }, INCIDENT_CONFIG.SIGNAL_POOL_WINDOW_MS);
-
-    this.logger.debug(
-      `Signal pool ${poolKey}: ${pool.signals.length} signals, timer reset`,
-    );
+    // Initial Evaluation
+    await this.evaluateIncidentState(newIncident.id, null);
   }
 
   /**
-   * Process pooled signals after the pooling window expires
+   * Core Logic: Runs Reasoning Service to analyze incident and update state.
    */
-  private async processSignalPool(
-    poolKey: string,
-    city: string,
-    eventType: string,
-  ): Promise<void> {
-    const pool = this.signalPool.get(poolKey);
-    if (!pool || pool.signals.length === 0) {
-      this.signalPool.delete(poolKey);
-      return;
-    }
-
-    this.logger.log(
-      `⏰ Processing signal pool ${poolKey} with ${pool.signals.length} signals`,
-    );
-
-    const signals = [...pool.signals];
-    this.signalPool.delete(poolKey);
-
-    if (signals.length < INCIDENT_CONFIG.MIN_SIGNALS_FOR_INCIDENT) {
-      this.logger.debug(
-        `Pool ${poolKey} still below threshold (${signals.length}/${INCIDENT_CONFIG.MIN_SIGNALS_FOR_INCIDENT}), skipping`,
-      );
-      return;
-    }
-
-    await this.tryCreateNewIncident(signals[0], city, eventType);
-  }
-
-  /**
-   * Clear signal pool after incident creation
-   */
-  private clearSignalPool(poolKey: string): void {
-    const pool = this.signalPool.get(poolKey);
-    if (pool?.timer) {
-      clearTimeout(pool.timer);
-    }
-    this.signalPool.delete(poolKey);
-  }
-
-  // ============================================================
-  // AI EVALUATION
-  // ============================================================
-
-  /**
-   * Run full AI evaluation on an incident
-   */
-  private async evaluateIncidentState(
-    incidentId: string,
-    currentIncident: Incident | null,
-  ): Promise<void> {
+  private async evaluateIncidentState(incidentId: string, currentIncident: any | null) {
     this.logger.log(`Evaluating state for Incident ${incidentId}...`);
 
-    // Get event type
-    const eventType = await this.resolveEventType(incidentId, currentIncident);
-
-    // Fetch fresh signals
-    const signalsContext = await this.fetchFreshSignalsForIncident(
-      incidentId,
-      eventType,
-    );
-    if (signalsContext.length === 0) {
-      this.logger.debug(
-        `No fresh signals for ${eventType} in incident ${incidentId}. Skipping reasoning.`,
-      );
-      return;
-    }
-
-    // Run AI reasoning
-    const reasoningResult = await this.reasoningService.runReasoningLoop(
-      signalsContext,
-      currentIncident ? [currentIncident as any] : [],
-      incidentId,
-    );
-
-    const { conclusion, decision, multiVector } = reasoningResult;
-
-    // Apply updates based on whether incident exists
-    if (currentIncident) {
-      await this.applyReasoningToExistingIncident(
-        currentIncident,
-        conclusion,
-        decision,
-        multiVector,
-        signalsContext.length,
-      );
-    } else {
-      await this.applyReasoningToNewIncident(
-        incidentId,
-        eventType,
-        signalsContext.length,
-        conclusion,
-        decision,
-        multiVector,
-      );
-    }
-  }
-
-  /**
-   * Resolve event type for an incident
-   */
-  private async resolveEventType(
-    incidentId: string,
-    currentIncident: Incident | null,
-  ): Promise<string> {
+    // 0. Resolve Event Type for Freshness Check
+    let eventType = 'other';
     if (currentIncident?.event_type) {
-      return currentIncident.event_type;
+      eventType = currentIncident.event_type;
+    } else {
+      const { data: incident } = await this.db
+        .from('incidents')
+        .select('event_type')
+        .eq('id', incidentId)
+        .single();
+      if (incident?.event_type) eventType = incident.event_type;
     }
 
-    const { data: incident } = await this.db
-      .from('incidents')
-      .select('event_type')
-      .eq('id', incidentId)
-      .single();
-
-    return incident?.event_type ?? 'other';
-  }
-
-  /**
-   * Fetch fresh signals for an incident (filtered by age)
-   */
-  private async fetchFreshSignalsForIncident(
-    incidentId: string,
-    eventType: string,
-  ): Promise<Array<{ source: string; text: string; created_at: string }>> {
-    const { data: signalsData, error } = await this.db
+    // 1. Fetch Context (Signals)
+    const { data: signalsData, error: signalsError } = await this.db
       .from('incident_signals')
       .select('signals(source, text, created_at, happened_at)')
       .eq('incident_id', incidentId)
       .order('signals(created_at)', { ascending: false } as any)
       .limit(50);
 
-    if (error) {
-      this.logger.error('Error fetching signals:', error);
-      return [];
+    if (signalsError) {
+      this.logger.error('Error fetching signals:', signalsError);
+      return;
     }
 
-    let signals = signalsData?.map((s: any) => s.signals) ?? [];
+    let signalsContext = signalsData?.map((s: any) => s.signals) || [];
 
-    // Filter by age
-    const maxAgeHours = MAX_SIGNAL_AGE[eventType] ?? MAX_SIGNAL_AGE['other'];
+    // Filter out expired signals based on eventType
+    const maxAgeHours = MAX_SIGNAL_AGE[eventType] || MAX_SIGNAL_AGE['other'];
     const now = Date.now();
 
-    signals = signals.filter((s: any) => {
-      const eventTime = s.happened_at
-        ? new Date(s.happened_at).getTime()
-        : new Date(s.created_at).getTime();
+    signalsContext = signalsContext.filter((s: any) => {
+      const eventTime = s.happened_at ? new Date(s.happened_at).getTime() : new Date(s.created_at).getTime();
       const ageHours = (now - eventTime) / (1000 * 60 * 60);
       return ageHours <= maxAgeHours;
     });
 
-    return signals;
-  }
-
-  /**
-   * Apply reasoning result to existing incident
-   */
-  private async applyReasoningToExistingIncident(
-    incident: Incident,
-    conclusion: any,
-    decision: any,
-    multiVector: any,
-    signalCount: number,
-  ): Promise<void> {
-    const newSeverity = conclusion.severity;
-    const newConfidence = conclusion.confidence_score;
-    const newEventType = conclusion.final_classification;
-
-    const severityChanged = newSeverity !== incident.severity;
-    const confidenceChanged =
-      Math.abs(newConfidence - incident.confidence_score) >
-      THRESHOLDS.SIGNIFICANT_CONFIDENCE_CHANGE;
-
-    // Check event type change
-    const validTypes: EventType[] = [
-      'flood',
-      'landslide',
-      'fire',
-      'earthquake',
-      'power_outage',
-      'volcano',
-      'other',
-    ];
-    let eventTypeChanged = false;
-    let targetEventType = incident.event_type;
-
-    if (validTypes.includes(newEventType) && newEventType !== incident.event_type) {
-      if (incident.event_type === 'other' || newEventType !== 'other') {
-        eventTypeChanged = true;
-        targetEventType = newEventType;
-      }
+    if (signalsContext.length === 0) {
+      this.logger.debug(`No fresh signals for ${eventType} in incident ${incidentId}. Skipping reasoning.`);
+      return;
     }
 
-    if (severityChanged || confidenceChanged || eventTypeChanged) {
-      this.logger.log(
-        `Updating Incident ${incident.id}: Type ${incident.event_type}->${targetEventType}, Sev ${incident.severity}->${newSeverity}`,
-      );
+    // 2. Fetch Context (Existing Incidents nearby)
+    const incidentContext = currentIncident ? [currentIncident] : [];
 
-      const { error } = await this.db
-        .from('incidents')
-        .update({
-          event_type: targetEventType,
-          severity: newSeverity,
-          confidence_score: newConfidence,
-          summary: conclusion.description,
-          needs_full_eval: false,
-          last_evaluated_at: new Date().toISOString(),
-          cached_reasoning: {
-            conclusion,
-            decision,
-            multiVector,
-            signal_count: signalCount,
-            evaluated_at: new Date().toISOString(),
-          },
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', incident.id);
+    // 3. Run AI Reasoning
+    const reasoningResult = await this.reasoningService.runReasoningLoop(
+      signalsContext,
+      incidentContext as any,
+      incidentId
+    );
 
-      if (error) {
-        this.logger.error(`Failed to update incident ${incident.id}`, error);
-      } else {
-        this.emitIncidentUpdate({
-          id: incident.id,
-          event_type: targetEventType,
-          severity: newSeverity,
-          confidence_score: newConfidence,
-          summary: conclusion.description,
-          updated_at: new Date().toISOString(),
-        });
+    const { conclusion, decision } = reasoningResult;
+
+    // 4. Action Logic
+
+    // Scenario A: Existing Incident -> Check for Update
+    if (currentIncident) {
+      const newSeverity = conclusion.severity;
+      const newConfidence = conclusion.confidence_score;
+      const newEventType = conclusion.final_classification;
+
+      const severityChanged = newSeverity !== currentIncident.severity;
+      const confidenceChanged = Math.abs(newConfidence - currentIncident.confidence_score) > 0.1;
+
+      // Check if event type changed and is valid
+      const validTypes = ['flood', 'landslide', 'fire', 'earthquake', 'power_outage', 'other'];
+      let eventTypeChanged = false;
+      let targetEventType = currentIncident.event_type;
+
+      if (validTypes.includes(newEventType) && newEventType !== currentIncident.event_type) {
+        // If current is 'other', always upgrade. If current is specific and new is specific but different, switch (AI changed mind).
+        if (currentIncident.event_type === 'other' || newEventType !== 'other') {
+          eventTypeChanged = true;
+          targetEventType = newEventType;
+        }
       }
-    }
-  }
 
-  /**
-   * Apply reasoning result to new incident (set initial properties)
-   */
-  private async applyReasoningToNewIncident(
-    incidentId: string,
-    eventType: string,
-    signalCount: number,
-    conclusion: any,
-    decision: any,
-    multiVector: any,
-  ): Promise<void> {
+      if (severityChanged || confidenceChanged || eventTypeChanged) {
+        this.logger.log(`Updating Incident ${currentIncident.id}: Type ${currentIncident.event_type}->${targetEventType}, Sev ${currentIncident.severity}->${newSeverity}`);
+
+        const { error } = await this.db
+          .from('incidents')
+          .update({
+            event_type: targetEventType,
+            severity: newSeverity,
+            confidence_score: newConfidence,
+            summary: conclusion.description,
+            needs_full_eval: false, // Mark as evaluated
+            last_evaluated_at: new Date().toISOString(),
+            cached_reasoning: {
+              conclusion,
+              decision,
+              multiVector: reasoningResult.multiVector,
+              signal_count: signalsContext.length,
+              evaluated_at: new Date().toISOString(),
+            },
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', currentIncident.id);
+
+        if (error) this.logger.error(`Failed to update incident ${currentIncident.id}`, error);
+        else {
+          this.sseService.addEvent({
+            data: {
+              id: currentIncident.id,
+              event_type: targetEventType,
+              severity: newSeverity,
+              confidence_score: newConfidence,
+              summary: conclusion.description,
+              updated_at: new Date().toISOString()
+            },
+            type: 'incident_update'
+          } as MessageEvent);
+        }
+      }
+      return;
+    }
+
+    // Scenario B: New Incident -> Set initial properties
+    // Scenario B: New Incident -> Set initial properties
     const shouldAlert =
       decision.action === 'CREATE_INCIDENT' ||
       decision.action === 'MERGE_INCIDENT' ||
@@ -1020,22 +535,20 @@ export class IncidentsService {
 
     const status = shouldAlert
       ? determineStatus({
-        signalCount,
+        signalCount: signalsContext.length,
         confidence: conclusion.confidence_score,
-        severity: conclusion.severity,
+        severity: conclusion.severity
       })
       : 'monitor';
 
+    // Check if status changed from initial "monitor"
     if (status !== 'monitor') {
-      await this.logLifecycleEvent(
-        incidentId,
-        'monitor',
-        status as IncidentStatus,
-        'ai',
-        `AI Decision: ${decision.action}`,
-      );
+      await this.logLifecycleEvent(incidentId, 'monitor', status, 'ai', `AI Decision: ${decision.action}`);
     }
 
+    // Always update the incident with the reasoning result (confidence, severity, type)
+    // regardless of whether we alert or not.
+    // Also cache the reasoning for future incremental comparisons.
     await this.db
       .from('incidents')
       .update({
@@ -1044,34 +557,38 @@ export class IncidentsService {
         severity: conclusion.severity,
         event_type: conclusion.final_classification || eventType,
         summary: conclusion.description,
-        needs_full_eval: false,
+        needs_full_eval: false, // Mark as evaluated
         last_evaluated_at: new Date().toISOString(),
         cached_reasoning: {
           conclusion,
           decision,
-          multiVector,
-          signal_count: signalCount,
+          multiVector: reasoningResult.multiVector,
+          signal_count: signalsContext.length,
           evaluated_at: new Date().toISOString(),
         },
-        updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
       .eq('id', incidentId);
 
-    this.emitIncidentUpdate({
-      id: incidentId,
-      status: status as IncidentStatus,
-      confidence_score: conclusion.confidence_score,
-      severity: conclusion.severity,
-      event_type: conclusion.final_classification || eventType,
-      summary: conclusion.description,
-      updated_at: new Date().toISOString(),
-    });
+    // Notify Frontend via SSE
+    this.sseService.addEvent({
+      data: {
+        id: incidentId,
+        status,
+        confidence_score: conclusion.confidence_score,
+        severity: conclusion.severity,
+        event_type: conclusion.final_classification || eventType,
+        summary: conclusion.description,
+        updated_at: new Date().toISOString()
+      },
+      type: 'incident_update'
+    } as MessageEvent);
 
-    // Send push notification if alert
+    // Send push notification if status is alert or severity is high
     if (status === 'alert' || conclusion.severity === 'high') {
       await this.notificationsService.notifyIncident({
         id: incidentId,
-        city: '',
+        city: currentIncident?.city || '',
         event_type: conclusion.final_classification || eventType,
         severity: conclusion.severity,
         status,
@@ -1081,27 +598,24 @@ export class IncidentsService {
   }
 
   // ============================================================
-  // CRON JOBS
+  // RESOLUTION CRON (formerly in ClusterService)
   // ============================================================
 
-  /**
-   * Resolution cron job - checks for incidents to auto-resolve
-   */
   @Cron(CronExpression.EVERY_10_MINUTES)
-  async handleResolutionCron(): Promise<void> {
+  async handleResolutionCron() {
+    // Check Remote Config before running cron
     if (!(await this.remoteConfig.isCronEnabled('incidents'))) {
       this.logger.debug('Incidents resolution cron is disabled via Remote Config');
       return;
     }
 
     this.logger.debug('Running incident resolution job...');
-    await this.processIncidentResolution();
+    const result = await this.processIncidentResolution();
+    this.logger.debug('Resolution job finished', result);
+    return result;
   }
 
-  /**
-   * Process all active incidents for potential resolution
-   */
-  async processIncidentResolution(): Promise<void> {
+  async processIncidentResolution() {
     const { data: activeIncidents, error } = await this.db
       .from('incidents')
       .select('id, severity, event_type, created_at, updated_at')
@@ -1114,23 +628,22 @@ export class IncidentsService {
     }
   }
 
-  /**
-   * Check if an incident should be resolved based on silence period
-   */
-  private async checkIncidentResolution(incident: any): Promise<void> {
+  async checkIncidentResolution(incident: any) {
     const now = new Date();
     const lastActivity = new Date(incident.updated_at || incident.created_at);
     const diffHours = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
 
-    let requiredSilenceHours =
-      RESOLUTION_SILENCE_HOURS[incident.severity] ?? 1;
+    let requiredSilenceHours = 1;
+    if (incident.severity === 'medium') requiredSilenceHours = 4;
 
     if (incident.severity === 'high') {
       const eventType = incident.event_type || 'other';
-      requiredSilenceHours = MAX_SIGNAL_AGE[eventType] ?? MAX_SIGNAL_AGE['other'];
+      requiredSilenceHours = MAX_SIGNAL_AGE[eventType] || MAX_SIGNAL_AGE['other'];
     }
 
-    if (diffHours < requiredSilenceHours) return;
+    if (diffHours < requiredSilenceHours) {
+      return;
+    }
 
     const { data: recentSignals } = await this.db
       .from('incident_signals')
@@ -1139,52 +652,48 @@ export class IncidentsService {
       .order('created_at', { ascending: false } as any)
       .limit(10);
 
-    const signals = recentSignals?.map((rs: any) => rs.signals) ?? [];
+    const signals = recentSignals?.map((rs: any) => rs.signals) || [];
 
     if (signals.length === 0) {
-      await this.resolveIncidentInDb(
-        incident.id,
-        `Silence > ${requiredSilenceHours}h (No signals)`,
-      );
+      await this.resolveIncidentInDb(incident.id, 'Silence > ' + requiredSilenceHours + 'h (No signals)');
       return;
     }
 
     try {
       const { result } = await this.resolutionAgent.run({
         incidentSeverity: incident.severity,
-        signals,
+        signals: signals,
       });
 
-      if (result.resolution_confidence >= THRESHOLDS.RESOLUTION_CONFIDENCE) {
-        await this.resolveIncidentInDb(
-          incident.id,
-          `AI Confidence ${result.resolution_confidence}: ${result.reason}`,
-        );
+      if (result.resolution_confidence >= 0.8) {
+        await this.resolveIncidentInDb(incident.id, `AI Confidence ${result.resolution_confidence}: ${result.reason}`);
       }
     } catch (err) {
       this.logger.error(`Resolution Analysis Failed for ${incident.id}:`, err);
     }
   }
 
-  /**
-   * Resolve an incident in the database
-   */
-  private async resolveIncidentInDb(id: string, reason: string): Promise<void> {
+  private async resolveIncidentInDb(id: string, reason: string) {
     this.logger.log(`Resolving incident ${id}: ${reason}`);
 
     await this.logLifecycleEvent(id, 'active', 'resolved', 'ai', reason);
 
-    await this.db.from('incidents').update({ status: 'resolved' }).eq('id', id);
+    await this.db
+      .from('incidents')
+      .update({ status: 'resolved' })
+      .eq('id', id);
   }
 
-  /**
-   * Batch evaluation cron job - processes incidents needing full AI eval
-   */
-  @Cron('*/5 * * * *')
-  async handleBatchEvaluationCron(): Promise<BatchEvaluationResult> {
+  // ============================================================
+  // BATCH EVALUATION CRON (Incremental + Batched Approach)
+  // ============================================================
+
+  @Cron('*/5 * * * *') // Every 5 minutes
+  async handleBatchEvaluationCron() {
+    // Check Remote Config before running cron
     if (!(await this.remoteConfig.isCronEnabled('batch_eval'))) {
       this.logger.debug('Batch evaluation cron is disabled via Remote Config');
-      return { evaluated: 0, errors: 0 };
+      return;
     }
 
     this.logger.log('🔄 Running batch AI evaluation job...');
@@ -1195,20 +704,20 @@ export class IncidentsService {
 
   /**
    * Process all incidents marked as needs_full_eval
-   * OPTIMIZED: Groups incidents by city+eventType for single reasoning per group
+   * This is the "batched" part of the Incremental + Batched approach
    */
-  async processBatchEvaluation(): Promise<BatchEvaluationResult> {
+  async processBatchEvaluation(): Promise<{ evaluated: number; errors: number }> {
     let evaluated = 0;
     let errors = 0;
 
-    // Fetch pending incidents
+    // 1. Fetch incidents that need full AI evaluation
     const { data: pendingIncidents, error } = await this.db
       .from('incidents')
       .select('id, city, event_type, severity, confidence_score, signal_count, last_evaluated_at')
       .eq('needs_full_eval', true)
       .neq('status', 'resolved')
       .order('updated_at', { ascending: false })
-      .limit(INCIDENT_CONFIG.BATCH_EVAL_LIMIT);
+      .limit(10); // Process max 10 per batch to avoid overwhelming AI API
 
     if (error) {
       this.logger.error('Failed to fetch pending incidents for batch eval', error);
@@ -1220,68 +729,28 @@ export class IncidentsService {
       return { evaluated: 0, errors: 0 };
     }
 
-    // Group incidents by city + event_type for batch processing
-    const groupedIncidents = new Map<string, typeof pendingIncidents>();
+    this.logger.log(`📊 Batch evaluating ${pendingIncidents.length} incidents...`);
+
+    // 2. Process each incident with full AI reasoning
     for (const incident of pendingIncidents) {
-      const key = `${incident.city}:${incident.event_type}`;
-      const group = groupedIncidents.get(key) || [];
-      group.push(incident);
-      groupedIncidents.set(key, group);
-    }
-
-    this.logger.log(
-      `📊 Batch evaluating ${pendingIncidents.length} incidents in ${groupedIncidents.size} groups...`,
-    );
-
-    // Process each group with single reasoning call
-    for (const [groupKey, incidents] of groupedIncidents) {
       try {
-        // Combine all signals from incidents in this group
-        const allSignals = await this.fetchSignalsForGroup(incidents);
-
-        if (allSignals.length === 0) {
-          this.logger.debug(`No signals for group ${groupKey}, skipping`);
-          continue;
-        }
-
-        this.logger.log(
-          `🔄 Batch reasoning for ${incidents.length} incidents in ${groupKey} (${allSignals.length} signals)`,
-        );
-
-        // Single reasoning call for entire group
-        const reasoningResult = await this.reasoningService.runReasoningLoop(
-          allSignals,
-          incidents.map((i) => ({ id: i.id, type: i.event_type, city: i.city })),
-          incidents[0].id, // Use first incident for trace
-        );
-
-        // Apply result to all incidents in group
-        for (const incident of incidents) {
-          try {
-            await this.applyBatchReasoningToIncident(incident, reasoningResult);
-            evaluated++;
-          } catch (err) {
-            this.logger.error(`Failed to apply reasoning to ${incident.id}:`, err);
-            errors++;
-          }
-        }
+        await this.runFullEvaluation(incident.id, incident);
+        evaluated++;
       } catch (err) {
-        this.logger.error(`Batch eval failed for group ${groupKey}:`, err);
-        errors += incidents.length;
+        this.logger.error(`Batch eval failed for incident ${incident.id}:`, err);
+        errors++;
       }
     }
 
-    // Check for stale evaluations
-    const staleTime = new Date(
-      Date.now() - INCIDENT_CONFIG.STALE_EVALUATION_MS,
-    ).toISOString();
+    // 3. Also check for stale evaluations (not evaluated in 30+ minutes)
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
 
     const { data: staleIncidents } = await this.db
       .from('incidents')
       .select('id, city, event_type, severity, confidence_score')
       .in('status', ['alert', 'monitor'])
-      .or(`last_evaluated_at.is.null,last_evaluated_at.lt.${staleTime}`)
-      .limit(INCIDENT_CONFIG.STALE_EVAL_LIMIT);
+      .or(`last_evaluated_at.is.null,last_evaluated_at.lt.${thirtyMinutesAgo}`)
+      .limit(5);
 
     if (staleIncidents?.length) {
       this.logger.log(`🕐 Found ${staleIncidents.length} stale incidents, refreshing...`);
@@ -1290,7 +759,7 @@ export class IncidentsService {
         try {
           await this.runFullEvaluation(incident.id, incident);
           evaluated++;
-        } catch {
+        } catch (err) {
           errors++;
         }
       }
@@ -1300,72 +769,18 @@ export class IncidentsService {
   }
 
   /**
-   * Fetch signals for a group of incidents (for batch processing)
-   */
-  private async fetchSignalsForGroup(
-    incidents: { id: string }[],
-  ): Promise<{ source: string; text: string; created_at: string }[]> {
-    const allSignals: { source: string; text: string; created_at: string }[] = [];
-
-    for (const incident of incidents) {
-      const { data: signalsData } = await this.db
-        .from('incident_signals')
-        .select('signals(source, text, created_at)')
-        .eq('incident_id', incident.id)
-        .limit(20);
-
-      if (signalsData) {
-        const signals = signalsData.map((s: any) => s.signals).filter(Boolean);
-        allSignals.push(...signals);
-      }
-    }
-
-    return allSignals;
-  }
-
-  /**
-   * Apply batch reasoning result to a single incident
-   */
-  private async applyBatchReasoningToIncident(
-    incident: any,
-    reasoningResult: any,
-  ): Promise<void> {
-    const { conclusion, decision, multiVector } = reasoningResult;
-
-    const { error } = await this.db
-      .from('incidents')
-      .update({
-        severity: conclusion.severity,
-        confidence_score: conclusion.confidence_score,
-        summary: conclusion.description,
-        needs_full_eval: false,
-        last_evaluated_at: new Date().toISOString(),
-        cached_reasoning: {
-          conclusion,
-          decision,
-          multiVector,
-          evaluated_at: new Date().toISOString(),
-        },
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', incident.id);
-
-    if (error) {
-      throw error;
-    }
-  }
-
-  /**
    * Run full AI evaluation on a single incident
+   * This is called by:
+   * - Batch cron job (for needs_full_eval = true)
+   * - Urgent signal handler (immediate bypass)
    */
-  private async runFullEvaluation(
-    incidentId: string,
-    incident: any,
-  ): Promise<void> {
+  private async runFullEvaluation(incidentId: string, incident: any) {
     this.logger.debug(`Running full AI evaluation for incident ${incidentId}`);
 
+    // Run the existing evaluateIncidentState logic
     await this.evaluateIncidentState(incidentId, incident);
 
+    // Mark evaluation as complete and cache the result
     await this.db
       .from('incidents')
       .update({
@@ -1376,95 +791,226 @@ export class IncidentsService {
   }
 
   // ============================================================
-  // SSE HELPERS
+  // QUERY METHODS (simplified - no more cluster joins)
   // ============================================================
 
-  /**
-   * Emit incident update via SSE
-   */
-  private emitIncidentUpdate(payload: IncidentUpdatePayload): void {
-    this.sseService.addEvent({
-      data: payload,
-      type: SSE_EVENT_TYPES.INCIDENT_UPDATE,
-    } as MessageEvent);
+  isValidBBox(minLat: number, minLng: number, maxLat: number, maxLng: number) {
+    return minLat >= -90 && maxLat <= 90 && minLng >= -180 && maxLng <= 180;
   }
 
-  // ============================================================
-  // LIFECYCLE LOGGING
-  // ============================================================
-
-  /**
-   * Log a lifecycle event for an incident
-   */
-  async logLifecycleEvent(
-    incidentId: string,
-    fromStatus: string | null,
-    toStatus: IncidentStatus | string,
-    changedBy: string,
-    reason: string,
-  ): Promise<void> {
-    const { error } = await this.db.from('incident_lifecycle').insert({
-      incident_id: incidentId,
-      from_status: fromStatus,
-      to_status: toStatus,
-      changed_by: changedBy,
-      triggered_by: 'system',
-      reason,
-    });
+  async getIncidentsInViewport(minLat: number, minLng: number, maxLat: number, maxLng: number) {
+    const { data: incidents, error } = await this.db
+      .from('incidents')
+      .select(`
+        id,
+        status,
+        severity,
+        event_type,
+        confidence_score,
+        city,
+        summary,
+        created_at,
+        updated_at,
+        incident_signals!inner (
+          signals!inner (
+            lat,
+            lng
+          )
+        ),
+        incident_feedback (
+            user_id,
+            type,
+            users (
+                name,
+                avatar_url
+            )
+        )
+      `)
+      .in('status', ['alert', 'monitor', 'resolved']);
 
     if (error) {
-      this.logger.error(
-        `Failed to log lifecycle event for incident ${incidentId}`,
-        error,
-      );
+      console.error('Map API Error:', error);
+      throw new InternalServerErrorException('Failed to fetch incidents');
     }
+
+    // Transform and Filter
+    const mapIncidents = (incidents as any[]).map(inc => {
+      const sigs = inc.incident_signals.map((is: any) => is.signals);
+      if (sigs.length === 0) return null;
+
+      // Calculate Centroid
+      const avgLat = sigs.reduce((sum: number, s: any) => sum + s.lat, 0) / sigs.length;
+      const avgLng = sigs.reduce((sum: number, s: any) => sum + s.lng, 0) / sigs.length;
+
+      return {
+        id: inc.id,
+        type: inc.event_type,
+        severity: inc.severity,
+        confidence: inc.confidence_score,
+        lat: avgLat,
+        lng: avgLng,
+        city: inc.city,
+        summary: inc.summary,
+        status: inc.status,
+        created_at: inc.created_at,
+        updated_at: inc.updated_at,
+        signal_count: sigs.length,
+        incident_feedback: inc.incident_feedback || []
+      };
+    }).filter(inc => inc !== null);
+
+    // Bounds Filter
+    const isIndonesiaView = Math.abs(minLat - (-11)) < 0.1 && Math.abs(maxLat - 6) < 0.1 && Math.abs(minLng - 95) < 0.1 && Math.abs(maxLng - 141) < 0.1;
+
+    return mapIncidents.filter(inc => {
+      // Special case: If "All Indonesia" is selected, force show all ongoing incidents
+      // This prevents cutting off incidents near the borders or slightly outside the box
+      if (isIndonesiaView && ['alert', 'monitor'].includes(inc.status)) {
+        return true;
+      }
+
+      return inc.lat >= minLat && inc.lat <= maxLat &&
+        inc.lng >= minLng && inc.lng <= maxLng;
+    });
   }
 
-  // ============================================================
-  // PUBLIC API (delegated to queries service)
-  // ============================================================
+  async getNearbyIncidents(lat: number, lng: number, radiusM: number) {
+    const { data: incidents, error } = await this.db
+      .from('incidents')
+      .select(`
+        id,
+        status,
+        severity,
+        event_type,
+        confidence_score,
+        city,
+        summary,
+        created_at,
+        updated_at,
+        incident_signals!inner (
+          signals!inner (lat, lng)
+        ),
+        incident_feedback (
+            user_id,
+            type,
+            users (
+                name,
+                avatar_url
+            )
+        )
+      `)
+      .in('status', ['alert', 'monitor', 'resolved']);
 
-  /**
-   * Validate bounding box coordinates
-   */
-  isValidBBox(minLat: number, minLng: number, maxLat: number, maxLng: number): boolean {
-    return this.queriesService.isValidBBox(minLat, minLng, maxLat, maxLng);
+    if (error) {
+      throw new InternalServerErrorException('Failed to fetch incidents');
+    }
+
+    // Transform to get centroids
+    const candidates = (incidents as any[]).map(inc => {
+      const sigs = inc.incident_signals.map((is: any) => is.signals);
+      if (!sigs.length) return null;
+
+      const avgLat = sigs.reduce((sum: number, s: any) => sum + s.lat, 0) / sigs.length;
+      const avgLng = sigs.reduce((sum: number, s: any) => sum + s.lng, 0) / sigs.length;
+
+      return {
+        id: inc.id,
+        type: inc.event_type,
+        severity: inc.severity,
+        confidence: inc.confidence_score,
+        city: inc.city,
+        summary: inc.summary,
+        status: inc.status,
+        created_at: inc.created_at,
+        updated_at: inc.updated_at,
+        lat: avgLat,
+        lng: avgLng,
+        distance: 0,
+        signal_count: sigs.length,
+        incident_feedback: inc.incident_feedback || []
+      };
+    }).filter(x => x !== null);
+
+    // Filter by Haversine Distance
+    const results = candidates.map(inc => {
+      inc.distance = this.getDistanceFromLatLonInM(lat, lng, inc.lat, inc.lng);
+      return inc;
+    }).filter(inc => inc.distance <= radiusM);
+
+    // Sort by Distance
+    return results.sort((a, b) => a.distance - b.distance);
   }
 
-  /**
-   * Get incidents in viewport
-   */
-  async getIncidentsInViewport(
-    minLat: number,
-    minLng: number,
-    maxLat: number,
-    maxLng: number,
-  ): Promise<IncidentWithCentroid[]> {
-    return this.queriesService.getIncidentsInViewport(minLat, minLng, maxLat, maxLng);
+  private getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371e3; // metres
+    const dLat = this.deg2rad(lat2 - lat1);
+    const dLon = this.deg2rad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
   }
 
-  /**
-   * Get nearby incidents
-   */
-  async getNearbyIncidents(
-    lat: number,
-    lng: number,
-    radiusM: number,
-  ): Promise<IncidentWithCentroid[]> {
-    return this.queriesService.getNearbyIncidents(lat, lng, radiusM);
+  private deg2rad(deg: number) {
+    return deg * (Math.PI / 180);
   }
 
-  /**
-   * Get incident by ID
-   */
-  async getIncidentById(id: string): Promise<any> {
-    return this.queriesService.getIncidentById(id);
+  async getIncidentById(id: string) {
+    const { data: incident, error } = await this.db
+      .from('incidents')
+      .select(`
+        *,
+        incident_signals (
+          signals (
+            *
+          )
+        ),
+        verifications (
+          type,
+          created_at
+        ),
+        incident_feedback (
+            id,
+            user_id,
+            type,
+            comment,
+            created_at,
+            users (
+                name,
+                avatar_url
+            )
+        ),
+        incident_lifecycle (
+            id,
+            to_status,
+            changed_by,
+            reason,
+            created_at
+        )
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error || !incident) {
+      console.log('error', error)
+      throw new NotFoundException('Incident not found');
+    }
+
+    // Transform nested signals structure to flat array
+    const flatIncident = {
+      ...incident,
+      signals: incident.incident_signals.map((is: any) => is.signals),
+      lifecycle: incident.incident_lifecycle?.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) || []
+    };
+    delete (flatIncident as any).incident_signals;
+    delete (flatIncident as any).incident_lifecycle;
+
+    return flatIncident;
   }
 
-  /**
-   * Resolve an incident manually
-   */
-  async resolveIncident(id: string): Promise<{ success: boolean }> {
+  async resolveIncident(id: string) {
     const { error } = await this.db
       .from('incidents')
       .update({ status: 'resolved' })
@@ -1477,35 +1023,85 @@ export class IncidentsService {
     return { success: true };
   }
 
-  /**
-   * Get signals for an incident
-   */
-  async getIncidentSignals(incidentId: string): Promise<Signal[]> {
-    return this.queriesService.getIncidentSignals(incidentId);
+  async getIncidentSignals(incidentId: string) {
+    const { data, error } = await this.db
+      .from('incident_signals')
+      .select(`
+        signals (
+          id,
+          source,
+          text,
+          media_url,
+          media_type,
+          city_hint,
+          event_type,
+          created_at,
+          happened_at
+        )
+      `)
+      .eq('incident_id', incidentId);
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to fetch signals');
+    }
+
+    return data?.map((is: any) => is.signals) || [];
   }
 
-  /**
-   * Get lifecycle events for an incident
-   */
-  async getIncidentLifecycle(incidentId: string): Promise<any[]> {
-    return this.queriesService.getIncidentLifecycle(incidentId);
-  }
-
-  /**
-   * Get agent traces for an incident
-   */
-  async getIncidentTraces(incidentId: string): Promise<any[]> {
-    return this.queriesService.getIncidentTraces(incidentId);
-  }
-
-  /**
-   * Submit user feedback on an incident
-   */
-  async submitFeedback(
+  async logLifecycleEvent(
     incidentId: string,
-    userId: string,
-    type: 'confirm' | 'reject',
-  ): Promise<{ success: boolean; feedback_id?: string }> {
+    fromStatus: string | null,
+    toStatus: string,
+    changedBy: string,
+    reason: string,
+  ) {
+    const { error } = await this.db.from('incident_lifecycle').insert({
+      incident_id: incidentId,
+      from_status: fromStatus,
+      to_status: toStatus,
+      changed_by: changedBy,
+      triggered_by: 'system',
+      reason: reason,
+    });
+
+    if (error) {
+      this.logger.error(
+        `Failed to log lifecycle event for incident ${incidentId}`,
+        error,
+      );
+    }
+  }
+
+  async getIncidentLifecycle(incidentId: string) {
+    const { data, error } = await this.db
+      .from('incident_lifecycle')
+      .select('*')
+      .eq('incident_id', incidentId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to fetch lifecycle');
+    }
+
+    return data || [];
+  }
+
+  async getIncidentTraces(incidentId: string) {
+    const { data, error } = await this.db
+      .from('agent_traces')
+      .select('*')
+      .eq('incident_id', incidentId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to fetch traces');
+    }
+
+    return data || [];
+  }
+
+  async submitFeedback(incidentId: string, userId: string, type: 'confirm' | 'reject') {
+    // Upsert to allow changing feedback
     const { data, error } = await this.db
       .from('incident_feedback')
       .upsert(
@@ -1515,7 +1111,7 @@ export class IncidentsService {
           type,
           created_at: new Date().toISOString(),
         },
-        { onConflict: 'incident_id, user_id' },
+        { onConflict: 'incident_id, user_id' }
       )
       .select('id')
       .single();
@@ -1528,12 +1124,8 @@ export class IncidentsService {
     return { success: true, feedback_id: data?.id };
   }
 
-  /**
-   * Reprocess pending signals manually
-   */
-  async reprocessPendingSignals(): Promise<{ count: number; processed: number }> {
+  async reprocessPendingSignals() {
     this.logger.log('Manually triggering reprocessing of PENDING signals...');
-
     const { data: signals, error } = await this.db
       .from('signals')
       .select('*')
@@ -1541,7 +1133,7 @@ export class IncidentsService {
 
     if (error || !signals) {
       this.logger.error('Failed to fetch pending signals', error);
-      return { count: 0, processed: 0 };
+      return { count: 0, error };
     }
 
     this.logger.log(`Found ${signals.length} pending signals.`);
