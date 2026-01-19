@@ -5,6 +5,8 @@ import { ClassifierAgent } from './agents/classifier.agent';
 import { SkepticAgent, SourceBreakdown } from './agents/skeptic.agent';
 import { SynthesizerAgent } from './agents/synthesizer.agent';
 import { ActionAgent } from './agents/action.agent';
+import { ReasoningCacheService } from './reasoning-cache.service';
+import * as crypto from 'crypto';
 
 /**
  * Multi-Vector Detection Result
@@ -28,6 +30,7 @@ export class ReasoningService {
     private readonly skeptic: SkepticAgent,
     private readonly synthesizer: SynthesizerAgent,
     private readonly action: ActionAgent,
+    private readonly cacheService: ReasoningCacheService,
   ) {}
 
   /**
@@ -72,10 +75,6 @@ export class ReasoningService {
   /**
    * Calculate source diversity bonus for multi-vector detection
    * Returns a deterministic confidence adjustment based on source diversity
-   * 
-   * According to EVIDENCE_WEIGHTING.md:
-   * - Alerts require at least two evidence categories
-   * - Independence > volume
    */
   getSourceDiversityBonus(breakdown: SourceBreakdown): MultiVectorResult {
     const categories = {
@@ -101,14 +100,14 @@ export class ReasoningService {
       diversityBonus = 0; // Single source, no bonus
     }
 
-    // Official source bonus (per EVIDENCE_WEIGHTING.md: 0.30-0.50 base weight)
+    // Official source bonus
     if (hasOfficialSource) {
-      diversityBonus += 0.05; // Extra trust for official sources
+      diversityBonus += 0.05;
     }
 
-    // Penalty for single-source incidents (per spec: "Not all evidence is equal")
+    // Penalty for single-source incidents
     if (categoryCount === 1 && breakdown.total === 1) {
-      diversityBonus = -0.05; // Slight penalty for single unverified source
+      diversityBonus = -0.05;
     }
 
     this.logger.debug(
@@ -143,6 +142,21 @@ export class ReasoningService {
         `diversityBonus=${multiVectorResult.diversityBonus.toFixed(2)}`
       );
 
+      // Check cache first
+      const city = existingIncidents[0]?.city || 'unknown';
+      const eventType = existingIncidents[0]?.type || 'other';
+      const cacheKey = this.cacheService.generateCacheKey(city, eventType, signals);
+      const cached = this.cacheService.get(cacheKey);
+
+      if (cached) {
+        this.logger.log(`Using cached reasoning result for session ${sessionId}`);
+        return {
+          ...cached,
+          sessionId,
+          fromCache: true,
+        };
+      }
+
       // 1. Observer
       const { result: observation, trace: t1 } = await this.observer.run({ signals });
       await this.saveTrace(sessionId, t1, incidentId);
@@ -164,8 +178,6 @@ export class ReasoningService {
       await this.saveTrace(sessionId, t4, incidentId);
 
       // Apply multi-vector diversity bonus to confidence
-      // Note: AI's confidence_adjustment from Skeptic is advisory, 
-      // we apply our deterministic bonus on top
       const adjustedConfidence = Math.max(0, Math.min(1,
         conclusion.confidence_score + multiVectorResult.diversityBonus
       ));
@@ -175,12 +187,17 @@ export class ReasoningService {
       const { result: decision, trace: t5 } = await this.action.run({ conclusion, existingIncidents });
       await this.saveTrace(sessionId, t5, incidentId);
 
-      return {
+      const result = {
         conclusion,
         decision,
         sessionId,
-        multiVector: multiVectorResult, // Include multi-vector analysis in result
+        multiVector: multiVectorResult, 
       };
+
+      // Store in cache
+      this.cacheService.set(cacheKey, result);
+
+      return result;
 
     } catch (error) {
       this.logger.error('Reasoning Loop Failed:', error);
@@ -198,8 +215,24 @@ export class ReasoningService {
       output_result: trace.output,
       model_used: trace.model,
       created_at: trace.timestamp
-    }).then(({ error }) => {
+    }).then(({ error }: { error: any }) => {
       if (error) this.logger.warn('Failed to save trace:', error);
     });
+  }
+
+  /**
+   * Update agent_traces with incident_id after incident creation
+   * Used when runReasoningLoop is called before incident exists
+   */
+  async updateTracesIncidentId(sessionId: string, incidentId: string) {
+    const { error } = await (this.supabase.getClient().from('agent_traces') as any)
+      .update({ incident_id: incidentId })
+      .eq('session_id', sessionId);
+
+    if (error) {
+      this.logger.warn(`Failed to update traces with incident_id for session ${sessionId}:`, error);
+    } else {
+      this.logger.debug(`Updated agent_traces for session ${sessionId} with incident_id ${incidentId}`);
+    }
   }
 }
