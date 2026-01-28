@@ -26,6 +26,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { SseService } from '../sse/sse.service';
 import { ReasoningService } from '../reasoning/reasoning.service';
 import { IncidentResolutionAgent } from '../reasoning/agents/incident-resolution.agent';
+import { LocationMatcherAgent } from '../reasoning/agents/location-matcher.agent';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RemoteConfigService } from '../config/remote-config.service';
 
@@ -74,6 +75,7 @@ import {
   isValidBBox,
   transformIncidentWithCentroid,
   calculateIncrementalConfidenceBonus,
+  clusterCity,
 } from './incidents.utils';
 
 // Queries service
@@ -94,6 +96,7 @@ export class IncidentsService {
     private readonly supabase: SupabaseService,
     private readonly reasoningService: ReasoningService,
     private readonly resolutionAgent: IncidentResolutionAgent,
+    private readonly locationMatcherAgent: LocationMatcherAgent,
     private readonly sseService: SseService,
     private readonly notificationsService: NotificationsService,
     private readonly remoteConfig: RemoteConfigService,
@@ -148,20 +151,23 @@ export class IncidentsService {
       const city = await this.geocodeAndUpdateSignal(signal, lat, lng, happenedAt);
 
       // 3. Route signal to existing incident or create new
-      const resolvedCity = city ?? signal.city_hint ?? '';
-      const activeIncident = await this.findActiveIncident(
-        resolvedCity,
-        signal.event_type ?? 'other',
-      );
+      const resolvedCity = clusterCity(city ?? signal.city_hint);
+      const eventType = signal.event_type ?? 'other';
+      const activeIncident = await this.findActiveIncident(resolvedCity, eventType);
 
       if (activeIncident) {
-        await this.mergeSignalToIncident(signal, activeIncident);
+        // Verify location matches before merging (uses AI comparison)
+        const shouldMerge = await this.shouldMergeToIncident(signal, activeIncident, resolvedCity);
+        if (shouldMerge) {
+          await this.mergeSignalToIncident(signal, activeIncident, resolvedCity);
+        } else {
+          this.logger.log(
+            `Signal ${signal.id} location "${signal.city_hint}" doesn't match incident ${activeIncident.id} city "${activeIncident.city}", creating new incident`,
+          );
+          await this.tryCreateNewIncident(signal, resolvedCity, eventType);
+        }
       } else {
-        await this.tryCreateNewIncident(
-          signal,
-          city ?? signal.city_hint ?? '',
-          signal.event_type ?? 'other',
-        );
+        await this.tryCreateNewIncident(signal, resolvedCity, eventType);
       }
 
       // 4. Mark as processed
@@ -285,15 +291,87 @@ export class IncidentsService {
   // ============================================================
 
   /**
+   * Check if a signal should be merged into an existing incident
+   * Uses AI to validate that the signal's location matches the incident's location
+   */
+  private async shouldMergeToIncident(
+    signal: Signal,
+    incident: Incident,
+    signalCity: string,
+  ): Promise<boolean> {
+    // Quick check: if clustered cities match exactly, proceed
+    if (signalCity === incident.city) {
+      this.logger.debug(`City exact match: "${signalCity}"`);
+    } else {
+      // Use AI to compare locations when clustered names differ
+      const isSameLocation = await this.compareLocationsWithAI(
+        signal.city_hint ?? signalCity,
+        incident.city,
+      );
+
+      if (!isSameLocation) {
+        this.logger.debug(
+          `AI determined locations are different: signal "${signal.city_hint}" vs incident "${incident.city}"`,
+        );
+        return false;
+      }
+
+      this.logger.debug(
+        `AI confirmed same location: signal "${signal.city_hint}" ≈ incident "${incident.city}"`,
+      );
+    }
+
+    // Event type should match (unless incident is 'other')
+    const signalEventType = signal.event_type ?? 'other';
+    if (incident.event_type !== 'other' && signalEventType !== 'other') {
+      if (signalEventType !== incident.event_type) {
+        this.logger.debug(
+          `Event type mismatch: signal "${signalEventType}" vs incident "${incident.event_type}"`,
+        );
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Use LocationMatcherAgent to compare two location strings and determine if they refer to the same area
+   * Handles variations like "Jakarta Selatan" vs "South Jakarta", formatted addresses, etc.
+   */
+  private async compareLocationsWithAI(
+    location1: string,
+    location2: string,
+  ): Promise<boolean> {
+    try {
+      const { result } = await this.locationMatcherAgent.run({
+        location1,
+        location2,
+      });
+
+      this.logger.debug(
+        `LocationMatcherAgent: "${location1}" vs "${location2}" => ${result.same_location} (${result.reason})`,
+      );
+
+      return result.same_location === true;
+    } catch (error: any) {
+      this.logger.error('LocationMatcherAgent failed:', error?.message || error);
+      // Fallback to strict string comparison on error
+      return clusterCity(location1) === clusterCity(location2);
+    }
+  }
+
+  /**
    * Merge a signal into an existing incident
    * Uses incremental confidence update (no AI call) for efficiency
    */
   private async mergeSignalToIncident(
     signal: Signal,
     incident: Incident,
+    signalCity: string,
   ): Promise<void> {
     this.logger.log(
-      `Merging signal ${signal.id} into existing incident ${incident.id} (${incident.city})`,
+      `Merging signal ${signal.id} (city: ${signalCity}) into incident ${incident.id} (city: ${incident.city})`,
     );
 
     // 1. Link signal to incident
@@ -333,7 +411,8 @@ export class IncidentsService {
         time_end: signalTime > incident.time_end ? signalTime : incident.time_end,
         confidence_score: newConfidence,
         signal_count: newSignalCount,
-        needs_full_eval: true,
+        // Only mark for full eval if signal is urgent - reduces batch cron LLM calls
+        needs_full_eval: isUrgent,
         updated_at: new Date().toISOString(),
       })
       .eq('id', incident.id);
@@ -396,13 +475,17 @@ export class IncidentsService {
     oldConfidence: number,
     newConfidence: number,
   ): boolean {
-    const isOfficial = isOfficialSource(signal.source);
+    // OPTIMIZED: Removed isOfficialSource check - trusted sources already bypass reasoning
+    // on creation. Re-triggering AI on every official signal merge was causing excess calls.
     const isHighSeverity = (signal.raw_payload as Record<string, any>)?.ai_analysis?.severity === 'high';
     const crossedAlertThreshold =
       newConfidence >= THRESHOLDS.ALERT_CONFIDENCE &&
       oldConfidence < THRESHOLDS.ALERT_CONFIDENCE;
 
-    return isOfficial || isHighSeverity || crossedAlertThreshold;
+    // Only trigger immediate AI eval for truly urgent cases:
+    // 1. High severity signals (e.g., mass casualty, critical infrastructure)
+    // 2. Crossing alert threshold (needs status upgrade decision)
+    return isHighSeverity || crossedAlertThreshold;
   }
 
   // ============================================================
@@ -948,8 +1031,10 @@ export class IncidentsService {
       'landslide',
       'fire',
       'earthquake',
-      'power_outage',
+      'whirlwind',
+      'tornado',
       'volcano',
+      'tsunami',
       'other',
     ];
     let eventTypeChanged = false;
@@ -1180,7 +1265,7 @@ export class IncidentsService {
   /**
    * Batch evaluation cron job - processes incidents needing full AI eval
    */
-  @Cron('*/5 * * * *')
+  @Cron('*/15 * * * *')  // OPTIMIZED: Changed from */5 to reduce LLM call frequency
   async handleBatchEvaluationCron(): Promise<BatchEvaluationResult> {
     if (!(await this.remoteConfig.isCronEnabled('batch_eval'))) {
       this.logger.debug('Batch evaluation cron is disabled via Remote Config');
@@ -1271,30 +1356,11 @@ export class IncidentsService {
       }
     }
 
-    // Check for stale evaluations
-    const staleTime = new Date(
-      Date.now() - INCIDENT_CONFIG.STALE_EVALUATION_MS,
-    ).toISOString();
-
-    const { data: staleIncidents } = await this.db
-      .from('incidents')
-      .select('id, city, event_type, severity, confidence_score')
-      .in('status', ['alert', 'monitor'])
-      .or(`last_evaluated_at.is.null,last_evaluated_at.lt.${staleTime}`)
-      .limit(INCIDENT_CONFIG.STALE_EVAL_LIMIT);
-
-    if (staleIncidents?.length) {
-      this.logger.log(`🕐 Found ${staleIncidents.length} stale incidents, refreshing...`);
-
-      for (const incident of staleIncidents) {
-        try {
-          await this.runFullEvaluation(incident.id, incident);
-          evaluated++;
-        } catch {
-          errors++;
-        }
-      }
-    }
+    // OPTIMIZATION: Removed stale incidents individual evaluation loop
+    // This was causing up to STALE_EVAL_LIMIT extra LLM calls per cron run,
+    // bypassing the batch grouping optimization above.
+    // Incidents will be re-evaluated when they receive new signals that trigger needs_full_eval,
+    // or manually via runFullEvaluation if needed.
 
     return { evaluated, errors };
   }

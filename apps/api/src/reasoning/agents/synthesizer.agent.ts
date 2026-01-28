@@ -46,7 +46,7 @@ export class SynthesizerAgent extends GeminiAgent<SynthesizerInput, SynthesizerO
 
       OUTPUT JSON:
       {
-        "final_classification": "flood | fire | earthquake | traffic | protest | other",
+        "final_classification": "flood | fire | earthquake | landslide | volcano | whirlwind | tornado | tsunami | other",
         "confidence_score": 0.0 to 1.0 (Penalize uncertain situations),
         "severity": "low | medium | high",
         "title": "Short title for map (e.g. Major Flood in CBD)",

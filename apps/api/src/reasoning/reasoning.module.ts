@@ -14,6 +14,8 @@ import { VideoAnalysisAgent } from './agents/video-analysis.agent';
 import { NewsAnalysisAgent } from './agents/news-analysis.agent';
 import { IncidentResolutionAgent } from './agents/incident-resolution.agent';
 import { GuideAssistantAgent } from './agents/guide-assistant.agent';
+import { LocationMatcherAgent } from './agents/location-matcher.agent';
+import { UserReportAnalysisAgent } from './agents/user-report-analysis.agent';
 import { GoogleMapsTool } from './tools/google-maps.tool';
 
 @Module({
@@ -31,6 +33,8 @@ import { GoogleMapsTool } from './tools/google-maps.tool';
     NewsAnalysisAgent,
     IncidentResolutionAgent,
     GuideAssistantAgent,
+    LocationMatcherAgent,
+    UserReportAnalysisAgent,
     GoogleMapsTool,
     {
       provide: OpenAI,
@@ -49,6 +53,8 @@ import { GoogleMapsTool } from './tools/google-maps.tool';
     NewsAnalysisAgent,
     IncidentResolutionAgent,
     GuideAssistantAgent,
+    LocationMatcherAgent,
+    UserReportAnalysisAgent,
   ],
 })
 export class ReasoningModule {}

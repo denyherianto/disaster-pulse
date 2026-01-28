@@ -64,7 +64,7 @@ export class RemoteConfigService implements OnModuleInit {
     if (this.isFetching) return;
     this.isFetching = true;
 
-
+    try {
       if (!admin.apps.length) {
         this.logger.debug('Firebase App not initialized, using default config');
         this.setDefaultConfig();
@@ -72,57 +72,53 @@ export class RemoteConfigService implements OnModuleInit {
       }
 
       // Use Manual REST API Fetch to bypass SDK weirdness
-      try {
-        const projectId = admin.app().options.credential.projectId || this.configService.get('FIREBASE_PROJECT_ID') || 'disaster-pulse-7962f';
-        const accessTokenObj = await admin.app().options.credential.getAccessToken();
-        const accessToken = accessTokenObj.access_token;
-        
-        const url = `https://firebaseremoteconfig.googleapis.com/v1/projects/${projectId}/remoteConfig`;
-        this.logger.debug(`Fetching Remote Config via REST API: ${url}`);
-        
-        const axios = require('axios');
-        const response = await axios.get(url, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Accept-Encoding': 'gzip',
-          }
-        });
+      const projectId = admin.app().options.credential.projectId || this.configService.get('FIREBASE_PROJECT_ID') || 'disaster-pulse-7962f';
+      const accessTokenObj = await admin.app().options.credential.getAccessToken();
+      const accessToken = accessTokenObj.access_token;
 
-        const template = response.data;
-        this.logger.debug('Fetched Server Template via REST API successfully');
-        
-        this.config = {};
-        const parameters = template.parameters || {};
-        
-        this.logger.debug(`Parameters found: ${Object.keys(parameters).length}`);
-        
-        for (const [key, param] of Object.entries(parameters)) {
-          // Handle different value types
-          const defaultValue = (param as any).defaultValue?.value;
-          if (defaultValue === 'true') {
-            this.config[key] = true;
-          } else if (defaultValue === 'false') {
-            this.config[key] = false;
-          } else {
-            this.config[key] = defaultValue;
-          }
-        }
-        
-        this.lastFetch = Date.now();
-        this.logger.log(`Remote Config values fetched (${Object.keys(this.config).length} items):`, JSON.stringify(this.config));
+      const url = `https://firebaseremoteconfig.googleapis.com/v1/projects/${projectId}/remoteConfig`;
+      this.logger.debug(`Fetching Remote Config via REST API: ${url}`);
 
-      } catch (error: any) {
-        this.logger.error('Failed to fetch Remote Config via REST API:', error?.message || error);
-        if (error.response) {
-            this.logger.error(`API Error: ${JSON.stringify(error.response.data)}`);
+      const axios = require('axios');
+      const response = await axios.get(url, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept-Encoding': 'gzip',
         }
-        this.setDefaultConfig();
-      } finally {
-        this.isFetching = false;
+      });
+
+      const template = response.data;
+      this.logger.debug('Fetched Server Template via REST API successfully');
+
+      this.config = {};
+      const parameters = template.parameters || {};
+
+      this.logger.debug(`Parameters found: ${Object.keys(parameters).length}`);
+
+      for (const [key, param] of Object.entries(parameters)) {
+        // Handle different value types
+        const defaultValue = (param as any).defaultValue?.value;
+        if (defaultValue === 'true') {
+          this.config[key] = true;
+        } else if (defaultValue === 'false') {
+          this.config[key] = false;
+        } else {
+          this.config[key] = defaultValue;
+        }
       }
-      return; // Skip the rest of the method
-      
-      /* DEAD CODE REMOVED */
+
+      this.lastFetch = Date.now();
+      this.logger.log(`Remote Config values fetched (${Object.keys(this.config).length} items):`, JSON.stringify(this.config));
+
+    } catch (error: any) {
+      this.logger.error('Failed to fetch Remote Config via REST API:', error?.message || error);
+      if (error.response) {
+        this.logger.error(`API Error: ${JSON.stringify(error.response.data)}`);
+      }
+      this.setDefaultConfig();
+    } finally {
+      this.isFetching = false;
+    }
   }
 
   /**

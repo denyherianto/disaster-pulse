@@ -15,6 +15,10 @@ export const MAX_SIGNAL_AGE: Record<string, number> = {
   fire: 24,            // Major fires can persist
   flood: 48,           // Floods often last days
   landslide: 48,       // After-effects linger
+  whirlwind: 6,        // Short duration events
+  tornado: 6,          // Short duration events
+  tsunami: 24,         // High impact, lasting effects
+  volcano: 72,         // Eruptions can last days
   other: 24,           // Default
 };
 
@@ -51,12 +55,6 @@ export const INCIDENT_CONFIG = {
 
   /** Maximum incidents to process in batch evaluation */
   BATCH_EVAL_LIMIT: 10,
-
-  /** Maximum stale incidents to refresh per batch */
-  STALE_EVAL_LIMIT: 5,
-
-  /** Time before an incident is considered stale (30 minutes) */
-  STALE_EVALUATION_MS: 30 * 60 * 1000,
 } as const;
 
 // ============================================================
@@ -90,9 +88,9 @@ export const RESOLUTION_SILENCE_HOURS: Record<string, number> = {
 
 /** Sources that bypass AI reasoning for specific event types */
 export const TRUSTED_SOURCES: Record<string, string[]> = {
-  bmkg: ['earthquake', 'volcano'],
-  bnpb: ['earthquake', 'flood', 'volcano', 'landslide', 'fire'],
-  bpbd: ['earthquake', 'flood', 'volcano', 'landslide', 'fire'],
+  bmkg: ['earthquake', 'volcano', 'tsunami'],
+  bnpb: ['earthquake', 'flood', 'volcano', 'landslide', 'fire', 'whirlwind', 'tornado', 'tsunami'],
+  bpbd: ['earthquake', 'flood', 'volcano', 'landslide', 'fire', 'whirlwind', 'tornado', 'tsunami'],
 } as const;
 
 /**

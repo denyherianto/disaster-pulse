@@ -1,9 +1,27 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Post, Query } from '@nestjs/common';
 import { AdminService } from './admin.service';
+import { DemoSeedService } from './demo-seed.service';
 
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly demoSeedService: DemoSeedService,
+  ) { }
+
+  // ============================================
+  // Demo Endpoints for Video Production
+  // ============================================
+
+  @Post('demo/seed')
+  async seedDemoData() {
+    return this.demoSeedService.seed();
+  }
+
+  @Post('demo/reset')
+  async resetDemoData() {
+    return this.demoSeedService.reset();
+  }
 
   @Get('signals')
   async getSignals(

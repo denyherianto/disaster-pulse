@@ -17,6 +17,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     BullModule.registerQueue(
       { name: 'clustering-queue' },
       { name: 'resolution-queue' },
+      { name: 'report-queue' },
     ),
   ],
   exports: [BullModule],

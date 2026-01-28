@@ -35,9 +35,10 @@ export type EventType =
   | 'landslide'
   | 'fire'
   | 'earthquake'
-  | 'power_outage'
-  | 'accident'
   | 'volcano'
+  | 'whirlwind'
+  | 'tornado'
+  | 'tsunami'
   | 'other';
 
 /** Incident status values */

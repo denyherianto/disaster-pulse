@@ -44,6 +44,33 @@ export const INCIDENT_CONFIG = {
             mapMarker: 'bg-rose-500'
         }
     },
+    whirlwind: {
+        icon: 'cyclone',
+        color: 'sky',
+        classes: {
+            feed: 'bg-sky-50 border-sky-100 text-sky-500',
+            header: 'bg-sky-500',
+            mapMarker: 'bg-sky-500'
+        }
+    },
+    tornado: {
+        icon: 'tornado',
+        color: 'indigo',
+        classes: {
+            feed: 'bg-indigo-50 border-indigo-100 text-indigo-500',
+            header: 'bg-indigo-500',
+            mapMarker: 'bg-indigo-500'
+        }
+    },
+    tsunami: {
+        icon: 'tsunami',
+        color: 'cyan',
+        classes: {
+            feed: 'bg-cyan-50 border-cyan-100 text-cyan-500',
+            header: 'bg-cyan-500',
+            mapMarker: 'bg-cyan-500'
+        }
+    },
     default: {
         icon: 'warning',
         color: 'slate',

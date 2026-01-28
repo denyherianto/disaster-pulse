@@ -6,6 +6,7 @@ import { VideoAnalysisAgent } from '../../reasoning/agents/video-analysis.agent'
 import { SupabaseService } from '../../supabase/supabase.service';
 import { SignalsService } from '../../signals/signals.service';
 import { RemoteConfigService } from '../../config/remote-config.service';
+import { R2UploadService } from '../../upload/r2-upload.service';
 
 interface TiktokVideo {
   aweme_id: string;
@@ -56,6 +57,7 @@ export class TiktokService implements OnModuleInit {
     private readonly signalsService: SignalsService,
     private readonly videoAgent: VideoAnalysisAgent,
     private readonly remoteConfig: RemoteConfigService,
+    private readonly r2UploadService: R2UploadService,
   ) { }
 
   onModuleInit() {
@@ -183,6 +185,27 @@ export class TiktokService implements OnModuleInit {
       return;
     }
 
+    // NEW: Upload to R2 if accepted
+    let mediaUrl = video.play;
+    try {
+      this.logger.log(`Downloading video for R2 upload: ${video.video_id}`);
+      const response = await axios.get(video.play, { responseType: 'arraybuffer' });
+      const buffer = Buffer.from(response.data);
+
+      const uploadResult = await this.r2UploadService.uploadFromBuffer(
+        buffer,
+        'video/mp4', // TikTok API typically returns MP4, but strictly we should check headers
+        'tiktok',
+        `${video.video_id}.mp4`
+      );
+
+      mediaUrl = uploadResult.url;
+      this.logger.log(`Video uploaded to R2: ${mediaUrl}`);
+    } catch (error) {
+      this.logger.error(`Failed to upload video ${video.video_id} to R2. Using original URL.`, error);
+      // Fallback to original URL is already set
+    }
+
     // 3. Create Signal
     const signalPayload = {
       source: 'social_media',
@@ -191,7 +214,7 @@ export class TiktokService implements OnModuleInit {
       lat: null, // As requested
       lng: null, // As requested
       city_hint: analysis.location_inference || null,
-      media_url: video.play, // Store the video URL
+      media_url: mediaUrl, // Store the R2 URL (or fallback)
       media_type: 'video',
       thumbnail_url: video.origin_cover || video.cover,
       created_at: undefined, // Let DB handle it
@@ -201,6 +224,7 @@ export class TiktokService implements OnModuleInit {
         author: video.author.nickname,
         reason: analysis.reason,
         descriptor: analysis,
+        original_url: video.play, // Keep original URL for reference
       }
     };
     console.log('signalPayload', signalPayload)

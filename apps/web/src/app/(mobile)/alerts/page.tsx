@@ -35,7 +35,7 @@ type AlertIncident = {
     }[];
 }
 
-const DISASTER_TYPES = ['all', 'flood', 'earthquake', 'fire', 'landslide', 'volcano', 'power_outage'];
+const DISASTER_TYPES = ['all', 'flood', 'earthquake', 'fire', 'landslide', 'volcano', 'whirlwind', 'tornado'];
 
 
 

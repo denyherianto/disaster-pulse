@@ -290,6 +290,10 @@ export class NotificationsService implements OnModuleInit {
       landslide: '⛰️ Tanah Longsor',
       fire: '🔥 Kebakaran',
       power_outage: '💡 Pemadaman Listrik',
+      whirlwind: '🌪️ Angin Puting Beliung',
+      tornado: '🌪️ Tornado',
+      tsunami: '🌊 Tsunami',
+      volcano: '🌋 Gunung Meletus',
       other: '⚠️ Kejadian',
     };
 

@@ -19,6 +19,8 @@ import { EmergencyContactsModule } from './emergency-contacts/emergency-contacts
 import { NotificationsModule } from './notifications/notifications.module';
 import { RemoteConfigModule } from './config/remote-config.module';
 import { AdminModule } from './admin/admin.module';
+import { UploadModule } from './upload/upload.module';
+import { QueueModule } from './common/queue/queue.module';
 
 import { SseModule } from './sse/sse.module';
 
@@ -27,6 +29,7 @@ import { SseModule } from './sse/sse.module';
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     RemoteConfigModule,
+    UploadModule,
     SseModule,
     SupabaseModule,
     SignalsModule,
@@ -42,7 +45,9 @@ import { SseModule } from './sse/sse.module';
     GuidesModule,
     EmergencyContactsModule,
     NotificationsModule,
+    NotificationsModule,
     AdminModule,
+    QueueModule,
   ],
   controllers: [AppController],
   providers: [AppService],

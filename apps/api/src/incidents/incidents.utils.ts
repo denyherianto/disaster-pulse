@@ -182,3 +182,105 @@ export function filterFreshSignals(
     return now - eventTime <= maxAgeMs;
   });
 }
+
+// ============================================================
+// CITY CLUSTERING
+// ============================================================
+
+/**
+ * Cluster city names by normalizing variations to a canonical form.
+ * Handles both simple city names and Google Maps formatted_address strings.
+ *
+ * @param cityHint - The city hint string (can be formatted_address or simple city name)
+ * @returns Normalized city name for clustering
+ */
+export function clusterCity(cityHint: string | null | undefined): string {
+  if (!cityHint) {
+    return '';
+  }
+
+  const normalized = cityHint.trim();
+
+  // Cluster Jakarta variations to "Jakarta"
+  // Matches: "Jakarta", "Jakarta Selatan", "South Jakarta", "Kota Jakarta", etc.
+  // Also matches formatted addresses containing Jakarta
+  if (/jakarta/i.test(normalized)) {
+    return 'Jakarta';
+  }
+
+  // Cluster Bandung variations
+  if (/bandung/i.test(normalized)) {
+    return 'Bandung';
+  }
+
+  // Cluster Surabaya variations
+  if (/surabaya/i.test(normalized)) {
+    return 'Surabaya';
+  }
+
+  // Cluster Medan variations
+  if (/medan/i.test(normalized)) {
+    return 'Medan';
+  }
+
+  // Cluster Semarang variations
+  if (/semarang/i.test(normalized)) {
+    return 'Semarang';
+  }
+
+  // Cluster Makassar variations
+  if (/makassar|ujung\s*pandang/i.test(normalized)) {
+    return 'Makassar';
+  }
+
+  // Cluster Yogyakarta variations
+  if (/yogyakarta|jogja/i.test(normalized)) {
+    return 'Yogyakarta';
+  }
+
+  // Cluster Palembang variations
+  if (/palembang/i.test(normalized)) {
+    return 'Palembang';
+  }
+
+  // Cluster Denpasar/Bali variations
+  if (/denpasar|bali/i.test(normalized)) {
+    return 'Denpasar';
+  }
+
+  // Cluster Tangerang variations (including BSD, Serpong, etc.)
+  if (/tangerang|serpong|bsd/i.test(normalized)) {
+    return 'Tangerang';
+  }
+
+  // Cluster Bekasi variations
+  if (/bekasi/i.test(normalized)) {
+    return 'Bekasi';
+  }
+
+  // Cluster Depok variations
+  if (/depok/i.test(normalized)) {
+    return 'Depok';
+  }
+
+  // Cluster Bogor variations
+  if (/bogor/i.test(normalized)) {
+    return 'Bogor';
+  }
+
+  // For formatted addresses, try to extract a meaningful city component
+  // Google Maps format: "Street, District, City, Province, Country"
+  if (normalized.includes(',')) {
+    const parts = normalized.split(',').map(p => p.trim());
+    // Try to find a recognizable city in the parts (usually 2nd or 3rd from end)
+    // Skip the last part (usually country) and first parts (usually street details)
+    if (parts.length >= 3) {
+      // Return the city/regency part (typically 2nd or 3rd from end)
+      return parts[parts.length - 3] || parts[parts.length - 2] || normalized;
+    }
+  }
+
+  console.log('normalized', normalized)
+
+  return normalized;
+}

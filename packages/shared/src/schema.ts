@@ -132,7 +132,7 @@ export interface ClusterUpdate {
 export interface Incident {
   id: string
   cluster_id: string
-  event_type: 'flood' | 'landslide' | 'fire' | 'earthquake' | 'power_outage' | 'other'
+  event_type: 'flood' | 'landslide' | 'fire' | 'earthquake' | 'whirlwind' | 'tornado' | 'volcano' | 'tsunami' | 'other'
   severity: 'low' | 'medium' | 'high' | null
   confidence_score: number | null
   status: 'monitor' | 'alert' | 'suppress' | 'resolved'
@@ -144,7 +144,7 @@ export interface Incident {
 export interface IncidentInsert {
   id?: string
   cluster_id: string
-  event_type: 'flood' | 'landslide' | 'fire' | 'earthquake' | 'power_outage' | 'other'
+  event_type: 'flood' | 'landslide' | 'fire' | 'earthquake' | 'whirlwind' | 'tornado' | 'volcano' | 'tsunami' | 'other'
   severity?: 'low' | 'medium' | 'high' | null
   confidence_score?: number | null
   status: 'monitor' | 'alert' | 'suppress' | 'resolved'

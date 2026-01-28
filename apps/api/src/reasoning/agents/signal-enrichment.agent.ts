@@ -72,7 +72,7 @@ export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, Sign
             "severity": "low | medium | high",
             "urgency_score": 0.0-1.0,
             "reason": "Max 5 words",
-            "location": "City, Province (inferred) or null",
+            "location": "Format must be '{City}, {Province}'. Example: 'Bandung, Jawa Barat'. NEVER return just 'Indonesia' or generic country names. If unknown city, return null.",
             "event_type": "disaster type (flood, fire, earthquake, volcano, etc)",
             "lat": "lat or null",
             "lng": "lng or null"
@@ -158,7 +158,7 @@ export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, Sign
         "severity": "low | medium | high",
         "urgency_score": 0.0 to 1.0,
         "reason": "Max 5 words",
-        "location": Infer location (City/Province) from title/description/lat & lng/city_hint if possible with this format: "City, Province". If not possible, return null,
+        "location": "Infer location from title/description. Format MUST be '{City}, {Province}' (e.g. 'Surabaya, Jawa Timur'). NEVER return just 'Indonesia' or generic country. If city is unknown, return null.",
         "event_type": "disaster type inferred from text",
         "lat": "Infer latitude from location if possible. Center of the location.",
         "lng": "Longitude from tool or null"

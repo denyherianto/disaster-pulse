@@ -18,6 +18,9 @@ export const translations = {
         landslide: 'Landslide',
         power_outage: 'Power Outage',
         volcano: 'Volcano',
+        whirlwind: 'Whirlwind',
+        tornado: 'Tornado',
+        tsunami: 'Tsunami',
         other: 'Other'
       }
     },
@@ -65,6 +68,14 @@ export const translations = {
         denied: 'Location permission denied',
         timeout: 'Location request timed out',
         required: 'Location is required to submit a report.'
+      },
+      media: {
+        label: 'Photo/Video',
+        // optional: 'optional', // Removed as it is now mandatory
+        addPhoto: 'Add Photo/Video',
+        invalidType: 'Please select an image or video file',
+        imageTooLarge: 'Image must be less than 10MB',
+        videoTooLarge: 'Video must be less than 50MB'
       },
       submit: 'Submit Report',
       submitting: 'Submitting...',
@@ -219,6 +230,9 @@ export const translations = {
         landslide: 'Tanah Longsor',
         power_outage: 'Mati Listrik',
         volcano: 'Gunung Meletus',
+        whirlwind: 'Angin Puting Beliung',
+        tornado: 'Tornado',
+        tsunami: 'Tsunami',
         other: 'Lainnya'
       }
     },
@@ -266,6 +280,14 @@ export const translations = {
         denied: 'Izin lokasi ditolak',
         timeout: 'Waktu permintaan lokasi habis',
         required: 'Lokasi diperlukan untuk mengirim laporan.'
+      },
+      media: {
+        label: 'Foto/Video',
+        optional: 'opsional',
+        addPhoto: 'Tambah Foto/Video',
+        invalidType: 'Pilih file gambar atau video',
+        imageTooLarge: 'Ukuran gambar maksimal 10MB',
+        videoTooLarge: 'Ukuran video maksimal 50MB'
       },
       submit: 'Kirim Laporan',
       submitting: 'Mengirim...',
