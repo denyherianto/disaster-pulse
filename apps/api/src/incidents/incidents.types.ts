@@ -141,12 +141,6 @@ export interface LifecycleEvent {
 // INTERNAL PROCESSING TYPES
 // ============================================================
 
-/** Signal pool for batched processing */
-export interface SignalPool {
-  signals: Signal[];
-  timer: ReturnType<typeof setTimeout> | null;
-}
-
 /** Result from reasoning service */
 export interface ReasoningResult {
   conclusion: ReasoningConclusion;

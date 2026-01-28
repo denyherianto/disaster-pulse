@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { GeminiAgent } from './base.agent';
 import OpenAI from 'openai';
 import { ObserverOutput } from './observer.agent';
+import { GEMINI_PRO_MODEL } from '../../common/constants';
 
 export type ClassifierInput = ObserverOutput;
 
@@ -18,10 +19,10 @@ export type ClassifierOutput = {
 export class ClassifierAgent extends GeminiAgent<ClassifierInput, ClassifierOutput> {
   protected readonly logger = new Logger(ClassifierAgent.name);
   protected readonly role = 'Classifier';
-  protected readonly model = 'maia/gemini-3-pro-preview';
+  protected readonly model = GEMINI_PRO_MODEL;
 
-  constructor(maia: OpenAI) {
-    super(maia);
+  constructor(gemini: OpenAI) {
+    super(gemini);
   }
 
   buildPrompt(input: ClassifierInput): string {

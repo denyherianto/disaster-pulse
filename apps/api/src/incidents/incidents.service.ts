@@ -54,7 +54,6 @@ import {
 import {
   Signal,
   Incident,
-  SignalPool,
   IncidentStatus,
   Severity,
   EventType,
@@ -85,9 +84,6 @@ import { IncidentsQueriesService } from './incidents.queries';
 export class IncidentsService {
   private readonly logger = new Logger(IncidentsService.name);
 
-  /** Signal pooling: batch signals by city+eventType before AI evaluation */
-  private signalPool = new Map<string, SignalPool>();
-
   private get db() {
     return this.supabase.getClient() as any;
   }
@@ -102,22 +98,6 @@ export class IncidentsService {
     private readonly remoteConfig: RemoteConfigService,
     private readonly queriesService: IncidentsQueriesService,
   ) { }
-
-  // ============================================================
-  // LIFECYCLE HOOKS
-  // ============================================================
-
-  /**
-   * Cleanup pooling timers on module destroy
-   */
-  onModuleDestroy(): void {
-    for (const [, pool] of this.signalPool.entries()) {
-      if (pool.timer) {
-        clearTimeout(pool.timer);
-      }
-    }
-    this.signalPool.clear();
-  }
 
   // ============================================================
   // SIGNAL PROCESSING
@@ -494,7 +474,7 @@ export class IncidentsService {
 
   /**
    * Attempt to create a new incident from signal
-   * Uses signal pooling to batch signals before AI evaluation
+   * Requires minimum signals threshold or trusted source to proceed
    */
   private async tryCreateNewIncident(
     signal: Signal,
@@ -512,22 +492,20 @@ export class IncidentsService {
     // 2. Check trusted source bypass (skip LLM for verified sources)
     const isTrustedSource = shouldBypassReasoning(signal.source, eventType);
 
+    // 3. Not enough signals and not trusted - wait for more
     if (
       unlinkedSignals.length < INCIDENT_CONFIG.MIN_SIGNALS_FOR_INCIDENT &&
       !isTrustedSource
     ) {
-      // Add to pool and wait for more signals
-      const poolKey = `${city}:${eventType}`;
-      this.addSignalToPool(poolKey, signal, city, eventType);
       this.logger.debug(
-        `Signal ${signal.id} added to pool (Key: ${poolKey}, Pool size: ${this.signalPool.get(poolKey)?.signals.length ?? 1})`,
+        `Signal ${signal.id} waiting for more corroboration (${unlinkedSignals.length}/${INCIDENT_CONFIG.MIN_SIGNALS_FOR_INCIDENT} signals in ${city})`,
       );
       return;
     }
 
     let reasoningResult: ReasoningResult;
 
-    // 3. Either use default for trusted sources or run reasoning loop
+    // 4. Either use default for trusted sources or run reasoning loop
     if (isTrustedSource) {
       this.logger.log(`⚡ Bypassing reasoning for trusted source: ${signal.source} (${eventType})`);
       reasoningResult = this.createDefaultReasoningResult(unlinkedSignals, eventType);
@@ -537,7 +515,7 @@ export class IncidentsService {
       reasoningResult = result;
     }
 
-    // 4. Create incident with reasoning result
+    // 5. Create incident with reasoning result
     const newIncident = await this.createIncidentFromSignals(
       unlinkedSignals,
       city,
@@ -546,11 +524,8 @@ export class IncidentsService {
     );
     if (!newIncident) return;
 
-    // 5. Link signals and send notifications
+    // 6. Link signals and send notifications
     await this.finalizeIncidentCreation(newIncident, unlinkedSignals, reasoningResult);
-
-    // 6. Clear signal pool
-    this.clearSignalPool(`${city}:${eventType}`);
   }
 
   /**
@@ -814,87 +789,6 @@ export class IncidentsService {
       lat: centroid.lat,
       lng: centroid.lng,
     });
-  }
-
-  // ============================================================
-  // SIGNAL POOLING
-  // ============================================================
-
-  /**
-   * Add signal to pool for batched processing
-   */
-  private addSignalToPool(
-    poolKey: string,
-    signal: Signal,
-    city: string,
-    eventType: string,
-  ): void {
-    let pool = this.signalPool.get(poolKey);
-
-    if (!pool) {
-      pool = { signals: [], timer: null };
-      this.signalPool.set(poolKey, pool);
-    }
-
-    // Add signal if not already in pool
-    if (!pool.signals.find((s) => s.id === signal.id)) {
-      pool.signals.push(signal);
-    }
-
-    // Reset timer to extend the pooling window
-    if (pool.timer) {
-      clearTimeout(pool.timer);
-    }
-
-    pool.timer = setTimeout(() => {
-      this.processSignalPool(poolKey, city, eventType);
-    }, INCIDENT_CONFIG.SIGNAL_POOL_WINDOW_MS);
-
-    this.logger.debug(
-      `Signal pool ${poolKey}: ${pool.signals.length} signals, timer reset`,
-    );
-  }
-
-  /**
-   * Process pooled signals after the pooling window expires
-   */
-  private async processSignalPool(
-    poolKey: string,
-    city: string,
-    eventType: string,
-  ): Promise<void> {
-    const pool = this.signalPool.get(poolKey);
-    if (!pool || pool.signals.length === 0) {
-      this.signalPool.delete(poolKey);
-      return;
-    }
-
-    this.logger.log(
-      `⏰ Processing signal pool ${poolKey} with ${pool.signals.length} signals`,
-    );
-
-    const signals = [...pool.signals];
-    this.signalPool.delete(poolKey);
-
-    if (signals.length < INCIDENT_CONFIG.MIN_SIGNALS_FOR_INCIDENT) {
-      this.logger.debug(
-        `Pool ${poolKey} still below threshold (${signals.length}/${INCIDENT_CONFIG.MIN_SIGNALS_FOR_INCIDENT}), skipping`,
-      );
-      return;
-    }
-
-    await this.tryCreateNewIncident(signals[0], city, eventType);
-  }
-
-  /**
-   * Clear signal pool after incident creation
-   */
-  private clearSignalPool(poolKey: string): void {
-    const pool = this.signalPool.get(poolKey);
-    if (pool?.timer) {
-      clearTimeout(pool.timer);
-    }
-    this.signalPool.delete(poolKey);
   }
 
   // ============================================================
@@ -1597,36 +1491,5 @@ export class IncidentsService {
     }
 
     return { success: true, feedback_id: data?.id };
-  }
-
-  /**
-   * Reprocess pending signals manually
-   */
-  async reprocessPendingSignals(): Promise<{ count: number; processed: number }> {
-    this.logger.log('Manually triggering reprocessing of PENDING signals...');
-
-    const { data: signals, error } = await this.db
-      .from('signals')
-      .select('*')
-      .eq('status', 'pending');
-
-    if (error || !signals) {
-      this.logger.error('Failed to fetch pending signals', error);
-      return { count: 0, processed: 0 };
-    }
-
-    this.logger.log(`Found ${signals.length} pending signals.`);
-
-    let processed = 0;
-    for (const signal of signals) {
-      try {
-        await this.processSignal(signal.id, signal.lat, signal.lng);
-        processed++;
-      } catch (e) {
-        this.logger.error(`Failed to reprocess signal ${signal.id}`, e);
-      }
-    }
-
-    return { count: signals.length, processed };
   }
 }

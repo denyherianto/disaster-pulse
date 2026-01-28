@@ -39,8 +39,8 @@ import { GoogleMapsTool } from './tools/google-maps.tool';
     {
       provide: OpenAI,
       useFactory: (configService: ConfigService) => new OpenAI({
-        apiKey: configService.get<string>('MAIA_API_KEY'),
-        baseURL: 'https://api.maiarouter.ai/v1',
+        apiKey: configService.get<string>('GEMINI_API_KEY'),
+        baseURL: configService.get<string>('GEMINI_BASE_URL') || 'https://api.maiarouter.ai/v1',
       }),
       inject: [ConfigService],
     }

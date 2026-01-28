@@ -4,6 +4,7 @@ import OpenAI from 'openai';
 import { ObserverOutput } from './observer.agent';
 import { ClassifierOutput } from './classifier.agent';
 import { SkepticOutput } from './skeptic.agent';
+import { GEMINI_PRO_MODEL } from '../../common/constants';
 
 export type SynthesizerInput = {
   observations: ObserverOutput;
@@ -24,10 +25,10 @@ export type SynthesizerOutput = {
 export class SynthesizerAgent extends GeminiAgent<SynthesizerInput, SynthesizerOutput> {
   protected readonly logger = new Logger(SynthesizerAgent.name);
   protected readonly role = 'Synthesizer';
-  protected readonly model = 'maia/gemini-3-pro-preview';
+  protected readonly model = GEMINI_PRO_MODEL;
 
-  constructor(maia: OpenAI) {
-    super(maia);
+  constructor(gemini: OpenAI) {
+    super(gemini);
   }
 
   buildPrompt(input: SynthesizerInput): string {

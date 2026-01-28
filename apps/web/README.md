@@ -1,47 +1,24 @@
-# Disaster Pulse - Web Client
+# Disaster Pulse - Web
 
-The frontend application for Disaster Pulse, built with **Next.js 14+ (App Router)** and **Tailwind CSS**.
+The frontend application for Disaster Pulse, built with **Next.js 16** and **Tailwind CSS 4**.
 
-## Features
+For full documentation, see the [main README](../../README.md).
 
-- **PWA Ready**: Works offline with background sync and aggressive caching strategies. installable on mobile.
-- **Interactive Maps**: Real-time incident tracking using Leaflet and `react-leaflet-cluster`.
-- **Live Updates**: real-time signals from backend (TikTok, News, User Reports).
-- **Responsive UI**: Optimized for mobile and desktop viewports.
+## Quick Start
 
-## Tech Stack
+```bash
+# From root directory
+npm install
+npm run dev
 
-- **Framework**: Next.js 16
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS 4
-- **State/Data**: TanStack Query (React Query) + Persistence
-- **Map Integration**: Leaflet, React Leaflet
-- **PWA**: `@ducanh2912/next-pwa`
+# Or from this directory
+npm run dev
+```
 
-## Development
+Open [http://localhost:3000](http://localhost:3000).
 
-1. **Install Dependencies**
-   ```bash
-   npm install
-   ```
+## Environment Variables
 
-2. **Run Development Server**
-   ```bash
-   # NOTE: PWA features are disabled in development
-   npm dev
-   ```
+Copy `.env.example` to `.env.local` and configure your credentials.
 
-   Open [http://localhost:3000](http://localhost:3000).
-
-3. **Build & Test PWA**
-   ```bash
-   npm build
-   npm start
-   ```
-
-## Key Components
-
-- **`IncidentMap`**: Core visualization component. Handles clustering and custom markers.
-- **`HeroStatus`**: animated incident highlight card with directional transitions.
-- **`DashboardHeader`**: Main navigation and status indicator.
-
+See [Environment Variables](../../README.md#environment-variables) for details.

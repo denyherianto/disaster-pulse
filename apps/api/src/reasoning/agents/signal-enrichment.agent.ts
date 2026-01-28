@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { GeminiAgent } from './base.agent';
 import { GoogleMapsTool } from '../tools/google-maps.tool';
 import OpenAI from 'openai';
+import { GEMINI_FLASH_MODEL } from '../../common/constants';
 
 export type SignalSeverityInput = {
   text: string;
@@ -25,13 +26,13 @@ export type SignalSeverityOutput = {
 export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, SignalSeverityOutput> {
   protected readonly logger = new Logger(SignalEnrichmentAgent.name);
   protected readonly role = 'SignalEnrichment';
-  protected readonly model = 'maia/gemini-2.5-flash'; // High speed model
+  protected readonly model = GEMINI_FLASH_MODEL;
 
   constructor(
-    maia: OpenAI,
+    gemini: OpenAI,
     private readonly googleMapsTool: GoogleMapsTool
   ) {
-    super(maia);
+    super(gemini);
     this.tools = [this.googleMapsTool.definition];
   }
 

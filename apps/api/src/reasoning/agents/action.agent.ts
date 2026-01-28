@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { GeminiAgent } from './base.agent';
 import OpenAI from 'openai';
 import { SynthesizerOutput } from './synthesizer.agent';
+import { GEMINI_PRO_MODEL } from '../../common/constants';
 
 export type ActionInput = {
   conclusion: SynthesizerOutput;
@@ -18,10 +19,10 @@ export type ActionOutput = {
 export class ActionAgent extends GeminiAgent<ActionInput, ActionOutput> {
   protected readonly logger = new Logger(ActionAgent.name);
   protected readonly role = 'ActionStrategy';
-  protected readonly model = 'maia/gemini-3-pro-preview';
+  protected readonly model = GEMINI_PRO_MODEL;
 
-  constructor(maia: OpenAI) {
-    super(maia);
+  constructor(gemini: OpenAI) {
+    super(gemini);
   }
 
   buildPrompt(input: ActionInput): string {

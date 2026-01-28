@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { GeminiAgent } from './base.agent';
 import OpenAI from 'openai';
+import { GEMINI_PRO_MODEL } from '../../common/constants';
 
 export type GuideAssistantInput = {
   query: string;
@@ -19,10 +20,10 @@ export type GuideAssistantOutput = {
 export class GuideAssistantAgent extends GeminiAgent<GuideAssistantInput, GuideAssistantOutput> {
   protected readonly logger = new Logger(GuideAssistantAgent.name);
   protected readonly role = 'GuideAssistant';
-  protected readonly model = 'maia/gemini-3-pro-preview';
+  protected readonly model = GEMINI_PRO_MODEL;
 
-  constructor(maia: OpenAI) {
-    super(maia);
+  constructor(gemini: OpenAI) {
+    super(gemini);
   }
 
   buildPrompt(input: GuideAssistantInput): string {

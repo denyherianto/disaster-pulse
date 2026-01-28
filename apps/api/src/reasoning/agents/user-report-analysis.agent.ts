@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { GeminiAgent } from './base.agent';
 import OpenAI from 'openai';
 import { extractMediaMetadata, MediaMetadata } from '../../lib/exif-extractor';
+import { GEMINI_PRO_MODEL } from '../../common/constants';
 
 export type UserReportAnalysisInput = {
   description: string;
@@ -48,10 +49,10 @@ export type UserReportAnalysisOutput = {
 export class UserReportAnalysisAgent extends GeminiAgent<UserReportAnalysisInput, UserReportAnalysisOutput> {
   protected readonly logger = new Logger(UserReportAnalysisAgent.name);
   protected readonly role = 'UserReportAnalysis';
-  protected readonly model = 'maia/gemini-3-pro-preview';
+  protected readonly model = GEMINI_PRO_MODEL;
 
-  constructor(maia: OpenAI) {
-    super(maia);
+  constructor(gemini: OpenAI) {
+    super(gemini);
   }
 
   buildPrompt(input: UserReportAnalysisInput): string {

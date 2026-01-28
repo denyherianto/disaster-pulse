@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { GeminiAgent } from './base.agent';
 import OpenAI from 'openai';
+import { GEMINI_FLASH_MODEL } from '../../common/constants';
 
 export type LocationMatcherInput = {
   location1: string;
@@ -16,10 +17,10 @@ export type LocationMatcherOutput = {
 export class LocationMatcherAgent extends GeminiAgent<LocationMatcherInput, LocationMatcherOutput> {
   protected readonly logger = new Logger(LocationMatcherAgent.name);
   protected readonly role = 'LocationMatcher';
-  protected readonly model = 'maia/gemini-2.5-flash';
+  protected readonly model = GEMINI_FLASH_MODEL;
 
-  constructor(maia: OpenAI) {
-    super(maia);
+  constructor(gemini: OpenAI) {
+    super(gemini);
   }
 
   buildPrompt(input: LocationMatcherInput): string {

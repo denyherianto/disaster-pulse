@@ -8,50 +8,339 @@
 
 The project is a monorepo managed with **Turborepo** and **npm**, consisting of:
 
-- **Web (`apps/web`)**: Next.js 16+ PWA application.
-- **API (`apps/api`)**: NestJS backend with event-driven architecture.
-- **Shared (`packages/shared`)**: Shared types and utilities.
+| Package | Description | Tech Stack |
+|---------|-------------|------------|
+| `apps/web` | Next.js 16 PWA frontend | Next.js, Tailwind CSS 4, Leaflet, TanStack Query |
+| `apps/api` | NestJS backend service | NestJS, PostgreSQL + PostGIS, BullMQ, Gemini AI |
+| `packages/shared` | Shared types and utilities | TypeScript |
+
+---
 
 ## Key Features
 
 ### Frontend (Web)
-- **Real-time Map**: Leaflet-based map with custom clustering and live incident tracking.
-- **PWA Support**: Fully offline-capable, installable on mobile devices.
-- **Hero Animation**: Interactive dashboard with directional slide animations.
-- **Responsive Design**: Mobile-first UI optimized for touch interfaces.
+
+- **Real-time Map**: Leaflet-based map with custom clustering and live incident tracking
+- **PWA Support**: Fully offline-capable, installable on mobile devices
+- **Live Updates**: Real-time signals from backend via SSE
+- **Responsive Design**: Mobile-first UI optimized for touch interfaces
 
 ### Backend (API)
+
 - **Multi-Source Ingestion**:
-  - **BMKG**: Earthquake and Tsunami data.
-  - **RSS Feeds**: News aggregation and analysis.
-  - **TikTok**: Social media signal detection.
-  - **User Reports**: Crowd-sourced ground truth.
-- **AI Analysis**: LLM-based verification and clustering of signals.
-- **Event-Driven**: Automated incident lifecycle management.
+  - **BMKG**: Earthquake and Tsunami official data
+  - **RSS Feeds**: News aggregation and analysis
+  - **TikTok**: Social media signal detection via Apify
+  - **User Reports**: Crowd-sourced ground truth with media upload
+- **AI Analysis**: Multi-agent LLM-based verification and clustering
+- **Event-Driven**: Automated incident lifecycle management
+
+---
+
+## AI Agents Architecture
+
+### Overview
+
+```mermaid
+flowchart TB
+    subgraph Sources["Data Sources"]
+        TikTok[("TikTok")]
+        RSS[("RSS News")]
+        UserReport[("User Reports")]
+        BMKG[("BMKG API")]
+    end
+
+    subgraph Ingestion["Signal Ingestion Agents"]
+        VA["VideoAnalysisAgent<br/>(gemini-2.5-flash)"]
+        NA["NewsAnalysisAgent<br/>(gemini-2.5-flash)"]
+        URA["UserReportAnalysisAgent<br/>(gemini-3-pro)"]
+    end
+
+    subgraph Processing["Signal Processing"]
+        SQ[("Signal Queue")]
+        SE["SignalEnrichmentAgent<br/>(gemini-2.5-flash)"]
+        LM["LocationMatcherAgent<br/>(gemini-2.5-flash)"]
+    end
+
+    subgraph Reasoning["Multi-Agent Reasoning Chain"]
+        OBS["ObserverAgent<br/>(gemini-2.5-flash)"]
+        CLS["ClassifierAgent<br/>(gemini-3-pro)"]
+        SKP["SkepticAgent<br/>(gemini-3-pro)"]
+        SYN["SynthesizerAgent<br/>(gemini-3-pro)"]
+        ACT["ActionAgent<br/>(gemini-3-pro)"]
+    end
+
+    subgraph Lifecycle["Incident Lifecycle"]
+        IR["IncidentResolutionAgent<br/>(gemini-2.5-flash)"]
+        INC[("Incidents DB")]
+    end
+
+    subgraph UserFacing["User-Facing"]
+        GA["GuideAssistantAgent<br/>(gemini-3-pro)"]
+    end
+
+    TikTok --> VA
+    RSS --> NA
+    UserReport --> URA
+    BMKG --> SQ
+
+    VA --> SQ
+    NA --> SQ
+    URA --> SQ
+
+    SQ --> SE
+    SE --> LM
+    LM --> OBS
+    OBS --> CLS
+    CLS --> SKP
+    SKP --> SYN
+    SYN --> ACT
+    ACT --> INC
+
+    INC --> IR
+    IR --> INC
+
+    GA -.-> INC
+```
+
+### Signal Ingestion Flow
+
+```mermaid
+flowchart LR
+    subgraph TikTok["TikTok Source"]
+        T1["Fetch Videos<br/>(Apify)"] --> T2["VideoAnalysisAgent"]
+        T2 --> T3{"is_real_event?<br/>confidence > 0.6?"}
+        T3 -->|Yes| T4["Create Signal"]
+        T3 -->|No| T5["Discard"]
+    end
+
+    subgraph RSS["RSS News Source"]
+        R1["Fetch Articles"] --> R2["NewsAnalysisAgent"]
+        R2 --> R3{"is_disaster?<br/>confidence > 0.5?"}
+        R3 -->|Yes| R4["Create Signal"]
+        R3 -->|No| R5["Discard"]
+    end
+
+    subgraph UserReports["User Reports"]
+        U1["Upload Media"] --> U2["Extract EXIF/Metadata"]
+        U2 --> U3["UserReportAnalysisAgent"]
+        U3 --> U4{"recommended_action?"}
+        U4 -->|accept| U5["Create Signal"]
+        U4 -->|reject| U6["Return Error"]
+    end
+```
+
+### Multi-Agent Reasoning Chain
+
+When an incident needs full evaluation, signals go through a debate-style reasoning chain:
+
+```mermaid
+flowchart TB
+    subgraph Input
+        S1["Signal 1"]
+        S2["Signal 2"]
+        S3["Signal N"]
+    end
+
+    subgraph Observer["Step 1: Observer"]
+        OBS["ObserverAgent"]
+        OBS_OUT["observation_summary<br/>key_facts[]<br/>timeline[]"]
+    end
+
+    subgraph Classifier["Step 2: Classifier"]
+        CLS["ClassifierAgent"]
+        CLS_OUT["hypotheses[]<br/>- event_type<br/>- likelihood<br/>- reasoning"]
+    end
+
+    subgraph Skeptic["Step 3: Skeptic"]
+        SKP["SkepticAgent"]
+        SKP_OUT["source_breakdown<br/>inconsistencies[]<br/>confidence_adjustment<br/>risk_of_false_positive"]
+    end
+
+    subgraph Synthesizer["Step 4: Synthesizer"]
+        SYN["SynthesizerAgent"]
+        SYN_OUT["final_classification<br/>severity<br/>confidence_score<br/>summary"]
+    end
+
+    subgraph Action["Step 5: Action"]
+        ACT["ActionAgent"]
+        ACT_OUT["action: alert|monitor|dismiss<br/>reasoning"]
+    end
+
+    S1 & S2 & S3 --> OBS
+    OBS --> OBS_OUT --> CLS
+    CLS --> CLS_OUT --> SKP
+    SKP --> SKP_OUT --> SYN
+    SYN --> SYN_OUT --> ACT
+    ACT --> ACT_OUT
+
+    ACT_OUT -->|alert| CREATE["Create/Update Incident"]
+    ACT_OUT -->|monitor| WATCH["Add to Watch List"]
+    ACT_OUT -->|dismiss| IGNORE["Mark as Noise"]
+```
+
+### Agent Roles
+
+| Agent | Model | Role |
+|-------|-------|------|
+| **ObserverAgent** | gemini-2.5-flash | Extract objective facts from raw signals |
+| **ClassifierAgent** | gemini-3-pro | Generate multiple hypotheses with likelihood scores |
+| **SkepticAgent** | gemini-3-pro | Challenge hypotheses, identify inconsistencies |
+| **SynthesizerAgent** | gemini-3-pro | Produce final judgment from debate |
+| **ActionAgent** | gemini-3-pro | Decide system action (alert/monitor/dismiss) |
+| **VideoAnalysisAgent** | gemini-2.5-flash | Analyze TikTok videos for disaster content |
+| **NewsAnalysisAgent** | gemini-2.5-flash | Analyze RSS news articles |
+| **UserReportAnalysisAgent** | gemini-3-pro | Validate user reports with EXIF analysis |
+| **SignalEnrichmentAgent** | gemini-2.5-flash | Enrich signals with location and severity |
+| **LocationMatcherAgent** | gemini-2.5-flash | Compare locations for incident merging |
+| **IncidentResolutionAgent** | gemini-2.5-flash | Auto-resolve stale incidents |
+| **GuideAssistantAgent** | gemini-3-pro | Answer disaster safety questions |
+
+---
 
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js 20+
 - npm
-- PostgreSQL with PostGIS
+- PostgreSQL with PostGIS (via Supabase)
+- Redis (for BullMQ queues)
 
-### Usage
+### Installation
 
-1. **Install Dependencies**
+1. **Clone and Install Dependencies**
    ```bash
+   git clone https://github.com/your-org/disaster-pulse.git
+   cd disaster-pulse
    npm install
    ```
 
-2. **Start Development Server**
+2. **Configure Environment Variables**
    ```bash
-   npm dev
+   # Copy example files
+   cp apps/api/.env.example apps/api/.env
+   cp apps/web/.env.example apps/web/.env.local
+
+   # Edit with your credentials
    ```
 
-3. **Build for Production**
+3. **Start Development Servers**
    ```bash
-   npm build
+   npm run dev
    ```
+
+4. **Build for Production**
+   ```bash
+   npm run build
+   ```
+
+---
+
+## Environment Variables
+
+### API (`apps/api/.env`)
+
+```env
+# Server
+PORT=3001
+
+# Database (Supabase)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# AI / LLM (Gemini)
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_BASE_URL=https://api.maiarouter.ai/v1
+GEMINI_FLASH_MODEL=maia/gemini-2.5-flash
+GEMINI_PRO_MODEL=maia/gemini-3-pro-preview
+
+# Google Maps (Geocoding)
+GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+
+# Cloudflare R2 (Media Storage)
+R2_ACCOUNT_ID=your-r2-account-id
+R2_ACCESS_KEY_ID=your-r2-access-key-id
+R2_SECRET_ACCESS_KEY=your-r2-secret-access-key
+R2_BUCKET_NAME=disaster-media
+R2_PUBLIC_URL=https://media.yourdomain.com
+
+# Firebase (Notifications & Remote Config)
+FIREBASE_SERVICE_ACCOUNT_BASE64=base64-encoded-service-account-json
+FIREBASE_PROJECT_ID=your-firebase-project-id
+
+# Redis (BullMQ Queues)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+```
+
+### Web (`apps/web/.env.local`)
+
+```env
+# API
+NEXT_PUBLIC_API_URL=http://localhost:3001
+
+# Supabase (Client-side)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+
+# Firebase (Client-side)
+NEXT_PUBLIC_FIREBASE_API_KEY=your-firebase-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-firebase-project-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your-firebase-app-id
+NEXT_PUBLIC_FIREBASE_VAPID_KEY=your-vapid-key
+
+# Feature Flags
+NEXT_PUBLIC_FEATURE_USER_REPORTS=true
+
+# Admin Access
+ADMIN_EMAIL_WHITELIST=admin@example.com
+```
+
+---
+
+## API Endpoints
+
+### Incidents
+- `GET /incidents` - List all incidents
+- `GET /incidents/:id` - Get incident details
+- `GET /incidents/sse` - Server-Sent Events for real-time updates
+
+### Reports
+- `POST /reports` - Submit user report (multipart/form-data with media)
+- `GET /reports/user/:userId` - Get user's reports
+
+### Guides
+- `POST /guides/ask` - Ask safety question to GuideAssistantAgent
+
+---
+
+## Key Modules
+
+### API Modules
+
+| Module | Description |
+|--------|-------------|
+| `SignalsModule` | Ingestion and raw data storage |
+| `IncidentsModule` | Incident lifecycle management |
+| `ReasoningModule` | AI Agent orchestration |
+| `SourcesModule` | External data fetchers (TikTok, RSS, BMKG, Reports) |
+| `UploadModule` | Cloudflare R2 file uploads |
+| `NotificationsModule` | Firebase push notifications |
+| `QueueModule` | BullMQ job processing |
+
+### Web Components
+
+| Component | Description |
+|-----------|-------------|
+| `IncidentMap` | Core visualization with clustering and custom markers |
+| `HeroStatus` | Animated incident highlight card |
+| `DashboardHeader` | Main navigation and status indicator |
+
+---
 
 ## License
 

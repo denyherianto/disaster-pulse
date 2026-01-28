@@ -3,6 +3,7 @@ import { GeminiAgent } from './base.agent';
 import OpenAI from 'openai';
 import { ObserverOutput } from './observer.agent';
 import { ClassifierOutput } from './classifier.agent';
+import { GEMINI_PRO_MODEL } from '../../common/constants';
 
 /**
  * Source breakdown for multi-vector detection
@@ -37,10 +38,10 @@ export type SkepticOutput = {
 export class SkepticAgent extends GeminiAgent<SkepticInput, SkepticOutput> {
   protected readonly logger = new Logger(SkepticAgent.name);
   protected readonly role = 'Skeptic';
-  protected readonly model = 'maia/gemini-3-pro-preview';
+  protected readonly model = GEMINI_PRO_MODEL;
 
-  constructor(maia: OpenAI) {
-    super(maia);
+  constructor(gemini: OpenAI) {
+    super(gemini);
   }
 
   buildPrompt(input: SkepticInput): string {

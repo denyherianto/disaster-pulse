@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { GeminiAgent } from './base.agent';
 import OpenAI from 'openai';
+import { GEMINI_FLASH_MODEL } from '../../common/constants';
 
 export type ObserverInput = {
   signals: { source: string; text: string; created_at: string }[];
@@ -16,10 +17,10 @@ export type ObserverOutput = {
 export class ObserverAgent extends GeminiAgent<ObserverInput, ObserverOutput> {
   protected readonly logger = new Logger(ObserverAgent.name);
   protected readonly role = 'Observer';
-  protected readonly model = 'maia/gemini-2.5-flash';
+  protected readonly model = GEMINI_FLASH_MODEL;
 
-  constructor(maia: OpenAI) {
-    super(maia);
+  constructor(gemini: OpenAI) {
+    super(gemini);
   }
 
   buildPrompt(input: ObserverInput): string {

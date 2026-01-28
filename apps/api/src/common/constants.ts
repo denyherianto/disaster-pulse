@@ -4,6 +4,16 @@
  */
 
 // ============================================================
+// AI MODEL CONFIGURATION
+// ============================================================
+
+/** Fast model for simpler tasks (observation, enrichment, location matching) */
+export const GEMINI_FLASH_MODEL = process.env.GEMINI_FLASH_MODEL || 'maia/gemini-2.5-flash';
+
+/** Pro model for complex reasoning tasks (classification, skeptic, synthesis, action) */
+export const GEMINI_PRO_MODEL = process.env.GEMINI_PRO_MODEL || 'maia/gemini-3-pro-preview';
+
+// ============================================================
 // SIGNAL AGE LIMITS (in hours)
 // ============================================================
 
@@ -49,9 +59,6 @@ export const THRESHOLDS = {
 export const INCIDENT_CONFIG = {
   /** Minimum signals required to create an incident */
   MIN_SIGNALS_FOR_INCIDENT: 2,
-
-  /** Signal pooling window in milliseconds (5 minutes) */
-  SIGNAL_POOL_WINDOW_MS: 5 * 60 * 1000,
 
   /** Maximum incidents to process in batch evaluation */
   BATCH_EVAL_LIMIT: 10,

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { GeminiAgent } from './base.agent';
 import OpenAI from 'openai';
-import { MAX_SIGNAL_AGE } from '../../common/constants';
+import { MAX_SIGNAL_AGE, GEMINI_FLASH_MODEL } from '../../common/constants';
 
 export type VideoAnalysisInput = {
   text: string;
@@ -26,10 +26,10 @@ export type VideoAnalysisOutput = {
 export class VideoAnalysisAgent extends GeminiAgent<VideoAnalysisInput, VideoAnalysisOutput> {
   protected readonly logger = new Logger(VideoAnalysisAgent.name);
   protected readonly role = 'VideoAnalysis';
-  protected readonly model = 'maia/gemini-2.5-flash';
+  protected readonly model = GEMINI_FLASH_MODEL;
 
-  constructor(maia: OpenAI) {
-    super(maia);
+  constructor(gemini: OpenAI) {
+    super(gemini);
   }
 
   // Not used directly because we override run, but required by abstract class

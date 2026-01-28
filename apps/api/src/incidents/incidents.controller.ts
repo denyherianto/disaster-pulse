@@ -76,9 +76,4 @@ export class IncidentsController {
     }
     return this.incidentsService.submitFeedback(id, body.user_id, body.type);
   }
-
-  @Post('trigger-reprocessing')
-  async triggerReprocessing() {
-    return this.incidentsService.reprocessPendingSignals();
-  }
 }

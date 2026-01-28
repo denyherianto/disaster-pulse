@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { GeminiAgent } from './base.agent';
 import OpenAI from 'openai';
+import { GEMINI_FLASH_MODEL } from '../../common/constants';
 
 export interface NewsAnalysisInput {
   title: string;
@@ -27,10 +28,10 @@ export interface NewsAnalysisResult {
 export class NewsAnalysisAgent extends GeminiAgent<NewsAnalysisInput, NewsAnalysisResult> {
   protected readonly logger = new Logger(NewsAnalysisAgent.name);
   protected readonly role = 'NewsAnalysis';
-  protected readonly model = 'maia/gemini-2.5-flash';
+  protected readonly model = GEMINI_FLASH_MODEL;
 
-  constructor(maia: OpenAI) {
-    super(maia);
+  constructor(gemini: OpenAI) {
+    super(gemini);
   }
 
   buildPrompt(input: NewsAnalysisInput): string {

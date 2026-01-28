@@ -14,7 +14,7 @@ export abstract class GeminiAgent<TInput, TOutput> {
   protected abstract readonly role: string;
   protected abstract readonly model: string;
 
-  constructor(protected readonly maia: OpenAI) {}
+  constructor(protected readonly gemini: OpenAI) { }
 
   abstract buildPrompt(input: TInput): string;
 

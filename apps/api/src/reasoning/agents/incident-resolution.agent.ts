@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { GeminiAgent } from './base.agent';
 import OpenAI from 'openai';
+import { GEMINI_FLASH_MODEL } from '../../common/constants';
 
 export type ResolutionInput = {
   incidentSeverity: string;
@@ -20,10 +21,10 @@ export type ResolutionOutput = {
 export class IncidentResolutionAgent extends GeminiAgent<ResolutionInput, ResolutionOutput> {
   protected readonly logger = new Logger(IncidentResolutionAgent.name);
   protected readonly role = 'IncidentResolution';
-  protected readonly model = 'maia/gemini-2.5-flash';
+  protected readonly model = GEMINI_FLASH_MODEL;
 
-  constructor(maia: OpenAI) {
-    super(maia);
+  constructor(gemini: OpenAI) {
+    super(gemini);
   }
 
   buildPrompt(input: ResolutionInput): string {
