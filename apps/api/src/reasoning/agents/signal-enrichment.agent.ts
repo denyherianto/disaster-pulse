@@ -86,7 +86,7 @@ export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, Sign
 
     try {
       this.logger.debug(`[${this.role}] Analyzing batch of ${inputs.length} signals...`);
-      const completion = await this.maia.chat.completions.create({
+      const completion = await this.gemini.chat.completions.create({
         model: this.model,
         messages: [{ role: 'user', content: batchPrompt }],
         response_format: { type: 'json_object' },

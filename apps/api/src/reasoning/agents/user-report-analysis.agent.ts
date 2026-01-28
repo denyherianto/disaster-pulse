@@ -198,7 +198,7 @@ OUTPUT JSON:
         });
       }
 
-      const completion = await this.maia.chat.completions.create({
+      const completion = await this.gemini.chat.completions.create({
         model: this.model,
         messages: messages,
         temperature: 0,

@@ -31,7 +31,7 @@ export abstract class GeminiAgent<TInput, TOutput> {
       this.logger.debug(`[${this.role}] analyzing...`);
       
       // First turn
-      let completion = await this.maia.chat.completions.create({
+      let completion = await this.gemini.chat.completions.create({
         model: this.model,
         messages: messages,
         tools: this.tools,
@@ -76,7 +76,7 @@ export abstract class GeminiAgent<TInput, TOutput> {
         }
 
         // Second turn: Get final response after tool execution
-        completion = await this.maia.chat.completions.create({
+        completion = await this.gemini.chat.completions.create({
           model: this.model,
           messages: messages,
           // tools: this.tools, // Optional: keep tools if we want multi-step, but usually final answer is next
