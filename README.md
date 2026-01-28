@@ -304,41 +304,70 @@ ADMIN_EMAIL_WHITELIST=admin@example.com
 
 ## API Endpoints
 
-### Incidents
-- `GET /incidents` - List all incidents
-- `GET /incidents/:id` - Get incident details
-- `GET /incidents/sse` - Server-Sent Events for real-time updates
+### Core Resources
+- **Incidents**
+  - `GET /incidents/map` - Viewport clustering (bbox)
+  - `GET /incidents/nearby` - Geospatial radius search
+  - `GET /incidents/:id` - Full incident details
+  - `GET /incidents/:id/signals` - Raw signals clustering to incident
+  - `GET /incidents/:id/lifecycle` - Incident status history
+- **Reports**
+  - `POST /reports` - Submit user report (multipart w/ images/video)
+  - `GET /reports/user/:userId` - History of user submissions
+- **Guides**
+  - `GET /guides` - Disaster safety guides (filterable)
+  - `POST /guides/ask` - AI Safety Assistant (RAG-based Q&A)
+- **Users**
+  - `POST /users/sync` - Sync Supabase Auth profile
+  - `POST /user/places` - Create monitored location
+  - `PATCH /user/places/:id/notifications` - Toggle alerts for location
 
-### Reports
-- `POST /reports` - Submit user report (multipart/form-data with media)
-- `GET /reports/user/:userId` - Get user's reports
+### Admin & Internal
+- **Dashboard**
+  - `GET /admin/stats` - System-wide metrics
+  - `GET /admin/incidents` - Incident management table
+  - `GET /admin/signals` - Raw signal inspector
+  - `GET /admin/evaluations` - AI reasoning logs
+- **Demo Tools**
+  - `POST /admin/demo/seed` - Inject fake disaster scenarios
+  - `POST /admin/demo/reset` - Wipes database
 
-### Guides
-- `POST /guides/ask` - Ask safety question to GuideAssistantAgent
+### System
+- **Notifications**
+  - `POST /notifications/subscribe` - Register FCM token
+- **Emergency Contacts**
+  - `GET /emergency-contacts` - Localized emergency numbers
 
 ---
 
 ## Key Modules
 
-### API Modules
-
+### Application Modules
 | Module | Description |
 |--------|-------------|
-| `SignalsModule` | Ingestion and raw data storage |
-| `IncidentsModule` | Incident lifecycle management |
-| `ReasoningModule` | AI Agent orchestration |
-| `SourcesModule` | External data fetchers (TikTok, RSS, BMKG, Reports) |
-| `UploadModule` | Cloudflare R2 file uploads |
-| `NotificationsModule` | Firebase push notifications |
-| `QueueModule` | BullMQ job processing |
+| `IncidentsModule` | Core logic for clustering and lifecycle management |
+| `SignalsModule` | Raw data ingestion and normalization |
+| `ReasoningModule` | Helper module for AI Agent orchestration |
+| `ReportsModule` | User report handling and verification |
+| `GuidesModule` | RAG-based safety guide system |
+| `UsersModule` | User profile and preferences management |
+| `UserPlacesModule` | Saved locations and geofencing logic |
 
-### Web Components
+### Infrastructure Modules
+| Module | Description |
+|--------|-------------|
+| `DatabaseModule` | Supabase / PostgreSQL connection |
+| `QueueModule` | BullMQ job processing configuration |
+| `UploadModule` | Cloudflare R2 media storage |
+| `NotificationsModule` | Firebase Cloud Messaging wrapper |
+| `SseModule` | Server-Sent Events for real-time updates |
 
-| Component | Description |
-|-----------|-------------|
-| `IncidentMap` | Core visualization with clustering and custom markers |
-| `HeroStatus` | Animated incident highlight card |
-| `DashboardHeader` | Main navigation and status indicator |
+### Ingestion Source Modules
+| Module | Description |
+|--------|-------------|
+| `BmkgModule` | Earthquake/Tsunami API poller |
+| `TiktokModule` | Social media video scraper |
+| `RssModule` | News feed aggregator |
 
 ---
 
