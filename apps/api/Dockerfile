@@ -40,6 +40,7 @@ USER nestjs
 # Copy built artifacts
 COPY --from=installer /app/apps/api/dist ./dist
 COPY --from=installer /app/node_modules ./node_modules
+COPY --from=installer /app/packages ./packages
 COPY --from=installer /app/apps/api/package.json ./package.json
 
 # Copy environment file (will be overridden by docker-compose or k8s)
