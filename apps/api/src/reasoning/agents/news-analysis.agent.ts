@@ -69,7 +69,7 @@ Respond in JSON format:
   "is_real_event": boolean,
   "confidence_score": 0.0-1.0,
   "event_type": "flood|earthquake|fire|landslide|tsunami|power_outage|other" or null,
-  "location_inference": Infer location (City/Province) from title/description if possible with this format: "City, Province",
+  "location_inference": Infer location (City/Province) from title/description if possible with this format: "City, Province". MUST be in INDONESIA. If outside, set is_real_event=false.
   "summary": "Brief 1-2 sentence summary of the incident" or null,
   "happened_at": "ISO timestamp if determinable" or null,
   "reason": "Brief explanation of your assessment"

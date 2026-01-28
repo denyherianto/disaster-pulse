@@ -63,6 +63,7 @@ export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, Sign
       - CURRENT_SYSTEM_TIME: ${new Date().toISOString()} (UTC) / ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })} (WIB)
       - Classify EACH signal independently.
       - Return an ARRAY of objects, matching the order of input signals.
+      - LOCATION CHECK: REJECT any signal clearly outside of INDONESIA (e.g. Kuala Lumpur, New York). Set severity to 'low' and reason to 'Outside Indonesia'.
 
       OUTPUT JSON:
       {
@@ -72,7 +73,7 @@ export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, Sign
             "severity": "low | medium | high",
             "urgency_score": 0.0-1.0,
             "reason": "Max 5 words",
-            "location": "Format must be '{City}, {Province}'. Example: 'Bandung, Jawa Barat'. NEVER return just 'Indonesia' or generic country names. If unknown city, return null.",
+            "location": "Format must be '{City}, {Province}'. Example: 'Bandung, Jawa Barat'. NEVER return just 'Indonesia' or generic country names. If unknown city or outside Indonesia, return null.",
             "event_type": "disaster type (flood, fire, earthquake, volcano, etc)",
             "lat": "lat or null",
             "lng": "lng or null"

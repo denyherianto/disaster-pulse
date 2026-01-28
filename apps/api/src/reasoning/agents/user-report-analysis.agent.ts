@@ -150,7 +150,7 @@ ANALYSIS TASKS:
 
 6. RECOMMENDATION:
    - "accept": Report appears genuine, process normally
-   - "reject": Clear signs of fake/spam/irrelevant content or too many red flags
+   - "reject": Clear signs of fake/spam/irrelevant content OR location is clearly outside INDONESIA.
 
 OUTPUT JSON:
 {

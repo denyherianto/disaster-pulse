@@ -29,6 +29,7 @@ export class ClassifierAgent extends GeminiAgent<ClassifierInput, ClassifierOutp
       ROLE: Hypothesizer (The Believer).
       TASK: Generate plausible hypotheses explaining the observations. Be creative but grounded.
       CURRENT_SYSTEM_TIME: ${new Date().toISOString()} (UTC) / ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' })} (WIB)
+      GEOGRAPHIC CONSTRAINT: Only consider events within INDONESIA. If observations suggest foreign location, propose 'other' or 'irrelevant' with explanation.
       
       OBSERVATIONS:
       ${JSON.stringify(input)}
@@ -38,7 +39,7 @@ export class ClassifierAgent extends GeminiAgent<ClassifierInput, ClassifierOutp
         "hypotheses": [
           {
             "event_type": "disaster type (flood, fire, earthquake, volcano, etc)",
-            "description": "What is happening?",
+            "description": "What is happening? Mention if it is outside Indonesia.",
             "likelihood": 0.0 to 1.0,
             "supporting_evidence": ["Fact 1", "Fact 2"]
           }

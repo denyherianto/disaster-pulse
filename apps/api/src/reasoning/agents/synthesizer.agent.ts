@@ -47,11 +47,11 @@ export class SynthesizerAgent extends GeminiAgent<SynthesizerInput, SynthesizerO
       OUTPUT JSON:
       {
         "final_classification": "flood | fire | earthquake | landslide | volcano | whirlwind | tornado | tsunami | other",
-        "confidence_score": 0.0 to 1.0 (Penalize uncertain situations),
+        "confidence_score": 0.0 to 1.0 (Penalize uncertain situations. If event is clearly outside Indonesia, set confidence to 0.0),
         "severity": "low | medium | high",
         "title": "Short title for map (e.g. Major Flood in CBD)",
         "description": "User-facing description.",
-        "reasoning_trace": "Why you decided this, given the critique."
+        "reasoning_trace": "Why you decided this, given the critique. Explicitly mention if rejected due to location outside Indonesia."
       }
     `;
   }

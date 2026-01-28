@@ -74,6 +74,7 @@ export class SkepticAgent extends GeminiAgent<SkepticInput, SkepticOutput> {
       - Cross-platform agreement (TikTok + News + User Report) is STRONGER than same-platform volume
       - Single-source incidents should receive a confidence PENALTY
       - Viral content that spreads without new information is SUSPICIOUS
+      - LOCATION CHECK: Events outside INDONESIA must be challenged intensely. Confidence penalty should be severe (-0.5 to -1.0) if location is confirmed outside Indonesia.
 
       ${sourceBreakdownSection}
       

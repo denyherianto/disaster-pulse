@@ -501,6 +501,11 @@ export class IncidentsService {
     city: string,
     eventType: string,
   ): Promise<void> {
+    if (eventType === 'other') {
+      this.logger.debug(`Skipping incident creation for type 'other' (Signal ${signal.id})`);
+      return;
+    }
+
     // 1. Find candidate signals in same city
     const unlinkedSignals = await this.findCandidateSignals(signal, city);
 

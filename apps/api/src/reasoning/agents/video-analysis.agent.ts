@@ -73,6 +73,7 @@ Task Details:
 6. Determine the time of the event in timestamp format as "happened_at" field. Fallback to "created_at".
 7. FRESHNESS CHECK: Calculate the age of the video (Current Time - happened_at). Compare with FRESHNESS RULES for the determined event type.
    - IF AGE > MAX AGE: Set "is_real_event" to false and append "[EXPIRED]" to summary.
+8. LOCATION CHECK: Must be in INDONESIA. If clearly outside Indonesia (e.g. USA, Malaysia), set "is_real_event" to false and reason "Outside Indonesia".
 
 Output JSON only:
 {
