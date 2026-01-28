@@ -179,22 +179,22 @@ flowchart TB
     ACT_OUT -->|dismiss| IGNORE["Mark as Noise"]
 ```
 
-### Agent Roles
+### Agent Reference
 
-| Agent | Model | Role |
-|-------|-------|------|
-| **ObserverAgent** | gemini-2.5-flash | Extract objective facts from raw signals |
-| **ClassifierAgent** | gemini-3-pro | Generate multiple hypotheses with likelihood scores |
-| **SkepticAgent** | gemini-3-pro | Challenge hypotheses, identify inconsistencies |
-| **SynthesizerAgent** | gemini-3-pro | Produce final judgment from debate |
-| **ActionAgent** | gemini-3-pro | Decide system action (alert/monitor/dismiss) |
-| **VideoAnalysisAgent** | gemini-2.5-flash | Analyze TikTok videos for disaster content |
-| **NewsAnalysisAgent** | gemini-2.5-flash | Analyze RSS news articles |
-| **UserReportAnalysisAgent** | gemini-3-pro | Validate user reports with EXIF analysis |
-| **SignalEnrichmentAgent** | gemini-2.5-flash | Enrich signals with location and severity |
-| **LocationMatcherAgent** | gemini-2.5-flash | Compare locations for incident merging |
-| **IncidentResolutionAgent** | gemini-2.5-flash | Auto-resolve stale incidents |
-| **GuideAssistantAgent** | gemini-3-pro | Answer disaster safety questions |
+| Agent | Model | Type | Role & Logic |
+|-------|-------|------|--------------|
+| **SignalEnrichmentAgent** | `gemini-2.5-flash` | Ingestion | **Triage & Geocoding**. Process raw signals in batches. <br>• Infers `{City}, {Province}` from unstructured text.<br>• Rejects signals outside Indonesia.<br>• Assigns initial severity score. |
+| **VideoAnalysisAgent** | `gemini-2.5-flash` | Ingestion | **TikTok Analyst**. Analyzes video content + captions.<br>• Multimodal check: Does visual match text?<br>• Freshness check: Is this old footage being reposted?<br>• Location check: Must be in Indonesia. |
+| **NewsAnalysisAgent** | `gemini-2.5-flash` | Ingestion | **News Analyst**. Filters RSS feeds.<br>• Distinguishes active disasters from prevention articles/history.<br>• Extracts specific location and time.<br>• Rejects international news. |
+| **UserReportAnalysisAgent** | `gemini-3-pro` | Ingestion | **Forensic Analyst**. Validates user submissions.<br>• Checks EXIF metadata consistency (GPS/Time).<br>• Detects "fake" or "spam" reports.<br>• Multimodal analysis of user upload media. |
+| **ObserverAgent** | `gemini-2.5-flash` | Reasoning | **The Eye**. Step 1 of Reasoning Chain.<br>• Reads raw signals (text/images).<br>• Extracts objective facts only (timeline, casualty counts).<br>• No speculation allowed. |
+| **ClassifierAgent** | `gemini-3-pro` | Reasoning | **The Theorist**. Step 2 of Reasoning Chain.<br>• Proposes multiple hypotheses based on facts (e.g., "Flood" vs "Puddle").<br>• Assigns likelihood scores.<br>• Restricted to Indonesian event types. |
+| **SkepticAgent** | `gemini-3-pro` | Reasoning | **The Critic**. Step 3 of Reasoning Chain.<br>• Challenges hypotheses.<br>• Checks source diversity (Bio-verification).<br>• Penalizes single-source or viral-only reports.<br>• Explicitly demotes out-of-region events. |
+| **SynthesizerAgent** | `gemini-3-pro` | Reasoning | **The Judge**. Step 4 of Reasoning Chain.<br>• Weighs hypotheses vs critiques.<br>• Produces final classification and confidence score.<br>• Generates user-facing summaries. |
+| **ActionAgent** | `gemini-3-pro` | Reasoning | **The Strategist**. Step 5 of Reasoning Chain.<br>• Decides system action based on confidence threshold (0.6).<br>• `CREATE_INCIDENT`: High confidence, new event.<br>• `MERGE_INCIDENT`: Matches existing active incident.<br>• `WAIT`: Insufficient data.<br>• `DISMISS`: Benign/Noise. |
+| **LocationMatcherAgent** | `gemini-2.5-flash` | Utility | **Fuzzy Geospatial Matcher**.<br>• Compares two location strings (e.g. "Jaksel" vs "Jakarta Selatan").<br>• Determines if they refer to the same incident cluster. |
+| **IncidentResolutionAgent** | `gemini-2.5-flash` | Utility | **Cleanup Crew**.<br>• Analyzes stale incidents (no updates > 6h).<br>• Determines if safe to resolve/close. |
+| **GuideAssistantAgent** | `gemini-3-pro` | Utility | **Safety Guide**.<br>• RAG-based safety advice.<br>• Context-aware answers based on active incident. |
 
 ---
 
