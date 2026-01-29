@@ -463,8 +463,10 @@ export default function IncidentDetailPage() {
 
     return (
         <>
-            {/* Header */}
-            <div className={`shrink-0 ${getIncidentColorClass(incident.event_type, 'header')} text-white`}>
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto">
+                {/* Header */}
+                <div className={`${getIncidentColorClass(incident.event_type, 'header')} text-white`}>
                 <div className="px-6 py-4">
                     <div className="flex items-center justify-between mb-6">
                         <Link href="/" className="p-2 -ml-2 text-white/80 hover:text-white">
@@ -506,11 +508,11 @@ export default function IncidentDetailPage() {
                             <div className="text-xs text-white/70">{t('incidentDetail.reports')}</div>
                         </div>
                     </div>
+                    </div>
                 </div>
-            </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto bg-slate-50 pb-24">
+                {/* Content */}
+                <div className="bg-slate-50 pb-24">
 
                 {/* Summary Section */}
                 {incident.summary && (
@@ -831,6 +833,7 @@ export default function IncidentDetailPage() {
                         ))}
                     </div>
                 </div>
+            </div>
             </div>
 
             <nav className="absolute bottom-0 w-full bg-white/90 backdrop-blur-xl border-t border-slate-200 pb-safe z-40">

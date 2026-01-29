@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  themeColor: "#3b82f6",
+  themeColor: "#ffffff",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -28,7 +28,11 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="apple-touch-startup-image" href="/splash_screen.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Disaster Pulse" />
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
       </head>
       {/* Removed "flex items-center justify-center" to allow full-width admin pages. 

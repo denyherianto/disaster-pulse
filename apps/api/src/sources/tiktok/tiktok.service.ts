@@ -187,23 +187,51 @@ export class TiktokService implements OnModuleInit {
 
     // NEW: Upload to R2 if accepted
     let mediaUrl = video.play;
-    try {
-      this.logger.log(`Downloading video for R2 upload: ${video.video_id}`);
-      const response = await axios.get(video.play, { responseType: 'arraybuffer' });
-      const buffer = Buffer.from(response.data);
+    let thumbnailUrl = video.origin_cover || video.cover;
 
-      const uploadResult = await this.r2UploadService.uploadFromBuffer(
-        buffer,
-        'video/mp4', // TikTok API typically returns MP4, but strictly we should check headers
+    try {
+      // Upload video to R2
+      this.logger.log(`Downloading video for R2 upload: ${video.video_id}`);
+      const videoResponse = await axios.get(video.play, { responseType: 'arraybuffer' });
+      const videoBuffer = Buffer.from(videoResponse.data);
+
+      const videoUploadResult = await this.r2UploadService.uploadFromBuffer(
+        videoBuffer,
+        'video/mp4',
         'tiktok',
         `${video.video_id}.mp4`
       );
 
-      mediaUrl = uploadResult.url;
+      mediaUrl = videoUploadResult.url;
       this.logger.log(`Video uploaded to R2: ${mediaUrl}`);
     } catch (error) {
       this.logger.error(`Failed to upload video ${video.video_id} to R2. Using original URL.`, error);
-      // Fallback to original URL is already set
+    }
+
+    try {
+      // Upload thumbnail to R2
+      const originalThumbnailUrl = video.origin_cover || video.cover;
+      if (originalThumbnailUrl) {
+        this.logger.log(`Downloading thumbnail for R2 upload: ${video.video_id}`);
+        const thumbResponse = await axios.get(originalThumbnailUrl, { responseType: 'arraybuffer' });
+        const thumbBuffer = Buffer.from(thumbResponse.data);
+
+        // Determine image type from response headers or default to jpeg
+        const contentType = thumbResponse.headers['content-type'] || 'image/jpeg';
+        const extension = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
+
+        const thumbUploadResult = await this.r2UploadService.uploadFromBuffer(
+          thumbBuffer,
+          contentType,
+          'tiktok-thumbnails',
+          `${video.video_id}.${extension}`
+        );
+
+        thumbnailUrl = thumbUploadResult.url;
+        this.logger.log(`Thumbnail uploaded to R2: ${thumbnailUrl}`);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to upload thumbnail ${video.video_id} to R2. Using original URL.`, error);
     }
 
     // 3. Create Signal
@@ -216,7 +244,7 @@ export class TiktokService implements OnModuleInit {
       city_hint: analysis.location_inference || null,
       media_url: mediaUrl, // Store the R2 URL (or fallback)
       media_type: 'video',
-      thumbnail_url: video.origin_cover || video.cover,
+      thumbnail_url: thumbnailUrl, // Store the R2 thumbnail URL (or fallback)
       created_at: undefined, // Let DB handle it
       happened_at: analysis?.happened_at || new Date(video.create_time * 1000).toISOString(),
       raw_payload: {
@@ -225,6 +253,7 @@ export class TiktokService implements OnModuleInit {
         reason: analysis.reason,
         descriptor: analysis,
         original_url: video.play, // Keep original URL for reference
+        original_thumbnail_url: video.origin_cover || video.cover, // Keep original thumbnail URL for reference
       }
     };
     console.log('signalPayload', signalPayload)
