@@ -331,7 +331,6 @@ export default function ReportIncidentModal({ isOpen, onClose }: ReportModalProp
                     <div className="space-y-2">
                         <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                             {t('report.media.label')}
-                            <span className="text-red-500 ml-1">*</span>
                         </label>
 
                         <input

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Query } from '@nestjs/common';
+import { Controller, Get, Post, Query, Body } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { DemoSeedService } from './demo-seed.service';
 
@@ -21,6 +21,30 @@ export class AdminController {
   @Post('demo/reset')
   async resetDemoData() {
     return this.demoSeedService.reset();
+  }
+
+  @Post('demo/test-notification')
+  async testNotification(
+    @Body() body: {
+      userId?: string;
+      title?: string;
+      body?: string;
+      eventType?: string;
+    },
+  ) {
+    return this.demoSeedService.testPushNotification(body);
+  }
+
+  @Post('demo/test-incident-alert')
+  async testIncidentAlert(
+    @Body() body: {
+      userId?: string;
+      eventType?: 'earthquake' | 'flood' | 'fire' | 'landslide' | 'volcano';
+      severity?: 'low' | 'medium' | 'high';
+      city?: string;
+    },
+  ) {
+    return this.demoSeedService.testIncidentNotification(body);
   }
 
   @Get('signals')

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { SseService } from '../sse/sse.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { SSE_EVENT_TYPES } from '../common/constants';
 
 /**
@@ -10,6 +11,7 @@ import { SSE_EVENT_TYPES } from '../common/constants';
  * Usage:
  * - POST /admin/demo/seed - Seeds the database with demo data
  * - POST /admin/demo/reset - Clears all demo data
+ * - POST /admin/demo/test-notification - Sends a test push notification
  */
 @Injectable()
 export class DemoSeedService {
@@ -21,6 +23,7 @@ export class DemoSeedService {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly sseService: SseService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private db() {
@@ -471,6 +474,162 @@ export class DemoSeedService {
             created_at: new Date(now.getTime() + i * 1000).toISOString(),
           });
       }
+    }
+  }
+
+  /**
+   * Send a test push notification
+   * If userId is provided, sends to that user only.
+   * Otherwise sends to all subscribed users.
+   */
+  async testPushNotification(options?: {
+    userId?: string;
+    title?: string;
+    body?: string;
+    eventType?: string;
+  }) {
+    this.logger.log('🔔 Sending Test Push Notification...');
+
+    const title = options?.title || '🚨 Test Notification';
+    const body = options?.body || 'This is a test notification from Disaster Pulse. If you see this, push notifications are working!';
+    const eventType = options?.eventType || 'flood';
+
+    try {
+      const dummyIncidentId = '00000000-0000-0000-0000-000000000000';
+      const link = `/incidents/${dummyIncidentId}`;
+
+      let sentCount = 0;
+
+      if (options?.userId) {
+        // Send to specific user
+        sentCount = await this.notificationsService.sendToUser(options.userId, {
+          title,
+          body,
+          data: {
+            type: 'test',
+            event_type: eventType,
+            timestamp: new Date().toISOString(),
+            incidentId: dummyIncidentId,
+            link,
+          },
+        });
+        this.logger.log(`✅ Test notification sent to user ${options.userId}`);
+      } else {
+        // Send to all subscribed users
+        sentCount = await this.notificationsService.sendToAllUsers({
+          title,
+          body,
+          data: {
+            type: 'test',
+            event_type: eventType,
+            timestamp: new Date().toISOString(),
+            incidentId: dummyIncidentId,
+            link,
+          },
+        });
+        this.logger.log(`✅ Test notification sent to ${sentCount} device(s)`);
+      }
+
+      return {
+        success: true,
+        message: `Test notification sent successfully`,
+        sentCount,
+        payload: { title, body, eventType },
+      };
+    } catch (error) {
+      this.logger.error('❌ Failed to send test notification:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send a simulated incident alert notification
+   * Creates a realistic notification that mimics a real disaster alert
+   */
+  async testIncidentNotification(options?: {
+    userId?: string;
+    eventType?: 'earthquake' | 'flood' | 'fire' | 'landslide' | 'volcano';
+    severity?: 'low' | 'medium' | 'high';
+    city?: string;
+  }) {
+    this.logger.log('🚨 Sending Test Incident Notification...');
+
+    const eventType = options?.eventType || 'earthquake';
+    const severity = options?.severity || 'high';
+    const city = options?.city || 'Jakarta';
+
+    const eventNames: Record<string, string> = {
+      earthquake: 'Gempa Bumi',
+      flood: 'Banjir',
+      fire: 'Kebakaran',
+      landslide: 'Tanah Longsor',
+      volcano: 'Erupsi Gunung Api',
+    };
+
+    const severityEmoji: Record<string, string> = {
+      low: '⚠️',
+      medium: '🟠',
+      high: '🔴',
+    };
+
+    const title = `${severityEmoji[severity]} ${eventNames[eventType]} Terdeteksi`;
+    const body = `${eventNames[eventType]} ${severity === 'high' ? 'kuat' : severity === 'medium' ? 'sedang' : 'ringan'} terdeteksi di ${city}. Tetap waspada dan ikuti instruksi pihak berwenang.`;
+
+    try {
+      // Try to find a real incident for the link, otherwise use dummy
+      const { data: latestIncident } = await this.db()
+        .from('incidents')
+        .select('id')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      const incidentId = latestIncident?.id || '00000000-0000-0000-0000-000000000000';
+      const link = `/incidents/${incidentId}`;
+
+      let sentCount = 0;
+
+      if (options?.userId) {
+        sentCount = await this.notificationsService.sendToUser(options.userId, {
+          title,
+          body,
+          data: {
+            type: 'incident_alert',
+            event_type: eventType,
+            severity,
+            city,
+            timestamp: new Date().toISOString(),
+            incidentId,
+            link,
+          },
+        });
+      } else {
+        sentCount = await this.notificationsService.sendToAllUsers({
+          title,
+          body,
+          data: {
+            type: 'incident_alert',
+            event_type: eventType,
+            severity,
+            city,
+            timestamp: new Date().toISOString(),
+            incidentId,
+            link,
+          },
+        });
+      }
+
+      this.logger.log(`✅ Incident notification sent to ${sentCount} device(s)`);
+
+      return {
+        success: true,
+        message: `Incident notification sent successfully`,
+        sentCount,
+        payload: { title, body, eventType, severity, city },
+      };
+    } catch (error) {
+      this.logger.error('❌ Failed to send incident notification:', error);
+      throw error;
     }
   }
 }
