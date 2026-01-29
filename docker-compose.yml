@@ -18,7 +18,7 @@ services:
         NEXT_PUBLIC_FIREBASE_VAPID_KEY: ${NEXT_PUBLIC_FIREBASE_VAPID_KEY}
         NEXT_PUBLIC_FEATURE_USER_REPORTS: ${NEXT_PUBLIC_FEATURE_USER_REPORTS:-true}
     ports:
-      - "3098:3000"
+      - "30098:3000"
     environment:
       # API Config
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3001}
@@ -51,7 +51,7 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     ports:
-      - "3099:3001"
+      - "30099:3001"
     environment:
       - PORT=3001
       - REDIS_HOST=redis
