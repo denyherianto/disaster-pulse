@@ -20,6 +20,7 @@ services:
     ports:
       - "3020:3020"
     environment:
+      - PORT=3020
       # API Config
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3021}
       
