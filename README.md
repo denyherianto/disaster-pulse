@@ -2,7 +2,7 @@
 
 **Disaster Pulse** is a real-time disaster monitoring and intelligence platform for Indonesia. It aggregates data from multiple sources (BMKG, TikTok, News RSS, User Reports) to provide verified, actionable insights.
 
-![Disaster Pulse Splash](/apps/web/public/splash_screen.png)
+![Disaster Pulse](/media/disaster-pulse-home.jpg)
 
 ## System Architecture
 
