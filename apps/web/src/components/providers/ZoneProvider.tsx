@@ -70,12 +70,17 @@ export default function ZoneProvider({ children }: { children: React.ReactNode }
         }
     }, []);
 
-    // 4. Auto-select first zone if none selected and zones exist
+    // 4. Auto-select: first zone if available, otherwise 'all' (Indonesia)
     useEffect(() => {
-        if (!selectedZoneId && zones.length > 0) {
-            setSelectedZoneId(zones[0].id);
+        if (!selectedZoneId) {
+            if (zones.length > 0) {
+                setSelectedZoneId(zones[0].id);
+            } else if (!isLoading) {
+                // No zones available, default to "All Indonesia"
+                setSelectedZoneId('all');
+            }
         }
-    }, [zones, selectedZoneId]);
+    }, [zones, selectedZoneId, isLoading]);
 
     // 5. Persist Selection
     const handleSetZone = (id: string) => {

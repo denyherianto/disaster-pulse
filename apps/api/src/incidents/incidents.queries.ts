@@ -24,6 +24,7 @@ import {
   getDistanceFromLatLonInM,
   isValidBBox,
 } from './incidents.utils';
+import { SEISMIC_MIN_RADIUS_M, SEISMIC_EVENT_TYPES } from '../common/constants';
 
 /** Raw incident select query for viewport/nearby */
 const INCIDENT_SELECT_QUERY = `
@@ -153,6 +154,8 @@ export class IncidentsQueriesService {
 
   /**
    * Get all incidents within a radius from a point
+   * Note: Earthquake and tsunami incidents use a minimum 100km radius
+   * to ensure users are aware of seismic events in their wider region
    */
   async getNearbyIncidents(
     lat: number,
@@ -174,12 +177,18 @@ export class IncidentsQueriesService {
       .filter((inc): inc is IncidentWithCentroid => inc !== null);
 
     // Filter by distance and add distance property
+    // For seismic events (earthquake/tsunami), use at least 100km radius to ensure wider awareness
     const results = candidates
       .map((inc) => ({
         ...inc,
         distance: getDistanceFromLatLonInM(lat, lng, inc.lat, inc.lng),
       }))
-      .filter((inc) => inc.distance <= radiusM);
+      .filter((inc) => {
+        const effectiveRadius = (SEISMIC_EVENT_TYPES as readonly string[]).includes(inc.type)
+          ? Math.max(radiusM, SEISMIC_MIN_RADIUS_M)
+          : radiusM;
+        return inc.distance <= effectiveRadius;
+      });
 
     // Sort by distance
     return results.sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0));

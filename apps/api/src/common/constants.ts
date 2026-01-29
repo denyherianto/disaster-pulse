@@ -65,6 +65,19 @@ export const INCIDENT_CONFIG = {
 } as const;
 
 // ============================================================
+// NOTIFICATION & DISPLAY RADIUS
+// ============================================================
+
+/** Default notification radius in meters (50km) */
+export const DEFAULT_NOTIFICATION_RADIUS_M = 50000;
+
+/** Minimum radius for seismic events (earthquake, tsunami) in meters (100km) */
+export const SEISMIC_MIN_RADIUS_M = 100000;
+
+/** Event types considered seismic (wider notification/display radius) */
+export const SEISMIC_EVENT_TYPES = ['earthquake', 'tsunami'] as const;
+
+// ============================================================
 // SSE EVENT TYPES
 // ============================================================
 

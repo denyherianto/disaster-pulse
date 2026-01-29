@@ -778,7 +778,7 @@ export class IncidentsService {
       signals.map((s) => ({ lat: s.lat, lng: s.lng })),
     );
 
-    // Send push notification
+    // Send push notification to users with places in affected area
     await this.notificationsService.notifyIncident({
       id: incident.id,
       city: signals[0]?.city_hint ?? '',
@@ -788,6 +788,7 @@ export class IncidentsService {
       summary: conclusion.description,
       lat: centroid.lat,
       lng: centroid.lng,
+      confidence: conclusion.confidence_score,
     });
   }
 
@@ -1051,15 +1052,46 @@ export class IncidentsService {
       updated_at: new Date().toISOString(),
     });
 
-    // Send push notification if alert
+    // Send push notification if alert - get coordinates from incident signals
     if (status === 'alert' || conclusion.severity === 'high') {
+      // Get incident signals to calculate centroid for geospatial notification
+      const { data: incidentSignals } = await this.db
+        .from('incident_signals')
+        .select('signals(lat, lng)')
+        .eq('incident_id', incidentId);
+
+      let centroid: { lat: number; lng: number } | null = null;
+      let city = '';
+
+      if (incidentSignals?.length) {
+        const coords = incidentSignals
+          .map((is: any) => is.signals)
+          .filter((s: any) => s?.lat && s?.lng);
+
+        if (coords.length > 0) {
+          centroid = calculateCentroid(coords);
+
+          // Get city from incident
+          const { data: incidentData } = await this.db
+            .from('incidents')
+            .select('city')
+            .eq('id', incidentId)
+            .single();
+
+          city = incidentData?.city || '';
+        }
+      }
+
       await this.notificationsService.notifyIncident({
         id: incidentId,
-        city: '',
+        city,
         event_type: conclusion.final_classification || eventType,
         severity: conclusion.severity,
         status,
         summary: conclusion.description,
+        lat: centroid?.lat,
+        lng: centroid?.lng,
+        confidence: conclusion.confidence_score,
       });
     }
   }

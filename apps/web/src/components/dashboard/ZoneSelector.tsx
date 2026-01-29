@@ -31,9 +31,9 @@ export default function ZoneSelector() {
     const toggleOpen = () => setIsOpen(!isOpen);
 
     const getSelectedLabel = () => {
-        if (selectedZoneId === 'all') return t('map.filter.allIndonesia');
+        if (selectedZoneId === 'all' || !selectedZoneId) return t('map.filter.allIndonesia');
         const zone = zones.find(z => z.id === selectedZoneId);
-        return zone ? zone.label : 'Unknown Zone';
+        return zone ? zone.label : t('map.filter.allIndonesia');
     };
 
     return (
