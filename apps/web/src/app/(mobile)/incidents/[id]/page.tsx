@@ -3,7 +3,7 @@
 import { useParams } from 'next/navigation';
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { MapPin, ChevronLeft, ThumbsUp, ThumbsDown, Clock, Phone, FileDown, ExternalLink, AlertTriangle, CheckCircle, Eye, AlarmCheck, ChevronDown, ChevronUp, Bot, Video } from 'lucide-react';
+import { MapPin, ChevronLeft, ThumbsUp, ThumbsDown, Clock, Phone, FileDown, ExternalLink, AlertTriangle, CheckCircle, Eye, AlarmCheck, ChevronDown, ChevronUp, Bot, Video, X } from 'lucide-react';
 import Link from 'next/link';
 import BottomNav from '@/components/navigation/BottomNav';
 import { API_BASE_URL } from '@/lib/config';
@@ -47,6 +47,39 @@ const getSeverityColor = (severity: string) => {
         case 'high': return 'bg-red-100 text-red-700';
         case 'medium': return 'bg-amber-100 text-amber-700';
         default: return 'bg-green-100 text-green-700';
+    }
+};
+
+// Status-based header styles matching HeroStatus
+const getStatusHeaderStyles = (status: string) => {
+    switch (status?.toLowerCase()) {
+        case 'alert':
+            return {
+                bg: 'bg-red-600',
+                text: 'text-white',
+                iconBg: 'bg-white/20',
+                statusBadge: 'bg-white/20 text-white',
+                statsBg: 'bg-white/10',
+                statsText: 'text-white/70',
+            };
+        case 'monitor':
+            return {
+                bg: 'bg-amber-500',
+                text: 'text-white',
+                iconBg: 'bg-white/20',
+                statusBadge: 'bg-white/20 text-white',
+                statsBg: 'bg-white/10',
+                statsText: 'text-white/70',
+            };
+        default:
+            return {
+                bg: 'bg-blue-600',
+                text: 'text-white',
+                iconBg: 'bg-white/20',
+                statusBadge: 'bg-white/20 text-white',
+                statsBg: 'bg-white/10',
+                statsText: 'text-white/70',
+            };
     }
 };
 
@@ -347,12 +380,47 @@ const TraceStep = ({ trace, index }: { trace: any; index: number }) => {
     );
 };
 
+// Video Modal Component
+const VideoModal = ({ videoUrl, onClose }: { videoUrl: string; onClose: () => void }) => {
+    return (
+        <div
+            className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
+            onClick={onClose}
+        >
+            {/* Close Button */}
+            <button
+                onClick={onClose}
+                className="absolute top-4 right-4 z-50 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white hover:bg-white/20 transition-colors"
+            >
+                <X size={24} />
+            </button>
+
+            {/* Video Container */}
+            <div
+                className="w-full max-w-md aspect-[9/16] relative"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <video
+                    src={videoUrl}
+                    className="w-full h-full object-contain"
+                    controls
+                    autoPlay
+                    playsInline
+                />
+            </div>
+        </div>
+    );
+};
+
 export default function IncidentDetailPage() {
     const params = useParams();
     const incidentId = params.id as string;
     const queryClient = useQueryClient();
     const { t } = useLanguage();
     const { user } = useAuth();
+
+    // Video modal state
+    const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
 
     // Fetch incident details
     const { data: incident, isLoading } = useQuery({
@@ -428,9 +496,104 @@ export default function IncidentDetailPage() {
 
     if (isLoading) {
         return (
-            <div className="flex-1 flex items-center justify-center">
-                <div className="text-slate-400">{t('common.loading')}</div>
-            </div>
+            <>
+                {/* Skeleton Shimmer Styles */}
+                <style jsx>{`
+                    @keyframes shimmer {
+                        0% { background-position: -200% 0; }
+                        100% { background-position: 200% 0; }
+                    }
+                    .shimmer {
+                        background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+                        background-size: 200% 100%;
+                        animation: shimmer 1.5s infinite;
+                    }
+                    .shimmer-dark {
+                        background: linear-gradient(90deg, rgba(255,255,255,0.1) 25%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 75%);
+                        background-size: 200% 100%;
+                        animation: shimmer 1.5s infinite;
+                    }
+                `}</style>
+
+                <div className="flex-1 overflow-y-auto">
+                    {/* Header Skeleton */}
+                    <div className="bg-blue-500 text-white">
+                        <div className="px-6 py-4">
+                            {/* Back button and status */}
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="w-8 h-8 rounded-lg shimmer-dark" />
+                                <div className="w-16 h-6 rounded-full shimmer-dark" />
+                            </div>
+
+                            {/* Icon and title */}
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className="w-14 h-14 rounded-2xl shimmer-dark" />
+                                <div className="space-y-2">
+                                    <div className="w-32 h-7 rounded-lg shimmer-dark" />
+                                    <div className="w-24 h-4 rounded shimmer-dark" />
+                                </div>
+                            </div>
+
+                            {/* Quick Stats */}
+                            <div className="grid grid-cols-3 gap-3 mt-4">
+                                {[1, 2, 3].map((i) => (
+                                    <div key={i} className="bg-white/10 rounded-xl p-3">
+                                        <div className="w-12 h-7 mx-auto rounded shimmer-dark mb-1" />
+                                        <div className="w-16 h-3 mx-auto rounded shimmer-dark" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Content Skeleton */}
+                    <div className="bg-slate-50 pb-24">
+                        {/* Summary Section */}
+                        <div className="px-6 py-4">
+                            <div className="w-24 h-4 rounded shimmer mb-3" />
+                            <div className="bg-white rounded-2xl border border-slate-200 p-4">
+                                <div className="space-y-2">
+                                    <div className="w-full h-4 rounded shimmer" />
+                                    <div className="w-3/4 h-4 rounded shimmer" />
+                                    <div className="w-1/2 h-4 rounded shimmer" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Timeline Section */}
+                        <div className="px-6 py-4">
+                            <div className="w-20 h-4 rounded shimmer mb-3" />
+                            <div className="bg-white rounded-2xl border border-slate-200 p-4">
+                                {[1, 2, 3].map((i) => (
+                                    <div key={i} className="flex gap-3 mb-4 last:mb-0">
+                                        <div className="w-8 h-8 rounded-full shimmer flex-none" />
+                                        <div className="space-y-1.5 flex-1 pt-1">
+                                            <div className="w-32 h-4 rounded shimmer" />
+                                            <div className="w-16 h-3 rounded shimmer" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Feedback Section */}
+                        <div className="px-6 py-4">
+                            <div className="w-28 h-4 rounded shimmer mb-3" />
+                            <div className="bg-white rounded-2xl border border-slate-200 p-4">
+                                <div className="w-full h-4 rounded shimmer mb-4" />
+                                <div className="flex gap-3">
+                                    <div className="flex-1 h-12 rounded-xl shimmer" />
+                                    <div className="flex-1 h-12 rounded-xl shimmer" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <nav className="absolute bottom-0 w-full bg-white/90 backdrop-blur-xl border-t border-slate-200 pb-safe z-40">
+                    <BottomNav />
+                </nav>
+            </>
         );
     }
 
@@ -446,6 +609,7 @@ export default function IncidentDetailPage() {
     }
 
     const iconName = getIncidentIconName(incident.event_type);
+    const headerStyles = getStatusHeaderStyles(incident.status);
 
     // Use real lifecycle data from API
     // If empty (legacy incidents), fallback to created_at
@@ -466,20 +630,19 @@ export default function IncidentDetailPage() {
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto">
                 {/* Header */}
-                <div className={`${getIncidentColorClass(incident.event_type, 'header')} text-white`}>
+                <div className={`${headerStyles.bg} ${headerStyles.text}`}>
                 <div className="px-6 py-4">
                     <div className="flex items-center justify-between mb-6">
                         <Link href="/" className="p-2 -ml-2 text-white/80 hover:text-white">
                             <ChevronLeft size={20} />
                         </Link>
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${incident.status === 'alert' ? 'bg-white/20' : 'bg-white/10'
-                            }`}>
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${headerStyles.statusBadge}`}>
                             {incident.status}
                         </span>
                     </div>
 
                     <div className="flex items-center gap-4 mb-4">
-                        <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center">
+                            <div className={`w-14 h-14 rounded-2xl ${headerStyles.iconBg} flex items-center justify-center`}>
                             <GoogleIcon name={iconName} size={28} />
                         </div>
                         <div>
@@ -493,19 +656,19 @@ export default function IncidentDetailPage() {
 
                     {/* Quick Stats */}
                     <div className="grid grid-cols-3 gap-3 mt-4">
-                        <div className="bg-white/10 rounded-xl p-3 text-center">
+                            <div className={`${headerStyles.statsBg} rounded-xl p-3 text-center`}>
                             <div className="text-2xl font-bold">{Math.round((incident.confidence_score || 0) * 100)}%</div>
-                            <div className="text-xs text-white/70">{t('incidentDetail.confidence')}</div>
+                                <div className={`text-xs ${headerStyles.statsText}`}>{t('incidentDetail.confidence')}</div>
                         </div>
-                        <div className="bg-white/10 rounded-xl p-3 text-center">
+                            <div className={`${headerStyles.statsBg} rounded-xl p-3 text-center`}>
                             <div className={`text-sm font-semibold px-2 py-1 rounded-full inline-block ${getSeverityColor(incident.severity)}`}>
                                 {(incident?.severity || 'Medium').toUpperCase()}
                             </div>
-                            <div className="text-xs text-white/70 mt-1">{t('incidentDetail.severity')}</div>
+                                <div className={`text-xs ${headerStyles.statsText} mt-1`}>{t('incidentDetail.severity')}</div>
                         </div>
-                        <div className="bg-white/10 rounded-xl p-3 text-center">
+                            <div className={`${headerStyles.statsBg} rounded-xl p-3 text-center`}>
                             <div className="text-2xl font-bold">{signals.length}</div>
-                            <div className="text-xs text-white/70">{t('incidentDetail.reports')}</div>
+                                <div className={`text-xs ${headerStyles.statsText}`}>{t('incidentDetail.reports')}</div>
                         </div>
                     </div>
                     </div>
@@ -727,7 +890,11 @@ export default function IncidentDetailPage() {
                                 <CollapsibleSection>
                                     <div className="grid grid-cols-2 gap-3">
                                         {signals.filter((s: any) => s.source === 'social_media' && s.media_type === 'video').map((signal: any) => (
-                                            <div key={signal.id} className="relative aspect-[9/16] bg-slate-900 rounded-xl overflow-hidden border border-slate-200 group">
+                                            <button
+                                                key={signal.id}
+                                                className="relative aspect-[9/16] bg-slate-900 rounded-xl overflow-hidden border border-slate-200 group text-left"
+                                                onClick={() => setActiveVideoUrl(signal.media_url)}
+                                            >
                                                 {/* Thumbnail */}
                                                 {signal.thumbnail_url ? (
                                                     <img
@@ -737,27 +904,23 @@ export default function IncidentDetailPage() {
                                                     />
                                                 ) : (
                                                     <div className="absolute inset-0 flex items-center justify-center text-white/50 bg-black/40">
-                                                        <ExternalLink size={24} />
+                                                            <Video size={24} />
                                                     </div>
                                                 )}
 
                                                 {/* Play Icon/Overlay */}
                                                 <div className="absolute inset-0 flex items-center justify-center bg-black/10 group-hover:bg-black/20 transition-colors">
-                                                    {signal.thumbnail_url && (
-                                                        <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/30 shadow-lg">
-                                                            <Video size={18} fill="currentColor" className="opacity-90" />
-                                                        </div>
-                                                    )}
+                                                    <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/30 shadow-lg group-hover:scale-110 transition-transform">
+                                                        <Video size={20} fill="currentColor" className="opacity-90 ml-0.5" />
+                                                    </div>
                                                 </div>
-
-                                                <a href={signal.media_url} target="_blank" rel="noreferrer" className="absolute inset-0 z-10" />
 
                                                 <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
                                                     <div className="text-xs text-white line-clamp-2 font-medium drop-shadow-md">
                                                         {signal.text}
                                                     </div>
                                                 </div>
-                                            </div>
+                                            </button>
                                         ))}
                                     </div>
                                 </CollapsibleSection>
@@ -839,6 +1002,16 @@ export default function IncidentDetailPage() {
             <nav className="absolute bottom-0 w-full bg-white/90 backdrop-blur-xl border-t border-slate-200 pb-safe z-40">
                 <BottomNav />
             </nav>
+
+            {/* Video Modal */}
+            {
+                activeVideoUrl && (
+                    <VideoModal
+                        videoUrl={activeVideoUrl}
+                        onClose={() => setActiveVideoUrl(null)}
+                    />
+                )
+            }
         </>
     );
 }
