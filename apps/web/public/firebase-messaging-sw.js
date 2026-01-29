@@ -6,12 +6,12 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-comp
 // Initialize Firebase with config
 // TODO: Replace these values with your Firebase project configuration
 firebase.initializeApp({
-  apiKey: 'YOUR_API_KEY',
-  authDomain: 'YOUR_AUTH_DOMAIN',
-  projectId: 'YOUR_PROJECT_ID',
-  storageBucket: 'YOUR_STORAGE_BUCKET',
-  messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-  appId: 'YOUR_APP_ID',
+  apiKey: 'AIzaSyAf3gqrPK-y7o_0NvEsYyoI9J3Hse7uoYM',
+  authDomain: 'disaster-pulse-7962f.firebaseapp.com',
+  projectId: 'disaster-pulse-7962f',
+  storageBucket: 'disaster-pulse-7962f.firebasestorage.app',
+  messagingSenderId: '1079853583155',
+  appId: '1:769725919445:web:d77ad7f8fc6386a845325c',
 });
 
 const messaging = firebase.messaging();

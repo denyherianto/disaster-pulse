@@ -24,24 +24,22 @@ export default function BottomNav() {
     ];
 
     return (
-        <nav className="h-20 bg-white border-t border-slate-200 px-6 flex items-center justify-between shrink-0">
+        <nav className="fixed bottom-0 left-0 right-0 h-20 bg-white border-t border-slate-200 px-6 flex items-center justify-between shrink-0">
             {navItems.map((item) => {
                 const active = isActive(item.path);
                 return (
-                    <Link 
+                    <Link
                         key={item.label}
                         href={item.path}
                         className="flex flex-col items-center gap-1 min-w-[3rem]"
                     >
-                        <item.icon 
-                            size={24} 
-                            className={`transition-colors duration-200 ${
-                                active ? 'text-slate-900 stroke-[2.5px]' : 'text-slate-400 stroke-2 group-hover:text-slate-600'
-                            }`} 
+                        <item.icon
+                            size={24}
+                            className={`transition-colors duration-200 ${active ? 'text-slate-900 stroke-[2.5px]' : 'text-slate-400 stroke-2 group-hover:text-slate-600'
+                                }`}
                         />
-                        <span className={`text-[10px] font-medium transition-colors duration-200 ${
-                            active ? 'text-slate-900' : 'text-slate-400'
-                        }`}>
+                        <span className={`text-[10px] font-medium transition-colors duration-200 ${active ? 'text-slate-900' : 'text-slate-400'
+                            }`}>
                             {item.label}
                         </span>
                     </Link>

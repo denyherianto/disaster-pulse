@@ -32,8 +32,8 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   // Public paths - do not require authentication
-  const publicPaths = ['/login', '/auth/callback']
-  const isPublicPath = publicPaths.some(path => 
+  const publicPaths = ['/login', '/auth/callback', '/manifest.webmanifest', '/firebase-messaging-sw.js']
+  const isPublicPath = publicPaths.some(path =>
     request.nextUrl.pathname.startsWith(path)
   )
 
@@ -70,6 +70,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|js|json)$).*)',
   ],
 }
