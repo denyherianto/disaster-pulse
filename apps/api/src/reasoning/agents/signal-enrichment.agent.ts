@@ -75,7 +75,7 @@ export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, Sign
             "urgency_score": 0.0-1.0,
             "reason": "Max 5 words",
             "location": "Format must be '{City}, {Province}'. Example: 'Bandung, Jawa Barat'. NEVER return just 'Indonesia' or generic country names. If unknown city or outside Indonesia, return null.",
-            "event_type": "disaster type (flood, fire, earthquake, volcano, etc)",
+            "event_type": "disaster type: flood (flood, potential flood, heavy rain, flash flood), fire (wildfire, forest fire, building fire, gas leak, etc), earthquake (earthquake, aftershock, etc), tsunami, volcano (eruption, etc), landslide (landslide, mudflow, etc), whirlwind (cyclone, tornado, typhoon, hurricane, etc), etc",
             "lat": "lat or null",
             "lng": "lng or null"
           },
