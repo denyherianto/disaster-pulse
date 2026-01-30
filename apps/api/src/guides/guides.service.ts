@@ -82,10 +82,13 @@ export class GuidesService {
     const locationContext = `
       LOCATION CONTEXT: Indonesia
       EMERGENCY CONTACTS:
-      - Police: 110
+      - Police Emergency: 110
       - Fire Department: 113
       - Ambulance: 118
-      - BNPB (Disaster Management): 117
+      - BNPB (National Disaster Agency): 117
+      - SAR (Search and Rescue): 115
+      - PLN (Electricity): 123
+      - PDAM (Water): 119
     `;
 
     const guideContext = selectedGuides.map((g: Guide) => `
