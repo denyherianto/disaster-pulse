@@ -1,10 +1,11 @@
 -- ============================================================
 -- Disaster Intelligence Platform
--- Full Baseline SQL Schema (PostgreSQL + PostGIS)
+-- Full Combined Schema (PostgreSQL + PostGIS)
 -- ============================================================
--- 
--- UPDATED: Clusters merged into Incidents
--- 
+--
+-- This file contains the complete database schema with all
+-- migrations merged into a single idempotent file.
+--
 -- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -17,8 +18,15 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   trust_score NUMERIC NOT NULL DEFAULT 0.5 CHECK (trust_score BETWEEN 0 AND 1),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  email TEXT,
+  name TEXT,
+  avatar_url TEXT,
+  auth_provider TEXT DEFAULT 'google',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_idx ON users(email) WHERE email IS NOT NULL;
 
 -- ============================================================
 -- USER PLACES (STATIC, USER-DEFINED LOCATIONS)
@@ -37,6 +45,7 @@ CREATE TABLE IF NOT EXISTS user_places (
 
   radius_m INT NOT NULL DEFAULT 3000,
   is_active BOOLEAN NOT NULL DEFAULT true,
+  notify_enabled BOOLEAN NOT NULL DEFAULT true,
 
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -54,6 +63,24 @@ CREATE TABLE IF NOT EXISTS user_place_preferences (
 );
 
 -- ============================================================
+-- PUSH SUBSCRIPTIONS (FCM tokens)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  fcm_token TEXT NOT NULL,
+  device_info JSONB,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(fcm_token)
+);
+
+CREATE INDEX IF NOT EXISTS push_subscriptions_user_idx ON push_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS push_subscriptions_active_idx ON push_subscriptions(is_active) WHERE is_active = true;
+
+-- ============================================================
 -- RAW TIKTOK LOG (DEDUPLICATION)
 -- ============================================================
 
@@ -63,8 +90,29 @@ CREATE TABLE IF NOT EXISTS tiktok_posts (
   author TEXT,
   text TEXT,
   raw_data JSONB,
+  signal_id UUID,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE INDEX IF NOT EXISTS tiktok_posts_signal_idx ON tiktok_posts (signal_id);
+
+-- ============================================================
+-- RAW NEWS LOG (DEDUPLICATION)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS news_posts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  url_hash TEXT NOT NULL UNIQUE,
+  url TEXT NOT NULL,
+  title TEXT,
+  source TEXT,
+  published_at TIMESTAMPTZ,
+  signal_id UUID,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS news_posts_url_hash_idx ON news_posts (url_hash);
+CREATE INDEX IF NOT EXISTS news_posts_signal_idx ON news_posts (signal_id);
 
 -- ============================================================
 -- RAW SIGNAL INGESTION
@@ -74,7 +122,7 @@ CREATE TABLE IF NOT EXISTS signals (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
   source TEXT NOT NULL CHECK (
-    source IN ('user_report', 'social_media', 'news', 'sensor', 'tiktok_ai')
+    source IN ('user_report', 'social_media', 'news', 'sensor', 'tiktok_ai', 'bmkg')
   ),
 
   text TEXT,
@@ -86,6 +134,7 @@ CREATE TABLE IF NOT EXISTS signals (
 
   media_url TEXT,
   media_type TEXT CHECK (media_type IN ('image', 'video')),
+  thumbnail_url TEXT,
 
   event_type TEXT,
   city_hint TEXT,
@@ -99,6 +148,15 @@ CREATE TABLE IF NOT EXISTS signals (
 
 CREATE INDEX IF NOT EXISTS signals_geom_idx ON signals USING GIST (geom);
 CREATE INDEX IF NOT EXISTS signals_created_at_idx ON signals (created_at DESC);
+
+-- Add FK constraints after signals table exists
+ALTER TABLE tiktok_posts DROP CONSTRAINT IF EXISTS tiktok_posts_signal_id_fkey;
+ALTER TABLE tiktok_posts ADD CONSTRAINT tiktok_posts_signal_id_fkey
+  FOREIGN KEY (signal_id) REFERENCES signals(id) ON DELETE SET NULL;
+
+ALTER TABLE news_posts DROP CONSTRAINT IF EXISTS news_posts_signal_id_fkey;
+ALTER TABLE news_posts ADD CONSTRAINT news_posts_signal_id_fkey
+  FOREIGN KEY (signal_id) REFERENCES signals(id) ON DELETE SET NULL;
 
 -- ============================================================
 -- USER REPORTS (STRUCTURED SIGNALS)
@@ -120,36 +178,37 @@ CREATE TABLE IF NOT EXISTS user_reports (
 );
 
 -- ============================================================
--- INCIDENTS (Unified - absorbs former clusters)
--- ============================================================
--- 
--- An incident represents a specific disaster hypothesis at a location.
--- Previously, "clusters" grouped signals by location+time, then incidents
--- were created from clusters. Now incidents directly contain location data.
---
+-- INCIDENTS (Unified disaster events)
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS incidents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-  -- Location & Time (formerly from clusters)
+  -- Location & Time
   city TEXT NOT NULL,
   time_start TIMESTAMPTZ NOT NULL,
   time_end TIMESTAMPTZ NOT NULL,
 
   -- Disaster classification
   event_type TEXT NOT NULL CHECK (
-    event_type IN ('flood', 'landslide', 'fire', 'earthquake', 'power_outage', 'other')
+    event_type IN ('flood', 'landslide', 'fire', 'earthquake', 'whirlwind', 'tornado', 'volcano', 'tsunami', 'other')
   ),
 
-  -- Assessment (orthogonal concepts)
+  -- Assessment
   severity TEXT CHECK (severity IN ('low', 'medium', 'high')),
   confidence_score NUMERIC CHECK (confidence_score BETWEEN 0 AND 1),
+  summary TEXT,
 
-  -- Status (procedural, not factual)
+  -- Status
   status TEXT NOT NULL CHECK (
     status IN ('monitor', 'alert', 'suppress', 'resolved')
   ),
+
+  -- Incremental reasoning support
+  needs_full_eval BOOLEAN DEFAULT false,
+  last_evaluated_at TIMESTAMPTZ,
+  cached_reasoning JSONB,
+  signal_count INT DEFAULT 0,
 
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -158,6 +217,8 @@ CREATE TABLE IF NOT EXISTS incidents (
 CREATE INDEX IF NOT EXISTS incidents_city_event_type_idx ON incidents (city, event_type);
 CREATE INDEX IF NOT EXISTS incidents_time_idx ON incidents (time_start DESC, time_end DESC);
 CREATE INDEX IF NOT EXISTS incidents_status_idx ON incidents (status);
+CREATE INDEX IF NOT EXISTS idx_incidents_needs_eval ON incidents (needs_full_eval) WHERE needs_full_eval = true AND status != 'resolved';
+CREATE INDEX IF NOT EXISTS idx_incidents_last_evaluated ON incidents (last_evaluated_at) WHERE status != 'resolved';
 
 -- ============================================================
 -- INCIDENT SIGNALS (Links signals to incidents)
@@ -227,6 +288,22 @@ CREATE TABLE IF NOT EXISTS incident_lifecycle (
   changed_by TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ============================================================
+-- INCIDENT FEEDBACK (User votes)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS incident_feedback (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  incident_id UUID NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL CHECK (type IN ('confirm', 'reject')),
+  comment TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (incident_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS incident_feedback_incident_idx ON incident_feedback (incident_id);
 
 -- ============================================================
 -- VERIFICATIONS (PEER OBSERVATIONS)
@@ -331,3 +408,52 @@ CREATE TABLE IF NOT EXISTS agent_traces (
   model_used TEXT,
   created_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
+
+-- ============================================================
+-- GUIDES (Safety procedures)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS guides (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  description TEXT,
+  content TEXT NOT NULL,
+  disaster_type TEXT NOT NULL CHECK (
+    disaster_type IN ('flood', 'earthquake', 'fire', 'landslide', 'tsunami', 'volcano', 'whirlwind', 'general')
+  ),
+  pdf_url TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ============================================================
+-- EMERGENCY CONTACTS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS emergency_contacts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  category TEXT NOT NULL CHECK (
+    category IN ('police', 'fire_department', 'ambulance', 'sar', 'bnpb', 'pln', 'pdam', 'other')
+  ),
+  region TEXT,
+  is_national BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ============================================================
+-- SEED DATA: Emergency Contacts
+-- ============================================================
+
+INSERT INTO emergency_contacts (name, phone, category, region, is_national)
+SELECT * FROM (VALUES
+  ('Police Emergency', '110', 'police', NULL, true),
+  ('Fire Department', '113', 'fire_department', NULL, true),
+  ('Ambulance', '118', 'ambulance', NULL, true),
+  ('BNPB (National Disaster Agency)', '117', 'bnpb', NULL, true),
+  ('SAR (Search and Rescue)', '115', 'sar', NULL, true),
+  ('PLN (Electricity)', '123', 'pln', NULL, true),
+  ('PDAM (Water)', '119', 'pdam', NULL, true)
+) AS v(name, phone, category, region, is_national)
+WHERE NOT EXISTS (SELECT 1 FROM emergency_contacts LIMIT 1);
