@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase';
-import { API_BASE_URL } from '@/lib/config';
+import { API_BASE_URL, WEB_BASE_URL } from '@/lib/config';
 
 type AuthContextType = {
   user: User | null;
@@ -17,8 +17,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   session: null,
   isLoading: true,
-  signInWithGoogle: async () => {},
-  signOut: async () => {},
+  signInWithGoogle: async () => { },
+  signOut: async () => { },
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -90,7 +90,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${WEB_BASE_URL || window.location.origin}/auth/callback`,
       },
     });
   };
