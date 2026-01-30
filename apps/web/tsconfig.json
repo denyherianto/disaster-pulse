@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@disaster-app/shared": ["../../packages/shared/src/index"]
     }
   },
   "include": [

@@ -1,105 +1,33 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import Link from 'next/link';
 import BottomNav from '@/components/navigation/BottomNav';
-import { API_BASE_URL } from '@/lib/config';
 import { useLanguage } from '@/components/providers/LanguageProvider';
 import GuideAISearch from '@/components/guides/GuideAISearch';
 import GoogleIcon from '@/components/ui/GoogleIcon';
-
-
-// Mock guides data (would come from API)
-const mockGuides = [
-    {
-        id: '1',
-        title: 'Flood Safety Guide',
-        description: 'Essential steps to stay safe during flood events',
-        disaster_type: 'flood',
-        pdf_url: null,
-    },
-    {
-        id: '2',
-        title: 'Earthquake Safety Guide',
-        description: 'What to do before, during, and after an earthquake',
-        disaster_type: 'earthquake',
-        pdf_url: null,
-    },
-    {
-        id: '3',
-        title: 'Fire Emergency Guide',
-        description: 'Steps to take during fire emergencies',
-        disaster_type: 'fire',
-        pdf_url: null,
-    },
-    {
-        id: '4',
-        title: 'Landslide Safety Guide',
-        description: 'How to prepare for and survive landslides',
-        disaster_type: 'landslide',
-        pdf_url: null,
-    },
-    {
-        id: '5',
-        title: 'Emergency Kit Checklist',
-        description: 'Items to prepare for any disaster',
-        disaster_type: 'general',
-        pdf_url: null,
-    },
-];
-
-const getIconNameByType = (type: string) => {
-    switch (type) {
-        case 'flood': return 'flood';
-        case 'earthquake': return 'earthquake'; // closest match in standard set
-        case 'fire': return 'local_fire_department';
-        case 'landslide': return 'landslide';
-        default: return 'menu_book';
-    }
-};
-
-const getColorByType = (type: string) => {
-    switch (type) {
-        case 'flood': return 'bg-blue-50 text-blue-600 border-blue-100';
-        case 'earthquake': return 'bg-amber-50 text-amber-600 border-amber-100';
-        case 'fire': return 'bg-red-50 text-red-600 border-red-100';
-        case 'landslide': return 'bg-orange-50 text-orange-600 border-orange-100';
-        default: return 'bg-slate-50 text-slate-600 border-slate-100';
-    }
-};
+import { GUIDES, getIconNameByType, getColorByType } from '@disaster-app/shared';
 
 export default function GuidesPage() {
     const { t } = useLanguage();
     const [typeFilter, setTypeFilter] = useState('all');
     const [showFilters, setShowFilters] = useState(false);
 
-
     const DISASTER_TYPES = useMemo(() => [
-        { id: 'all', label: t('common.disasterTypes.all'), icon: 'menu_book' },
-        { id: 'flood', label: t('common.disasterTypes.flood'), icon: 'flood' },
-        { id: 'earthquake', label: t('common.disasterTypes.earthquake'), icon: 'tsunami' },
-        { id: 'fire', label: t('common.disasterTypes.fire'), icon: 'local_fire_department' },
-        { id: 'landslide', label: t('common.disasterTypes.landslide'), icon: 'landslide' },
+        { id: 'all', label: t('common.disasterTypes.all') || 'All', icon: 'menu_book' },
+        { id: 'flood', label: t('common.disasterTypes.flood') || 'Flood', icon: 'flood' },
+        { id: 'earthquake', label: t('common.disasterTypes.earthquake') || 'Earthquake', icon: 'tsunami' },
+        { id: 'fire', label: t('common.disasterTypes.fire') || 'Fire', icon: 'local_fire_department' },
+        { id: 'landslide', label: t('common.disasterTypes.landslide') || 'Landslide', icon: 'landslide' },
+        { id: 'tsunami', label: t('common.disasterTypes.tsunami') || 'Tsunami', icon: 'waves' },
+        { id: 'volcano', label: t('common.disasterTypes.volcano') || 'Volcano', icon: 'volcano' },
+        { id: 'whirlwind', label: t('common.disasterTypes.whirlwind') || 'Whirlwind', icon: 'cyclone' },
     ], [t]);
 
-    // Fetch guides from API
-    const { data: guides = mockGuides, isLoading } = useQuery({
-        queryKey: ['guides', typeFilter],
-        queryFn: async () => {
-            const url = typeFilter === 'all'
-                ? `${API_BASE_URL}/guides`
-                : `${API_BASE_URL}/guides?type=${typeFilter}`;
-            const res = await fetch(url);
-            if (!res.ok) return mockGuides; // Fallback to mock data
-            return res.json();
-        },
-    });
-
     const filteredGuides = typeFilter === 'all'
-        ? guides
-        : guides.filter((g: any) => g.disaster_type === typeFilter);
+        ? GUIDES
+        : GUIDES.filter((g) => g.disaster_type === typeFilter);
 
     return (
         <div className="absolute inset-0 flex flex-col bg-slate-50">
@@ -110,7 +38,7 @@ export default function GuidesPage() {
                         <Link href="/" className="p-2 -ml-2 text-slate-600 hover:text-slate-900">
                             <ChevronLeft size={20} />
                         </Link>
-                        <h1 className="text-lg font-semibold text-slate-900">{t('guides.title')}</h1>
+                        <h1 className="text-lg font-semibold text-slate-900">{t('guides.title') || 'Safety Guides'}</h1>
                         <button
                             onClick={() => setShowFilters(!showFilters)}
                             className={`p-2 -mr-2 transition-colors ${showFilters ? 'text-blue-600' : 'text-slate-600 hover:text-slate-900'}`}
@@ -144,8 +72,6 @@ export default function GuidesPage() {
                 </div>
             </div>
 
-
-
             {/* Content */}
             <div className="flex-1 overflow-y-auto no-scrollbar bg-slate-50 pb-24">
                 <div className="px-6 py-4">
@@ -153,15 +79,13 @@ export default function GuidesPage() {
                     <div className="mb-6">
                         <GuideAISearch />
                     </div>
-                    {isLoading ? (
-                        <div className="text-center text-slate-400 text-sm py-12">{t('guides.loading')}</div>
-                    ) : filteredGuides.length === 0 ? (
+                    {filteredGuides.length === 0 ? (
                         <div className="text-center text-slate-400 text-sm py-12 border border-dashed border-slate-200 rounded-2xl">
-                                {t('guides.empty')}
+                            {t('guides.empty') || 'No guides found'}
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {filteredGuides.map((guide: any) => {
+                                {filteredGuides.map((guide) => {
                                 const iconName = getIconNameByType(guide.disaster_type);
                                 const colorClasses = getColorByType(guide.disaster_type);
 

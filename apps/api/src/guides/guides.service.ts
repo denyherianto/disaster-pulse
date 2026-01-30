@@ -1,14 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { GuideAssistantAgent, GuideAssistantOutput } from '../reasoning/agents/guide-assistant.agent';
-
-type Guide = {
-  id: string;
-  title: string;
-  description: string;
-  content: string;
-  disaster_type: string;
-};
+import { GUIDES, Guide } from '@disaster-app/shared';
 
 @Injectable()
 export class GuidesService {
@@ -25,33 +18,21 @@ export class GuidesService {
 
   /**
    * Get all guides, optionally filtered by disaster type
+   * Now returns the hardcoded guides
    */
   async getAll(type?: string): Promise<Guide[]> {
-    let query = this.db
-      .from('guides')
-      .select('id, title, description, disaster_type, pdf_url, created_at')
-      .order('created_at', { ascending: false });
-
     if (type && type !== 'all') {
-      query = query.eq('disaster_type', type);
+      return GUIDES.filter(g => g.disaster_type === type);
     }
-
-    const { data, error } = await query;
-    return error ? [] : data;
+    return GUIDES;
   }
 
   /**
    * Get a single guide by ID
    */
   async getById(id: string): Promise<Guide | null> {
-    const { data, error } = await this.db
-      .from('guides')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (error) return null;
-    return data;
+    const guide = GUIDES.find(g => g.id === id);
+    return guide || null;
   }
 
   /**
@@ -59,12 +40,10 @@ export class GuidesService {
    * In production, this could be enhanced with vector similarity search
    */
   async getRelevantContext(query: string): Promise<{ context: string; guides: Guide[] }> {
-    // Get all guides with their full content
-    const { data: guides, error } = await this.db
-      .from('guides')
-      .select('id, title, description, content, disaster_type');
+    // Determine guides to search
+    const guides = GUIDES;
 
-    if (error || !guides || guides.length === 0) {
+    if (guides.length === 0) {
       return { context: '', guides: [] };
     }
 
@@ -100,7 +79,16 @@ export class GuidesService {
     const selectedGuides = relevantGuides.length > 0 ? relevantGuides : guides.slice(0, 3);
 
     // Build context string
-    const context = selectedGuides.map((g: Guide) => `
+    const locationContext = `
+      LOCATION CONTEXT: Indonesia
+      EMERGENCY CONTACTS:
+      - Police: 110
+      - Fire Department: 113
+      - Ambulance: 118
+      - BNPB (Disaster Management): 117
+    `;
+
+    const guideContext = selectedGuides.map((g: Guide) => `
       --- GUIDE: ${g.title} (${g.disaster_type}) ---
       ID: ${g.id}
       ${g.description}
@@ -109,7 +97,7 @@ export class GuidesService {
       ---
     `).join('\n');
 
-    return { context, guides: selectedGuides };
+    return { context: locationContext + '\n\n' + guideContext, guides: selectedGuides };
   }
 
   /**

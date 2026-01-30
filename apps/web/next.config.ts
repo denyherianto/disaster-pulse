@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  transpilePackages: ['@disaster-app/shared'],
   turbopack: {},
   output: "standalone",
   async headers() {
