@@ -4,6 +4,8 @@
   "sourceRoot": "src",
   "compilerOptions": {
     "deleteOutDir": true,
-    "assets": ["**/*.sql"]
+    "assets": ["**/*.sql"],
+    "webpack": true,
+    "webpackConfigPath": "webpack.config.js"
   }
 }

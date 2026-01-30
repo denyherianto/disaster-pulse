@@ -20,7 +20,8 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@disaster-app/shared": ["../../packages/shared/src/index"]
+      "@disaster-app/shared": ["../../packages/shared/src"],
+      "@disaster-app/shared/*": ["../../packages/shared/src/*"]
     }
   },
   "include": [
