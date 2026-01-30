@@ -17,7 +17,7 @@ INSERT INTO signals (
 ) VALUES (
   'social_media',
   '{"source_id": "tiktok_sample_001", "platform": "tiktok"}',
-  'Banjir parah di Jakarta Selatan hari ini! Air sudah masuk rumah setinggi lutut. #banjir #jakarta',
+  'Severe flooding in South Jakarta today! Water has entered house knee-deep. #flooding #jakarta',
   -6.2615,
   106.8106,
   'Jakarta Selatan',
@@ -46,7 +46,7 @@ INSERT INTO signals (
 ) VALUES (
   'news',
   '{"source_id": "rss_sample_001", "feed": "BMKG"}',
-  'Breaking: Gempa M 5.2 Guncang Yogyakarta, Terasa hingga Bantul. BMKG menghimbau warga tetap tenang.',
+  'Breaking: M 5.2 Earthquake shakes Yogyakarta, felt up to Bantul. BMKG advises residents to stay calm.',
   -7.7956,
   110.3695,
   'Yogyakarta',
@@ -75,7 +75,7 @@ INSERT INTO signals (
 ) VALUES (
   'user_report',
   '{"source_id": "user_report_sample_001"}',
-  'Kebakaran di ruko dekat Tunjungan Plaza. Api terlihat membesar, petugas damkar belum datang!',
+  'Fire at shophouse near Tunjungan Plaza. Fire growing, firefighters not here yet!',
   -7.2629,
   112.7414,
   'Surabaya',
@@ -104,7 +104,7 @@ INSERT INTO signals (
 ) VALUES (
   'social_media',
   '{"source_id": "tiktok_sample_002", "platform": "tiktok"}',
-  'Longsor di jalur Puncak Bogor, hati-hati yang mau lewat! Jalan tertutup total.',
+  'Landslide at Puncak Bogor route, be careful! Road completely blocked.',
   -6.65,
   106.90,
   'Bogor',

@@ -76,7 +76,7 @@ export class BmkgService {
 
     // 3. Create Text Summary
     const categoryTag = category === 'alert' ? '[ALERT - POTENTIAL DISASTER]' : '[MONITOR - FELT Report]';
-    const text = `Status: ${categoryTag}, Gempa Mag:${quake.Magnitude}, ${quake.DateTime}, Lok: ${quake.Wilayah} (${quake.Kedalaman})`;
+    const text = `Status: ${categoryTag}, Earthquake Mag:${quake.Magnitude}, ${quake.DateTime}, Loc: ${quake.Wilayah} (${quake.Kedalaman})`;
 
     // 4. Check Deduplication via raw_payload search or ID pattern in signals? 
     // We'll query signals where source='bmkg' and created roughly same time? 

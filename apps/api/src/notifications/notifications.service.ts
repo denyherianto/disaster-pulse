@@ -436,27 +436,27 @@ export class NotificationsService implements OnModuleInit {
     );
 
     const eventTypeLabels: Record<string, string> = {
-      flood: '🌊 Banjir',
-      earthquake: '🌍 Gempa Bumi',
-      landslide: '⛰️ Tanah Longsor',
-      fire: '🔥 Kebakaran',
-      power_outage: '💡 Pemadaman Listrik',
-      whirlwind: '🌪️ Angin Puting Beliung',
+      flood: '🌊 Flood',
+      earthquake: '🌍 Earthquake',
+      landslide: '⛰️ Landslide',
+      fire: '🔥 Fire',
+      power_outage: '💡 Power Outage',
+      whirlwind: '🌪️ Whirlwind',
       tornado: '🌪️ Tornado',
       tsunami: '🌊 Tsunami',
-      volcano: '🌋 Gunung Meletus',
-      other: '⚠️ Kejadian',
+      volcano: '🌋 Volcanic Eruption',
+      other: '⚠️ Incident',
     };
 
     const severityLabels: Record<string, string> = {
-      low: 'Rendah',
-      medium: 'Sedang',
-      high: 'Tinggi',
+      low: 'Low',
+      medium: 'Medium',
+      high: 'High',
     };
 
-    const title = `${eventTypeLabels[incident.event_type] || '⚠️ Kejadian'} - ${incident.city}`;
+    const title = `${eventTypeLabels[incident.event_type] || '⚠️ Incident'} - ${incident.city}`;
     const body = incident.summary ||
-      `${eventTypeLabels[incident.event_type] || 'Kejadian'} terdeteksi di ${incident.city}. Tingkat: ${severityLabels[incident.severity] || incident.severity}`;
+      `${eventTypeLabels[incident.event_type] || 'Incident'} detected in ${incident.city}. Severity: ${severityLabels[incident.severity] || incident.severity}`;
 
     const payload: NotificationPayload = {
       title,

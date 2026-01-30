@@ -149,7 +149,7 @@ export class DemoSeedService {
     const earthquakeSignals = await this.createSignals([
       {
         source: 'bmkg',
-        text: `[${this.DEMO_MARKER}] BMKG: Gempa M6.5 di Jakarta Selatan, kedalaman 10km`,
+        text: `[${this.DEMO_MARKER}] BMKG: M6.5 Earthquake in South Jakarta, depth 10km`,
         event_type: 'earthquake',
         city_hint: 'Jakarta',
         lat: -6.2615,
@@ -157,7 +157,7 @@ export class DemoSeedService {
       },
       {
         source: 'tiktok',
-        text: `[${this.DEMO_MARKER}] Gempa kuat banget barusan! Gedung goyang keras!`,
+        text: `[${this.DEMO_MARKER}] Strong earthquake just now! Building shaking hard!`,
         event_type: 'earthquake',
         city_hint: 'Jakarta',
         lat: -6.2088,
@@ -165,7 +165,7 @@ export class DemoSeedService {
       },
       {
         source: 'user_report',
-        text: `[${this.DEMO_MARKER}] Gempa terasa kuat di apartemen lantai 20`,
+        text: `[${this.DEMO_MARKER}] Earthquake felt strong at 20th floor apartment`,
         event_type: 'earthquake',
         city_hint: 'Jakarta',
         lat: -6.2297,
@@ -173,7 +173,7 @@ export class DemoSeedService {
       },
       {
         source: 'news',
-        text: `[${this.DEMO_MARKER}] Breaking: Gempa M6.5 guncang Jakarta, warga panik keluar gedung`,
+        text: `[${this.DEMO_MARKER}] Breaking: M6.5 Earthquake shakes Jakarta, residents panic exiting buildings`,
         event_type: 'earthquake',
         city_hint: 'Jakarta',
         lat: -6.1751,
@@ -187,7 +187,7 @@ export class DemoSeedService {
       status: 'alert',
       severity: 'high',
       confidence_score: 0.95,
-      summary: `[${this.DEMO_MARKER}] Gempa bumi M6.5 mengguncang Jakarta Selatan. Pusat gempa di kedalaman 10km. Getaran terasa kuat di gedung-gedung tinggi. Belum ada laporan kerusakan struktural.`,
+      summary: `[${this.DEMO_MARKER}] M6.5 Earthquake shook South Jakarta. Epicenter at 10km depth. Strong vibrations felt in high-rise buildings. No structural damage reported yet.`,
       lat: -6.2615,
       lng: 106.8106,
       signals: earthquakeSignals,
@@ -200,7 +200,7 @@ export class DemoSeedService {
     const floodSignals = await this.createSignals([
       {
         source: 'user_report',
-        text: `[${this.DEMO_MARKER}] Air sudah masuk rumah, tinggi 50cm dan terus naik!`,
+        text: `[${this.DEMO_MARKER}] Water entered house, 50cm high and rising!`,
         event_type: 'flood',
         city_hint: 'Surabaya',
         lat: -7.2575,
@@ -208,7 +208,7 @@ export class DemoSeedService {
       },
       {
         source: 'tiktok',
-        text: `[${this.DEMO_MARKER}] Banjir parah di Surabaya Timur, mobil terendam`,
+        text: `[${this.DEMO_MARKER}] Severe flooding in East Surabaya, cars submerged`,
         event_type: 'flood',
         city_hint: 'Surabaya',
         lat: -7.2647,
@@ -216,7 +216,7 @@ export class DemoSeedService {
       },
       {
         source: 'news',
-        text: `[${this.DEMO_MARKER}] Hujan deras 3 jam sebabkan banjir di beberapa titik Surabaya`,
+        text: `[${this.DEMO_MARKER}] Heavy rain for 3 hours causes flooding in several Surabaya points`,
         event_type: 'flood',
         city_hint: 'Surabaya',
         lat: -7.2504,
@@ -230,7 +230,7 @@ export class DemoSeedService {
       status: 'monitor',
       severity: 'medium',
       confidence_score: 0.82,
-      summary: `[${this.DEMO_MARKER}] Banjir melanda Surabaya Timur akibat hujan deras. Ketinggian air 50-80cm di beberapa lokasi. Arus lalu lintas terganggu.`,
+      summary: `[${this.DEMO_MARKER}] Floods hit East Surabaya due to heavy rain. Water levels 50-80cm in some locations. Traffic disrupted.`,
       lat: -7.2575,
       lng: 112.7521,
       signals: floodSignals,
@@ -243,7 +243,7 @@ export class DemoSeedService {
     const fireSignals = await this.createSignals([
       {
         source: 'user_report',
-        text: `[${this.DEMO_MARKER}] Kebakaran di gudang Cimahi, asap tebal terlihat`,
+        text: `[${this.DEMO_MARKER}] Fire at Cimahi warehouse, thick smoke visible`,
         event_type: 'fire',
         city_hint: 'Bandung',
         lat: -6.8841,
@@ -251,7 +251,7 @@ export class DemoSeedService {
       },
       {
         source: 'tiktok',
-        text: `[${this.DEMO_MARKER}] Api besar di area industri Bandung Barat`,
+        text: `[${this.DEMO_MARKER}] Big fire in West Bandung industrial area`,
         event_type: 'fire',
         city_hint: 'Bandung',
         lat: -6.8850,
@@ -265,7 +265,7 @@ export class DemoSeedService {
       status: 'monitor',
       severity: 'low',
       confidence_score: 0.71,
-      summary: `[${this.DEMO_MARKER}] Kebakaran gudang di kawasan industri Cimahi. Petugas pemadam sudah di lokasi. Tidak ada korban jiwa.`,
+      summary: `[${this.DEMO_MARKER}] Warehouse fire in Cimahi industrial area. Firefighters on site. No casualties.`,
       lat: -6.8841,
       lng: 107.5421,
       signals: fireSignals,
@@ -390,7 +390,7 @@ export class DemoSeedService {
             incident_id: incident.id,
             user_id: null, // Anonymous for demo
             type: verificationTypes[i % verificationTypes.length],
-            comment: i === 0 ? 'Saya melihat langsung kejadian ini' : null,
+            comment: i === 0 ? 'I saw this incident directly' : null,
             created_at: new Date(Date.now() - Math.random() * 1800000).toISOString(),
           });
       }
@@ -559,21 +559,21 @@ export class DemoSeedService {
     const city = options?.city || 'Jakarta';
 
     const eventNames: Record<string, string> = {
-      earthquake: 'Gempa Bumi',
-      flood: 'Banjir',
-      fire: 'Kebakaran',
-      landslide: 'Tanah Longsor',
-      volcano: 'Erupsi Gunung Api',
+      earthquake: '🌍 Earthquake',
+      flood: '🌊 Flood',
+      fire: '🔥 Fire',
+      landslide: '⛰️ Landslide',
+      volcano: '🌋 Volcanic Eruption',
     };
 
-    const severityEmoji: Record<string, string> = {
-      low: '⚠️',
-      medium: '🟠',
-      high: '🔴',
+    const severityLabels: Record<string, string> = {
+      low: 'Low',
+      medium: 'Medium',
+      high: 'High',
     };
 
-    const title = `${severityEmoji[severity]} ${eventNames[eventType]} Terdeteksi`;
-    const body = `${eventNames[eventType]} ${severity === 'high' ? 'kuat' : severity === 'medium' ? 'sedang' : 'ringan'} terdeteksi di ${city}. Tetap waspada dan ikuti instruksi pihak berwenang.`;
+    const title = `${eventNames[eventType]} - ${city}`;
+    const body = `${eventNames[eventType]} detected in ${city}. Severity: ${severityLabels[severity] || severity}`;
 
     try {
       // Try to find a real incident for the link, otherwise use dummy
