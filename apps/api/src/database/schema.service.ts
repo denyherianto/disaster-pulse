@@ -42,30 +42,9 @@ export class SchemaService implements OnModuleInit {
 
       this.logger.log('Executing schema migration...');
 
-      // Split SQL into statements and execute individually to handle PostGIS gracefully
-      const statements = sql
-        .split(';')
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
-
-      for (const statement of statements) {
-        try {
-          await client.query(statement);
-        } catch (error: any) {
-          // Skip PostGIS-related errors for local development without PostGIS
-          const isPostgisError =
-            error.message?.includes('postgis') ||
-            error.message?.includes('ST_SetSRID') ||
-            error.message?.includes('ST_MakePoint') ||
-            error.message?.includes('geography');
-
-          if (isPostgisError) {
-            this.logger.warn(`Skipping PostGIS statement (PostGIS not installed): ${statement.substring(0, 50)}...`);
-          } else {
-            throw error;
-          }
-        }
-      }
+      // Run the entire schema as a single transaction
+      // PostGIS-dependent columns use DO blocks with EXCEPTION handlers
+      await client.query(sql);
 
       this.logger.log('Schema migration completed successfully.');
 

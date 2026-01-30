@@ -9,7 +9,14 @@
 -- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
-CREATE EXTENSION IF NOT EXISTS postgis;
+
+-- PostGIS extension (optional - will be skipped if not installed)
+DO $$
+BEGIN
+  CREATE EXTENSION IF NOT EXISTS postgis;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'PostGIS extension not available: %', SQLERRM;
+END $$;
 
 -- ============================================================
 -- USERS & TRUST
@@ -40,8 +47,6 @@ CREATE TABLE IF NOT EXISTS user_places (
 
   lat DOUBLE PRECISION NOT NULL,
   lng DOUBLE PRECISION NOT NULL,
-  geom GEOGRAPHY(POINT, 4326)
-    GENERATED ALWAYS AS (ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography) STORED,
 
   radius_m INT NOT NULL DEFAULT 3000,
   is_active BOOLEAN NOT NULL DEFAULT true,
@@ -49,6 +54,17 @@ CREATE TABLE IF NOT EXISTS user_places (
 
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- PostGIS column (optional - will be skipped if PostGIS not installed)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_places' AND column_name = 'geom') THEN
+    ALTER TABLE user_places ADD COLUMN geom GEOGRAPHY(POINT, 4326)
+      GENERATED ALWAYS AS (ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography) STORED;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Skipping PostGIS column on user_places: %', SQLERRM;
+END $$;
 
 CREATE TABLE IF NOT EXISTS user_place_preferences (
   user_place_id UUID PRIMARY KEY REFERENCES user_places(id) ON DELETE CASCADE,
@@ -129,8 +145,6 @@ CREATE TABLE IF NOT EXISTS signals (
 
   lat DOUBLE PRECISION,
   lng DOUBLE PRECISION,
-  geom GEOGRAPHY(POINT, 4326)
-    GENERATED ALWAYS AS (CASE WHEN lat IS NOT NULL AND lng IS NOT NULL THEN ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography ELSE NULL END) STORED,
 
   media_url TEXT,
   media_type TEXT CHECK (media_type IN ('image', 'video')),
@@ -146,7 +160,26 @@ CREATE TABLE IF NOT EXISTS signals (
   raw_payload JSONB
 );
 
-CREATE INDEX IF NOT EXISTS signals_geom_idx ON signals USING GIST (geom);
+-- PostGIS column (optional - will be skipped if PostGIS not installed)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'signals' AND column_name = 'geom') THEN
+    ALTER TABLE signals ADD COLUMN geom GEOGRAPHY(POINT, 4326)
+      GENERATED ALWAYS AS (CASE WHEN lat IS NOT NULL AND lng IS NOT NULL THEN ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography ELSE NULL END) STORED;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Skipping PostGIS column on signals: %', SQLERRM;
+END $$;
+
+-- PostGIS index (optional)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'signals_geom_idx') THEN
+    CREATE INDEX signals_geom_idx ON signals USING GIST (geom);
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Skipping PostGIS index on signals: %', SQLERRM;
+END $$;
 CREATE INDEX IF NOT EXISTS signals_created_at_idx ON signals (created_at DESC);
 
 -- Add FK constraints after signals table exists
