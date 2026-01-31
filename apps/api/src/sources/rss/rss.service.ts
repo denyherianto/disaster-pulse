@@ -8,6 +8,7 @@ import { SupabaseService } from '../../supabase/supabase.service';
 import { SignalsService } from '../../signals/signals.service';
 import * as rssSources from '../../common/config/rss_sources.json';
 import { RemoteConfigService } from '../../config/remote-config.service';
+import { scrapeArticleContent } from './article-scraper';
 
 interface RssItem {
   title: string;
@@ -130,11 +131,24 @@ export class RssService implements OnModuleInit {
         published_at: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString()
       });
 
-    // 4. Analyze with AI
+    // 4. Scrape full article content from the news link
+    let fullContent = item.content || '';
+    try {
+      this.logger.debug(`Scraping article content: ${item.link}`);
+      const scraped = await scrapeArticleContent(item.link);
+      if (scraped.content && scraped.content.length > (fullContent?.length || 0)) {
+        fullContent = scraped.content;
+        this.logger.debug(`Scraped ${fullContent.length} chars from ${item.link}`);
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to scrape article, using RSS content: ${item.link}`);
+    }
+
+    // 5. Analyze with AI
     const { result: analysis } = await this.newsAgent.run({
       title: item.title || '',
       description: item.contentSnippet || '',
-      content: item.content,
+      content: fullContent || item.contentSnippet,
       pubDate: item.pubDate || new Date().toISOString(),
       source: sourceName,
       link: item.link,
@@ -173,7 +187,7 @@ export class RssService implements OnModuleInit {
       return false;
     }
 
-    // 5. Create Signal
+    // 6. Create Signal
     const signalPayload = {
       source: 'news',
       text: analysis.summary || item.title,
@@ -196,7 +210,7 @@ export class RssService implements OnModuleInit {
     this.logger.log(`Creating signal from news: ${item.title?.substring(0, 50)}...`);
     const signal = await this.signalsService.createSignal(signalPayload);
 
-    // 6. Update news_posts with signal_id if created
+    // 7. Update news_posts with signal_id if created
     if (signal && signal.id) {
        await (this.supabase.getClient() as any)
         .from('news_posts')
