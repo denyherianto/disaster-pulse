@@ -187,10 +187,14 @@ export class SignalsService {
     }
   }
 
-  async getRecentSignals(limit: number = 20) {
+  async getRecentSignals(limit: number = 100) {
+    // Get signals from last 24 hours
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
     const { data, error } = await this.supabase.getClient()
       .from('signals')
       .select('id, source, text, event_type, city_hint, created_at, status, media_type, raw_payload, incident_id:incident_signals(incident_id)')
+      .gte('created_at', twentyFourHoursAgo)
       .order('created_at', { ascending: false })
       .limit(limit);
 

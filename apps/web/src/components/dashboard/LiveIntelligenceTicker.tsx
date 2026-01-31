@@ -129,17 +129,24 @@ export default function LiveIntelligenceTicker() {
         refetchInterval: 30000,
     });
 
+    // Filter signals from last 24 hours
+    const now = new Date();
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const signals24h = signals.filter(s => new Date(s.created_at) >= twentyFourHoursAgo);
+
     // Generate agent activities from signals
-    const activities = generateAgentActivity(signals);
-    // Calculate stats
+    const activities = generateAgentActivity(signals24h);
+
+    // Calculate stats for last 24 hours
     const stats = {
-        totalSignals: signals.length,
-        activeAlerts: signals.filter(s => s.event_type !== 'noise' && s.event_type !== 'other').length,
+        totalSignals: signals24h.length,
+        activeAlerts: signals24h.filter(s => s.event_type !== 'noise' && s.event_type !== 'other').length,
+        dismissed: signals24h.filter(s => s.event_type === 'noise').length,
         sources: {
-            news: signals.filter(s => s.source === 'news').length,
-            social: signals.filter(s => s.source === 'social_media' || s.source === 'tiktok').length,
-            bmkg: signals.filter(s => s.source === 'bmkg').length,
-            reports: signals.filter(s => s.source === 'user_report').length,
+            news: signals24h.filter(s => s.source === 'news').length,
+            social: signals24h.filter(s => s.source === 'social_media' || s.source === 'tiktok').length,
+            bmkg: signals24h.filter(s => s.source === 'bmkg').length,
+            reports: signals24h.filter(s => s.source === 'user_report').length,
         }
     };
 
@@ -152,7 +159,7 @@ export default function LiveIntelligenceTicker() {
                 {/* Main Ticker Bar */}
                 <div className="flex items-center h-10 px-4 gap-4 border-b border-slate-100">
 
-                    {/* Left: Gemini Branding + Live Indicator */}
+                    {/* Left: Gemini Branding + Live Indicator + 24h Badge */}
                     <div className="flex items-center gap-2 flex-shrink-0">
                         <GeminiIcon size={18} />
                         <div className="flex items-center gap-1.5">
@@ -163,6 +170,10 @@ export default function LiveIntelligenceTicker() {
                             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                                 LIVE
                             </span>
+                        </div>
+                        <div className="hidden sm:flex items-center gap-1 px-2 py-0.5 bg-blue-50 border border-blue-200 rounded-full">
+                            <GoogleIcon name="schedule" size={10} className="text-blue-500" />
+                            <span className="text-[10px] font-semibold text-blue-600">Last 24h</span>
                         </div>
                     </div>
 
@@ -233,43 +244,71 @@ export default function LiveIntelligenceTicker() {
                         {/* Divider */}
                         <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent mb-3" />
 
-                        {/* Stats Grid */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                                <div className="flex items-center gap-1 mb-1">
-                                    <GoogleIcon name="newspaper" size={14} className="text-blue-500" />
-                                    <span className="text-[9px] font-medium text-slate-500 uppercase">News</span>
-                                </div>
-                                <div className="text-lg font-bold text-slate-900">{stats.sources.news}</div>
+                        {/* 24-Hour Analysis Summary */}
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 mb-4">
+                            <div className="flex items-center gap-2 mb-3">
+                                <GoogleIcon name="analytics" size={16} className="text-blue-600" />
+                                <span className="text-sm font-bold text-blue-900">24-Hour Intelligence Summary</span>
                             </div>
-                            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                                <div className="flex items-center gap-1 mb-1">
-                                    <GoogleIcon name="group" size={14} className="text-purple-500" />
-                                    <span className="text-[9px] font-medium text-slate-500 uppercase">Social</span>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-blue-600">{stats.totalSignals}</div>
+                                    <div className="text-[10px] text-blue-700 uppercase font-medium">Signals Analyzed</div>
                                 </div>
-                                <div className="text-lg font-bold text-slate-900">{stats.sources.social}</div>
-                            </div>
-                            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                                <div className="flex items-center gap-1 mb-1">
-                                    <GoogleIcon name="earthquake" size={14} className="text-emerald-500" />
-                                    <span className="text-[9px] font-medium text-slate-500 uppercase">BMKG</span>
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-amber-600">{stats.activeAlerts}</div>
+                                    <div className="text-[10px] text-amber-700 uppercase font-medium">Active Alerts</div>
                                 </div>
-                                <div className="text-lg font-bold text-slate-900">{stats.sources.bmkg}</div>
-                            </div>
-                            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                                <div className="flex items-center gap-1 mb-1">
-                                    <GoogleIcon name="warning" size={14} className="text-amber-500" />
-                                    <span className="text-[9px] font-medium text-slate-500 uppercase">Reports</span>
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold text-slate-500">{stats.dismissed}</div>
+                                    <div className="text-[10px] text-slate-600 uppercase font-medium">Dismissed</div>
                                 </div>
-                                <div className="text-lg font-bold text-slate-900">{stats.sources.reports}</div>
                             </div>
                         </div>
 
-                        {/* Recent Agent Activity Log */}
+                        {/* Stats Grid - Sources Breakdown */}
+                        <div className="mb-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <GoogleIcon name="source" size={12} className="text-slate-400" />
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Sources Breakdown</span>
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                                    <div className="flex items-center gap-1 mb-1">
+                                        <GoogleIcon name="newspaper" size={14} className="text-blue-500" />
+                                        <span className="text-[9px] font-medium text-slate-500 uppercase">News</span>
+                                    </div>
+                                    <div className="text-lg font-bold text-slate-900">{stats.sources.news}</div>
+                                </div>
+                                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                                    <div className="flex items-center gap-1 mb-1">
+                                        <GoogleIcon name="group" size={14} className="text-purple-500" />
+                                        <span className="text-[9px] font-medium text-slate-500 uppercase">Social</span>
+                                    </div>
+                                    <div className="text-lg font-bold text-slate-900">{stats.sources.social}</div>
+                                </div>
+                                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                                    <div className="flex items-center gap-1 mb-1">
+                                        <GoogleIcon name="earthquake" size={14} className="text-emerald-500" />
+                                        <span className="text-[9px] font-medium text-slate-500 uppercase">BMKG</span>
+                                    </div>
+                                    <div className="text-lg font-bold text-slate-900">{stats.sources.bmkg}</div>
+                                </div>
+                                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                                    <div className="flex items-center gap-1 mb-1">
+                                        <GoogleIcon name="campaign" size={14} className="text-amber-500" />
+                                        <span className="text-[9px] font-medium text-slate-500 uppercase">Reports</span>
+                                    </div>
+                                    <div className="text-lg font-bold text-slate-900">{stats.sources.reports}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 24h Agent Activity Log */}
                         <div className="space-y-2">
                             <div className="flex items-center gap-2 mb-2">
                                 <GeminiIcon size={12} />
-                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Recent Agent Activity</span>
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Agent Activity (Last 24 Hours)</span>
                             </div>
                             <div className="max-h-80 overflow-y-auto space-y-2 pr-2">
                                 {activities.slice(0, 20).map((activity, i) => (
