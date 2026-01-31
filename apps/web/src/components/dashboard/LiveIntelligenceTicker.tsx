@@ -32,6 +32,17 @@ type AgentActivity = {
     context?: string;
 };
 
+const formatSourceName = (source: string): string => {
+    const sourceMap: Record<string, string> = {
+        news: 'News',
+        bmkg: 'BMKG',
+        social_media: 'Social Media',
+        tiktok: 'TikTok',
+        user_report: 'User Report',
+    };
+    return sourceMap[source.toLowerCase()] || source.charAt(0).toUpperCase() + source.slice(1).toLowerCase();
+};
+
 // Mock agent activity (would come from real-time WebSocket in production)
 const generateAgentActivity = (signals: Signal[]): AgentActivity[] => {
     const activities: AgentActivity[] = [];
@@ -63,7 +74,7 @@ const generateAgentActivity = (signals: Signal[]): AgentActivity[] => {
             activities.push({
                 agent: 'Monitor',
                 action: 'Scanning',
-                detail: `${signal.source} signals from ${loc}`,
+                detail: `${formatSourceName(signal.source)} signals from ${loc}`,
                 timestamp: signal.created_at,
                 severity: 'low',
                 context: signal.text
