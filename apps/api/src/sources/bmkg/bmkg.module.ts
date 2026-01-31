@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
 import { BmkgService } from './bmkg.service';
-import { SignalsModule } from '../../signals/signals.module';
 import { SupabaseModule } from '../../supabase/supabase.module';
-import { ReasoningModule } from '../../reasoning/reasoning.module';
+import { IncidentsModule } from '../../incidents/incidents.module';
 
 @Module({
-  imports: [SignalsModule, SupabaseModule, ReasoningModule],
+  imports: [SupabaseModule, IncidentsModule],
   providers: [BmkgService],
   exports: [BmkgService]
 })

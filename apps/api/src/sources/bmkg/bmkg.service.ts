@@ -3,7 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { SupabaseService } from '../../supabase/supabase.service';
 import axios from 'axios';
 
-import { SignalsService } from '../../signals/signals.service';
+import { IncidentsService } from '../../incidents/incidents.service';
 import { MAX_SIGNAL_AGE } from '../../common/constants';
 import { RemoteConfigService } from '../../config/remote-config.service';
 
@@ -21,7 +21,7 @@ export class BmkgService {
 
   constructor(
     private readonly supabase: SupabaseService,
-    private readonly signalsService: SignalsService,
+    private readonly incidentsService: IncidentsService,
     private readonly remoteConfig: RemoteConfigService,
   ) {}
 
@@ -66,26 +66,13 @@ export class BmkgService {
 
   private async processQuake(quake: any, category: 'monitor' | 'alert') {
     // 1. Generate ID (use DateTime + Coordinates as unique key)
-    // DateTime format: "2024-01-14 10:00:00" or similar
     const bmkgId = `${quake.DateTime}_${quake.Coordinates}`;
 
-    // 2. Map coordinates
-    const [latStr, lngStr] = quake.Coordinates.split(',');
-    const lat = parseFloat(latStr);
-    const lng = parseFloat(lngStr);
-
-    // 3. Create Text Summary
-    const categoryTag = category === 'alert' ? '[ALERT - POTENTIAL DISASTER]' : '[MONITOR - FELT Report]';
-    const text = `Status: ${categoryTag}, Earthquake Mag:${quake.Magnitude}, ${quake.DateTime}, Loc: ${quake.Wilayah} (${quake.Kedalaman})`;
-
-    // 4. Check Deduplication via raw_payload search or ID pattern in signals? 
-    // We'll query signals where source='bmkg' and created roughly same time? 
-    // Better: Store the BmkgID in raw_payload -> bmkg_id and query that.
-    
-    const { data: existing } = await this.db.from('signals')
+    // 2. Check deduplication via bmkg_events table
+    const { data: existing } = await (this.db as any)
+      .from('bmkg_events')
       .select('id')
-      .eq('source', 'bmkg')
-      .contains('raw_payload', { bmkg_id: bmkgId }) // JSONB containment
+      .eq('bmkg_id', bmkgId)
       .maybeSingle();
 
     if (existing) {
@@ -93,7 +80,7 @@ export class BmkgService {
       return;
     }
 
-    // 4.1 Check Signal Age
+    // 3. Check Signal Age
     const happenedAt = this.parseDate(quake.DateTime);
     const eventTime = new Date(happenedAt).getTime();
     const now = Date.now();
@@ -104,23 +91,67 @@ export class BmkgService {
       return;
     }
 
-    // 5. Ingest via SignalsService
-    try {
-      await this.signalsService.createSignal({
-        source: 'bmkg',
-        text,
-        lat,
-        lng,
-        city_hint: quake.Wilayah,
-        happened_at: happenedAt,
-        raw_payload: {
-          ...quake,
-          bmkg_id: bmkgId,
-        }
+    // 4. Map coordinates
+    const [latStr, lngStr] = quake.Coordinates.split(',');
+    const lat = parseFloat(latStr);
+    const lng = parseFloat(lngStr);
+
+    // 5. Create Text Summary (without category tag - category goes in raw_payload)
+    const text = `Earthquake Mag:${quake.Magnitude}, ${quake.DateTime}, Loc: ${quake.Wilayah} (${quake.Kedalaman})`;
+
+    // 6. Insert into bmkg_events immediately
+    await (this.db as any)
+      .from('bmkg_events')
+      .insert({
+        bmkg_id: bmkgId,
+        magnitude: quake.Magnitude,
+        coordinates: quake.Coordinates,
+        location: quake.Wilayah,
+        depth: quake.Kedalaman,
+        event_time: happenedAt,
+        category,
+        raw_data: quake,
       });
-      this.logger.log(`Ingested new quake: ${text}`);
+
+    // 7. Create signal directly in DB (bypass buffer for immediate processing)
+    try {
+      const { data: signal, error } = await (this.db as any)
+        .from('signals')
+        .insert({
+          source: 'bmkg',
+          text,
+          lat,
+          lng,
+          city_hint: quake.Wilayah,
+          event_type: 'earthquake',
+          happened_at: happenedAt,
+          status: 'pending',
+          raw_payload: {
+            ...quake,
+            bmkg_id: bmkgId,
+            bmkg_category: category, // monitor or alert - used by incident processor
+          },
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        this.logger.error(`Failed to create signal for quake ${bmkgId}`, error);
+        return;
+      }
+
+      // 8. Update bmkg_events with signal_id
+      await (this.db as any)
+        .from('bmkg_events')
+        .update({ signal_id: signal.id })
+        .eq('bmkg_id', bmkgId);
+
+      // 9. Process signal directly (create incident immediately)
+      this.logger.log(`Processing BMKG quake directly: ${text}`);
+      await this.incidentsService.processSignal(signal.id, lat, lng, happenedAt);
+
     } catch (error) {
-      this.logger.error(`Failed to ingest quake ${bmkgId}`, error);
+      this.logger.error(`Failed to process quake ${bmkgId}`, error);
     }
   }
 

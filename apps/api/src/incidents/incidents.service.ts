@@ -508,7 +508,7 @@ export class IncidentsService {
     // 4. Either use default for trusted sources or run reasoning loop
     if (isTrustedSource) {
       this.logger.log(`⚡ Bypassing reasoning for trusted source: ${signal.source} (${eventType})`);
-      reasoningResult = this.createDefaultReasoningResult(unlinkedSignals, eventType);
+      reasoningResult = this.createDefaultReasoningResult(unlinkedSignals, eventType, signal);
     } else {
       const result = await this.runReasoningForCreation(unlinkedSignals, city);
       if (!result) return;
@@ -530,21 +530,42 @@ export class IncidentsService {
 
   /**
    * Create default reasoning result for trusted sources (no LLM call)
+   * For BMKG signals, checks bmkg_category in raw_payload to determine severity:
+   * - 'alert' (M >= 5.0) → severity: 'high', status: 'alert'
+   * - 'monitor' (felt earthquakes) → severity: 'medium', status: 'monitor'
    */
   private createDefaultReasoningResult(
     signals: Signal[],
     eventType: string,
+    triggerSignal?: Signal,
   ): ReasoningResult {
+    // Check for BMKG category in trigger signal's raw_payload
+    const bmkgCategory = triggerSignal?.raw_payload?.bmkg_category as string | undefined;
+
+    // Determine severity based on BMKG category or default to high for trusted sources
+    let severity: Severity = 'high';
+    let description = `Official ${eventType} report`;
+
+    if (bmkgCategory === 'monitor') {
+      severity = 'medium';
+      description = `BMKG felt earthquake report (monitor)`;
+    } else if (bmkgCategory === 'alert') {
+      severity = 'high';
+      description = `BMKG significant earthquake alert (M >= 5.0)`;
+    }
+
     return {
       conclusion: {
         final_classification: eventType,
-        severity: 'high' as Severity,
+        severity,
         confidence_score: 0.95, // High confidence for official sources
-        description: `Official ${eventType} report`,
+        description,
       },
       decision: {
         action: 'CREATE_INCIDENT',
-        reason: 'Trusted official source bypass',
+        reason: bmkgCategory
+          ? `Trusted BMKG source (category: ${bmkgCategory})`
+          : 'Trusted official source bypass',
       },
       sessionId: '',
       multiVector: {
@@ -668,18 +689,33 @@ export class IncidentsService {
 
     const { conclusion, decision, multiVector } = reasoningResult;
 
-    const shouldAlert =
-      decision.action === 'CREATE_INCIDENT' ||
-      decision.action === 'MERGE_INCIDENT' ||
-      conclusion.severity === 'high';
+    // Check for BMKG category override in signals
+    const bmkgSignal = signals.find(s => s.source === 'bmkg' && s.raw_payload?.bmkg_category);
+    const bmkgCategory = bmkgSignal?.raw_payload?.bmkg_category as string | undefined;
 
-    const initialStatus = shouldAlert
-      ? determineStatus({
-        signalCount: signals.length,
-        confidence: conclusion.confidence_score,
-        severity: conclusion.severity,
-      })
-      : 'monitor';
+    let initialStatus: 'monitor' | 'alert';
+
+    if (bmkgCategory) {
+      // BMKG signals: use category directly for status
+      // 'alert' (M >= 5.0) → status 'alert'
+      // 'monitor' (felt earthquakes) → status 'monitor'
+      initialStatus = bmkgCategory === 'alert' ? 'alert' : 'monitor';
+      this.logger.log(`BMKG category override: ${bmkgCategory} → status: ${initialStatus}`);
+    } else {
+      // Standard logic for non-BMKG signals
+      const shouldAlert =
+        decision.action === 'CREATE_INCIDENT' ||
+        decision.action === 'MERGE_INCIDENT' ||
+        conclusion.severity === 'high';
+
+      initialStatus = shouldAlert
+        ? determineStatus({
+          signalCount: signals.length,
+          confidence: conclusion.confidence_score,
+          severity: conclusion.severity,
+        })
+        : 'monitor';
+    }
 
     this.logger.log(
       `Creating NEW Incident in ${city} for ${eventType} with ${signals.length} signals`,
@@ -1138,13 +1174,8 @@ export class IncidentsService {
     const lastActivity = new Date(incident.updated_at || incident.created_at);
     const diffHours = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
 
-    let requiredSilenceHours =
-      RESOLUTION_SILENCE_HOURS[incident.severity] ?? 1;
-
-    if (incident.severity === 'high') {
-      const eventType = incident.event_type || 'other';
-      requiredSilenceHours = MAX_SIGNAL_AGE[eventType] ?? MAX_SIGNAL_AGE['other'];
-    }
+    const eventType = incident.event_type || 'other';
+    const requiredSilenceHours = MAX_SIGNAL_AGE[eventType] ?? MAX_SIGNAL_AGE['other'];
 
     if (diffHours < requiredSilenceHours) return;
 

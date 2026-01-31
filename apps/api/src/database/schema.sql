@@ -131,6 +131,27 @@ CREATE INDEX IF NOT EXISTS news_posts_url_hash_idx ON news_posts (url_hash);
 CREATE INDEX IF NOT EXISTS news_posts_signal_idx ON news_posts (signal_id);
 
 -- ============================================================
+-- RAW BMKG LOG (DEDUPLICATION)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS bmkg_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  bmkg_id TEXT NOT NULL UNIQUE,
+  magnitude TEXT,
+  coordinates TEXT,
+  location TEXT,
+  depth TEXT,
+  event_time TIMESTAMPTZ,
+  category TEXT,
+  raw_data JSONB,
+  signal_id UUID,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS bmkg_events_bmkg_id_idx ON bmkg_events (bmkg_id);
+CREATE INDEX IF NOT EXISTS bmkg_events_signal_idx ON bmkg_events (signal_id);
+
+-- ============================================================
 -- RAW SIGNAL INGESTION
 -- ============================================================
 
@@ -189,6 +210,10 @@ ALTER TABLE tiktok_posts ADD CONSTRAINT tiktok_posts_signal_id_fkey
 
 ALTER TABLE news_posts DROP CONSTRAINT IF EXISTS news_posts_signal_id_fkey;
 ALTER TABLE news_posts ADD CONSTRAINT news_posts_signal_id_fkey
+  FOREIGN KEY (signal_id) REFERENCES signals(id) ON DELETE SET NULL;
+
+ALTER TABLE bmkg_events DROP CONSTRAINT IF EXISTS bmkg_events_signal_id_fkey;
+ALTER TABLE bmkg_events ADD CONSTRAINT bmkg_events_signal_id_fkey
   FOREIGN KEY (signal_id) REFERENCES signals(id) ON DELETE SET NULL;
 
 -- ============================================================
