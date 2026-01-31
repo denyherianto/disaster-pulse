@@ -166,6 +166,7 @@ export class RssService implements OnModuleInit {
         media_url: item.link, media_type: null, happened_at: item.pubDate,
         raw_payload: {
           url_hash: urlHash, source_name: sourceName, original_title: item.title, link: item.link,
+          full_content: fullContent,
           ai_analysis: { ...analysis, reason: `REJECTED: ${analysis.reason}` }
         }
       });
@@ -181,6 +182,7 @@ export class RssService implements OnModuleInit {
         media_url: item.link, media_type: null, happened_at: item.pubDate,
         raw_payload: {
           url_hash: urlHash, source_name: sourceName, original_title: item.title, link: item.link,
+          full_content: fullContent,
           ai_analysis: { ...analysis, reason: `REJECTED: Low confidence (${analysis.confidence_score}) - ${analysis.reason}` }
         }
       });
@@ -203,6 +205,7 @@ export class RssService implements OnModuleInit {
         source_name: sourceName,
         original_title: item.title,
         link: item.link,
+        full_content: fullContent,
         analysis: analysis,
       },
     };
