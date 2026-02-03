@@ -58,7 +58,7 @@ export const THRESHOLDS = {
 /** Incident processing configuration */
 export const INCIDENT_CONFIG = {
   /** Minimum signals required to create an incident */
-  MIN_SIGNALS_FOR_INCIDENT: 2,
+  MIN_SIGNALS_FOR_INCIDENT: 1,
 
   /** Maximum incidents to process in batch evaluation */
   BATCH_EVAL_LIMIT: 10,
