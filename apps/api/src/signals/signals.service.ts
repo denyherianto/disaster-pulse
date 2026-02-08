@@ -68,7 +68,7 @@ export class SignalsService {
           severity: 'low',
           urgency_score: 0.1,
           location: null,
-          event_type: 'other',
+          event_type: payload.event_type || 'noise', // Use payload's type or mark as noise for review
           lat: null,
           lng: null
         };
@@ -142,7 +142,7 @@ export class SignalsService {
             .single();
 
           if (error) {
-            console.error('Supabase Ingestion Error:', error);
+            this.logger.error('Supabase Ingestion Error:', error);
             item.reject(new InternalServerErrorException('Failed to ingest signal'));
             return;
           }
@@ -175,7 +175,7 @@ export class SignalsService {
           item.resolve({ success: true, id: data.id, severity: severityResult.severity });
 
         } catch (err) {
-          console.error('Error processing individual signal in batch', err);
+          this.logger.error('Error processing individual signal in batch', err);
           item.reject(err);
         }
       }));

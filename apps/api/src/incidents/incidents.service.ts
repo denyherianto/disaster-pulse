@@ -506,14 +506,9 @@ export class IncidentsService {
     let reasoningResult: ReasoningResult;
 
     // 4. Either use default for trusted sources or run reasoning loop
-    if (isTrustedSource) {
-      this.logger.log(`⚡ Bypassing reasoning for trusted source: ${signal.source} (${eventType})`);
-      reasoningResult = this.createDefaultReasoningResult(unlinkedSignals, eventType, signal);
-    } else {
-      const result = await this.runReasoningForCreation(unlinkedSignals, city);
-      if (!result) return;
-      reasoningResult = result;
-    }
+    const result = await this.runReasoningForCreation(unlinkedSignals, city);
+    if (!result) return;
+    reasoningResult = result;
 
     // 5. Create incident with reasoning result
     const newIncident = await this.createIncidentFromSignals(
@@ -654,23 +649,10 @@ export class IncidentsService {
 
       return result as ReasoningResult;
     } catch (err) {
-      this.logger.error(`Reasoning Loop failed, falling back to default creation:`, err);
-      // Fail open: proceed without reasoning result
-      return {
-        conclusion: {
-          final_classification: 'other',
-          severity: 'medium' as Severity,
-          confidence_score: 0.5,
-        },
-        decision: { action: 'CREATE_INCIDENT', reason: 'Fallback due to reasoning error' },
-        sessionId: '',
-        multiVector: {
-          sourceBreakdown: { official: 0, user_report: 0, social_media: 0, news: 0, total: signals.length, unique_sources: [] },
-          diversityBonus: 0,
-          categoryCount: 0,
-          hasOfficialSource: false,
-        },
-      };
+      this.logger.error(`Reasoning Loop failed, aborting incident creation:`, err);
+      // Fail safe: don't create incidents when reasoning fails
+      // Signals remain pending and will be retried on next cron run
+      return null;
     }
   }
 
@@ -1137,6 +1119,62 @@ export class IncidentsService {
   // ============================================================
 
   /**
+   * Pending signals cron job - processes signals stuck in 'pending' status
+   * This is a fallback mechanism when the queue fails or is not running
+   */
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async handlePendingSignalsCron(): Promise<void> {
+    if (!(await this.remoteConfig.isCronEnabled('incidents'))) {
+      this.logger.debug('Pending signals cron is disabled via Remote Config');
+      return;
+    }
+
+    this.logger.debug('Running pending signals fallback job...');
+    await this.processPendingSignals();
+  }
+
+  /**
+   * Process signals that are stuck in 'pending' status
+   * Only processes signals older than 2 minutes to avoid race conditions with queue
+   */
+  private async processPendingSignals(): Promise<void> {
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+
+    const { data: pendingSignals, error } = await this.db
+      .from('signals')
+      .select('id, lat, lng, happened_at')
+      .eq('status', 'pending')
+      .lt('created_at', twoMinutesAgo)
+      .order('created_at', { ascending: true })
+      .limit(20);
+
+    if (error) {
+      this.logger.error('Failed to fetch pending signals:', error);
+      return;
+    }
+
+    if (!pendingSignals?.length) {
+      this.logger.debug('No stale pending signals found');
+      return;
+    }
+
+    this.logger.log(`Processing ${pendingSignals.length} stale pending signals...`);
+
+    for (const signal of pendingSignals) {
+      try {
+        await this.processSignal(
+          signal.id,
+          signal.lat,
+          signal.lng,
+          signal.happened_at,
+        );
+      } catch (err) {
+        this.logger.error(`Failed to process pending signal ${signal.id}:`, err);
+      }
+    }
+  }
+
+  /**
    * Resolution cron job - checks for incidents to auto-resolve
    */
   @Cron(CronExpression.EVERY_10_MINUTES)
@@ -1227,7 +1265,7 @@ export class IncidentsService {
   /**
    * Batch evaluation cron job - processes incidents needing full AI eval
    */
-  @Cron('*/15 * * * *')  // OPTIMIZED: Changed from */5 to reduce LLM call frequency
+  @Cron(CronExpression.EVERY_5_MINUTES)
   async handleBatchEvaluationCron(): Promise<BatchEvaluationResult> {
     if (!(await this.remoteConfig.isCronEnabled('batch_eval'))) {
       this.logger.debug('Batch evaluation cron is disabled via Remote Config');

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 
 interface PaginationParams {
@@ -6,6 +6,32 @@ interface PaginationParams {
   limit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+}
+
+// Whitelist of allowed sort fields per endpoint to prevent SQL injection
+const ALLOWED_SORT_FIELDS = {
+  signals: ['created_at', 'updated_at', 'status', 'source', 'event_type'],
+  incidents: ['created_at', 'updated_at', 'status', 'event_type', 'severity', 'confidence_score', 'city'],
+  traces: ['created_at', 'session_id', 'incident_id'],
+  evaluations: ['created_at', 'incident_id'],
+  users: ['created_at', 'updated_at', 'name', 'email'],
+  verifications: ['created_at', 'type', 'incident_id'],
+  lifecycle: ['created_at', 'incident_id', 'to_status'],
+  notifications: ['created_at', 'day'],
+  tiktok_posts: ['created_at', 'author'],
+} as const;
+
+type EndpointType = keyof typeof ALLOWED_SORT_FIELDS;
+
+function validateSortField(endpoint: EndpointType, sortBy: string | undefined, defaultField: string): string {
+  if (!sortBy) {
+    return defaultField;
+  }
+  const allowedFields = ALLOWED_SORT_FIELDS[endpoint];
+  if (!(allowedFields as readonly string[]).includes(sortBy)) {
+    throw new BadRequestException(`Invalid sort field: ${sortBy}. Allowed: ${allowedFields.join(', ')}`);
+  }
+  return sortBy;
 }
 
 @Injectable()
@@ -22,13 +48,14 @@ export class AdminService {
   // SIGNALS
   // ============================================================
   async getSignals(params: PaginationParams & { status?: string; source?: string }) {
-    const { page = 1, limit = 50, sortBy = 'created_at', sortOrder = 'desc', status, source } = params;
+    const { page = 1, limit = 50, sortBy, sortOrder = 'desc', status, source } = params;
+    const validatedSortBy = validateSortField('signals', sortBy, 'created_at');
     const offset = (page - 1) * limit;
 
     let query = this.db()
       .from('signals')
       .select('*', { count: 'exact' })
-      .order(sortBy, { ascending: sortOrder === 'asc' })
+      .order(validatedSortBy, { ascending: sortOrder === 'asc' })
       .range(offset, offset + limit - 1);
 
     if (status) query = query.eq('status', status);
@@ -48,7 +75,8 @@ export class AdminService {
   // INCIDENTS
   // ============================================================
   async getIncidents(params: PaginationParams & { status?: string; eventType?: string }) {
-    const { page = 1, limit = 50, sortBy = 'updated_at', sortOrder = 'desc', status, eventType } = params;
+    const { page = 1, limit = 50, sortBy, sortOrder = 'desc', status, eventType } = params;
+    const validatedSortBy = validateSortField('incidents', sortBy, 'updated_at');
     const offset = (page - 1) * limit;
 
     let query = this.db()
@@ -58,7 +86,7 @@ export class AdminService {
         incident_signals(signal_id),
         incident_metrics(*)
       `, { count: 'exact' })
-      .order(sortBy, { ascending: sortOrder === 'asc' })
+      .order(validatedSortBy, { ascending: sortOrder === 'asc' })
       .range(offset, offset + limit - 1);
 
     if (status) query = query.eq('status', status);
@@ -85,13 +113,14 @@ export class AdminService {
   // AI TRACES
   // ============================================================
   async getTraces(params: PaginationParams & { sessionId?: string; incidentId?: string }) {
-    const { page = 1, limit = 100, sortBy = 'created_at', sortOrder = 'desc', sessionId, incidentId } = params;
+    const { page = 1, limit = 100, sortBy, sortOrder = 'desc', sessionId, incidentId } = params;
+    const validatedSortBy = validateSortField('traces', sortBy, 'created_at');
     const offset = (page - 1) * limit;
 
     let query = this.db()
       .from('agent_traces')
       .select('*', { count: 'exact' })
-      .order(sortBy, { ascending: sortOrder === 'asc' })
+      .order(validatedSortBy, { ascending: sortOrder === 'asc' })
       .range(offset, offset + limit - 1);
 
     if (sessionId) query = query.eq('session_id', sessionId);
@@ -111,13 +140,14 @@ export class AdminService {
   // AI EVALUATIONS
   // ============================================================
   async getEvaluations(params: PaginationParams & { incidentId?: string }) {
-    const { page = 1, limit = 50, sortBy = 'created_at', sortOrder = 'desc', incidentId } = params;
+    const { page = 1, limit = 50, sortBy, sortOrder = 'desc', incidentId } = params;
+    const validatedSortBy = validateSortField('evaluations', sortBy, 'created_at');
     const offset = (page - 1) * limit;
 
     let query = this.db()
       .from('ai_evaluations')
       .select('*', { count: 'exact' })
-      .order(sortBy, { ascending: sortOrder === 'asc' })
+      .order(validatedSortBy, { ascending: sortOrder === 'asc' })
       .range(offset, offset + limit - 1);
 
     if (incidentId) query = query.eq('incident_id', incidentId);
@@ -136,7 +166,8 @@ export class AdminService {
   // USERS
   // ============================================================
   async getUsers(params: PaginationParams) {
-    const { page = 1, limit = 50, sortBy = 'created_at', sortOrder = 'desc' } = params;
+    const { page = 1, limit = 50, sortBy, sortOrder = 'desc' } = params;
+    const validatedSortBy = validateSortField('users', sortBy, 'created_at');
     const offset = (page - 1) * limit;
 
     const { data, error, count } = await this.db()
@@ -145,7 +176,7 @@ export class AdminService {
         *,
         user_places:user_places!user_places_user_id_fkey(id, label)
       `, { count: 'exact' })
-      .order(sortBy, { ascending: sortOrder === 'asc' })
+      .order(validatedSortBy, { ascending: sortOrder === 'asc' })
       .range(offset, offset + limit - 1);
 
     if (error) {
@@ -160,7 +191,8 @@ export class AdminService {
   // VERIFICATIONS
   // ============================================================
   async getVerifications(params: PaginationParams & { type?: string; incidentId?: string }) {
-    const { page = 1, limit = 50, sortBy = 'created_at', sortOrder = 'desc', type, incidentId } = params;
+    const { page = 1, limit = 50, sortBy, sortOrder = 'desc', type, incidentId } = params;
+    const validatedSortBy = validateSortField('verifications', sortBy, 'created_at');
     const offset = (page - 1) * limit;
 
     let query = this.db()
@@ -169,7 +201,7 @@ export class AdminService {
         *,
         users(id, name, avatar_url)
       `, { count: 'exact' })
-      .order(sortBy, { ascending: sortOrder === 'asc' })
+      .order(validatedSortBy, { ascending: sortOrder === 'asc' })
       .range(offset, offset + limit - 1);
 
     if (type) query = query.eq('type', type);
@@ -189,13 +221,14 @@ export class AdminService {
   // LIFECYCLE
   // ============================================================
   async getLifecycle(params: PaginationParams & { incidentId?: string }) {
-    const { page = 1, limit = 50, sortBy = 'created_at', sortOrder = 'desc', incidentId } = params;
+    const { page = 1, limit = 50, sortBy, sortOrder = 'desc', incidentId } = params;
+    const validatedSortBy = validateSortField('lifecycle', sortBy, 'created_at');
     const offset = (page - 1) * limit;
 
     let query = this.db()
       .from('incident_lifecycle')
       .select('*', { count: 'exact' })
-      .order(sortBy, { ascending: sortOrder === 'asc' })
+      .order(validatedSortBy, { ascending: sortOrder === 'asc' })
       .range(offset, offset + limit - 1);
 
     if (incidentId) query = query.eq('incident_id', incidentId);
@@ -214,7 +247,7 @@ export class AdminService {
   // NOTIFICATIONS
   // ============================================================
   async getNotifications(params: PaginationParams & { tab?: 'outbox' | 'audit' | 'states' }) {
-    const { page = 1, limit = 50, sortBy = 'created_at', sortOrder = 'desc', tab = 'outbox' } = params;
+    const { page = 1, limit = 50, sortBy, sortOrder = 'desc', tab = 'outbox' } = params;
     const offset = (page - 1) * limit;
 
     let tableName: string;
@@ -229,10 +262,12 @@ export class AdminService {
         tableName = 'notification_outbox';
     }
 
+    const validatedSortBy = tab === 'audit' ? 'day' : validateSortField('notifications', sortBy, 'created_at');
+
     const { data, error, count } = await this.db()
       .from(tableName)
       .select('*', { count: 'exact' })
-      .order(tab === 'audit' ? 'day' : sortBy, { ascending: sortOrder === 'asc' })
+      .order(validatedSortBy, { ascending: sortOrder === 'asc' })
       .range(offset, offset + limit - 1);
 
     if (error) {
@@ -247,13 +282,14 @@ export class AdminService {
   // TIKTOK POSTS
   // ============================================================
   async getTikTokPosts(params: PaginationParams) {
-    const { page = 1, limit = 50, sortBy = 'created_at', sortOrder = 'desc' } = params;
+    const { page = 1, limit = 50, sortBy, sortOrder = 'desc' } = params;
+    const validatedSortBy = validateSortField('tiktok_posts', sortBy, 'created_at');
     const offset = (page - 1) * limit;
 
     const { data, error, count } = await this.db()
       .from('tiktok_posts')
       .select('*', { count: 'exact' })
-      .order(sortBy, { ascending: sortOrder === 'asc' })
+      .order(validatedSortBy, { ascending: sortOrder === 'asc' })
       .range(offset, offset + limit - 1);
 
     if (error) {

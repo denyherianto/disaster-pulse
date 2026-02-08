@@ -1,10 +1,13 @@
 // Firebase messaging service worker for handling background push notifications
-// IMPORTANT: Replace the Firebase config values below with your actual Firebase project credentials
+// NOTE: Firebase client configuration is intentionally included here.
+// These are PUBLIC credentials that identify the Firebase project.
+// Security is enforced via Firebase Security Rules, not by hiding these values.
+// See: https://firebase.google.com/docs/projects/api-keys
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js');
 
 // Initialize Firebase with config
-// TODO: Replace these values with your Firebase project configuration
+// These values must match the NEXT_PUBLIC_FIREBASE_* environment variables
 firebase.initializeApp({
   apiKey: 'AIzaSyAf3gqrPK-y7o_0NvEsYyoI9J3Hse7uoYM',
   authDomain: 'disaster-pulse-7962f.firebaseapp.com',
@@ -18,8 +21,6 @@ const messaging = firebase.messaging();
 
 // Handle background messages
 messaging.onBackgroundMessage((payload) => {
-  console.log('[firebase-messaging-sw.js] Background message received:', payload);
-
   const notificationTitle = payload.notification?.title || 'Disaster Alert';
   const notificationOptions = {
     body: payload.notification?.body || 'New incident reported',
@@ -40,7 +41,6 @@ messaging.onBackgroundMessage((payload) => {
 
 // Handle notification click
 self.addEventListener('notificationclick', (event) => {
-  console.log('[firebase-messaging-sw.js] Notification clicked:', event);
   event.notification.close();
 
   const incidentId = event.notification.data?.incidentId;

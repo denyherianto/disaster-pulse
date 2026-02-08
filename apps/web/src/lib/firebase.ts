@@ -30,14 +30,12 @@ let messaging: Messaging | null = null;
 export function getFirebaseMessaging(): Messaging | null {
   if (typeof window === 'undefined') return null;
   if (!isFirebaseConfigured() || !app) {
-    console.warn('Firebase is not configured. Push notifications disabled.');
     return null;
   }
   if (!messaging) {
     try {
       messaging = getMessaging(app);
-    } catch (error) {
-      console.error('Failed to initialize Firebase Messaging:', error);
+    } catch {
       return null;
     }
   }
@@ -46,14 +44,12 @@ export function getFirebaseMessaging(): Messaging | null {
 
 export async function requestNotificationPermission(): Promise<string | null> {
   if (!isFirebaseConfigured()) {
-    console.warn('Firebase not configured. Please add Firebase environment variables.');
     throw new Error('Firebase belum dikonfigurasi. Hubungi administrator.');
   }
 
   try {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
-      console.log('Notification permission denied');
       return null;
     }
 
@@ -68,11 +64,8 @@ export async function requestNotificationPermission(): Promise<string | null> {
     }
 
     const token = await getToken(messaging, { vapidKey });
-
-    console.log('FCM Token obtained');
     return token;
   } catch (error) {
-    console.error('Error getting notification permission:', error);
     throw error;
   }
 }
@@ -82,7 +75,6 @@ export function onForegroundMessage(callback: (payload: any) => void): () => voi
   if (!messaging) return () => {};
 
   return onMessage(messaging, (payload) => {
-    console.log('Foreground message received:', payload);
     callback(payload);
   });
 }

@@ -189,11 +189,29 @@ export class RssService implements OnModuleInit {
       return false;
     }
 
-    // 6. Create Signal
+    // 6. Validate event_type - reject if AI couldn't classify
+    if (!analysis.event_type || analysis.event_type === 'other') {
+      this.logger.debug(`Rejecting news: Missing or invalid event_type - ${item.title}`);
+      await this.signalsService.createSignal({
+        source: 'news',
+        text: analysis.summary || item.title,
+        event_type: 'noise',
+        lat: null, lng: null, city_hint: null,
+        media_url: item.link, media_type: null, happened_at: item.pubDate,
+        raw_payload: {
+          url_hash: urlHash, source_name: sourceName, original_title: item.title, link: item.link,
+          full_content: fullContent,
+          ai_analysis: { ...analysis, reason: `REJECTED: Could not determine event type` }
+        }
+      });
+      return false;
+    }
+
+    // 7. Create Signal
     const signalPayload = {
       source: 'news',
       text: analysis.summary || item.title,
-      event_type: analysis.event_type || 'other',
+      event_type: analysis.event_type,
       lat: null,
       lng: null,
       city_hint: analysis.location_inference || null,
@@ -213,7 +231,7 @@ export class RssService implements OnModuleInit {
     this.logger.log(`Creating signal from news: ${item.title?.substring(0, 50)}...`);
     const signal = await this.signalsService.createSignal(signalPayload);
 
-    // 7. Update news_posts with signal_id if created
+    // 8. Update news_posts with signal_id if created
     if (signal && signal.id) {
        await (this.supabase.getClient() as any)
         .from('news_posts')

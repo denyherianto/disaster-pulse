@@ -120,7 +120,6 @@ export class IncidentsQueriesService {
       .in('status', ['alert', 'monitor', 'resolved']);
 
     if (error) {
-      console.error('Map API Error:', error);
       throw new InternalServerErrorException('Failed to fetch incidents');
     }
 
@@ -205,7 +204,6 @@ export class IncidentsQueriesService {
       .single();
 
     if (error || !incident) {
-      console.log('error', error);
       throw new NotFoundException('Incident not found');
     }
 

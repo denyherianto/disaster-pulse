@@ -1,13 +1,24 @@
 import { Body, Controller, Post, HttpException, HttpStatus } from '@nestjs/common';
+import { IsString, IsNotEmpty, IsOptional, IsObject } from 'class-validator';
 import { NotificationsService } from './notifications.service';
 
 class SubscribeDto {
+  @IsString()
+  @IsNotEmpty()
   userId: string;
+
+  @IsString()
+  @IsNotEmpty()
   fcmToken: string;
+
+  @IsOptional()
+  @IsObject()
   deviceInfo?: Record<string, any>;
 }
 
 class UnsubscribeDto {
+  @IsString()
+  @IsNotEmpty()
   userId: string;
 }
 

@@ -280,7 +280,5 @@ export function clusterCity(cityHint: string | null | undefined): string {
     }
   }
 
-  console.log('normalized', normalized)
-
   return normalized;
 }

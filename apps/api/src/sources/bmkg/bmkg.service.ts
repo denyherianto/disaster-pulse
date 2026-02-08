@@ -6,6 +6,7 @@ import axios from 'axios';
 import { IncidentsService } from '../../incidents/incidents.service';
 import { MAX_SIGNAL_AGE } from '../../common/constants';
 import { RemoteConfigService } from '../../config/remote-config.service';
+import { reverseGeocodeCity } from '../../lib/reverseGeocoding';
 
 @Injectable()
 export class BmkgService {
@@ -96,10 +97,20 @@ export class BmkgService {
     const lat = parseFloat(latStr);
     const lng = parseFloat(lngStr);
 
-    // 5. Create Text Summary (without category tag - category goes in raw_payload)
+    // 5. Reverse geocode to get proper "City, Province" format
+    let cityHint: string | null = null;
+    try {
+      cityHint = await reverseGeocodeCity(lat, lng);
+      this.logger.debug(`Geocoded ${quake.Coordinates} → ${cityHint}`);
+    } catch (err) {
+      this.logger.warn(`Failed to geocode ${quake.Coordinates}, using Wilayah as fallback`);
+      cityHint = quake.Wilayah;
+    }
+
+    // 6. Create Text Summary (without category tag - category goes in raw_payload)
     const text = `Earthquake Mag:${quake.Magnitude}, ${quake.DateTime}, Loc: ${quake.Wilayah} (${quake.Kedalaman})`;
 
-    // 6. Insert into bmkg_events immediately
+    // 7. Insert into bmkg_events immediately
     await (this.db as any)
       .from('bmkg_events')
       .insert({
@@ -113,7 +124,7 @@ export class BmkgService {
         raw_data: quake,
       });
 
-    // 7. Create signal directly in DB (bypass buffer for immediate processing)
+    // 8. Create signal directly in DB (bypass buffer for immediate processing)
     try {
       const { data: signal, error } = await (this.db as any)
         .from('signals')
@@ -122,7 +133,7 @@ export class BmkgService {
           text,
           lat,
           lng,
-          city_hint: quake.Wilayah,
+          city_hint: cityHint || quake.Wilayah, // Use geocoded city or fallback to Wilayah
           event_type: 'earthquake',
           happened_at: happenedAt,
           status: 'pending',
@@ -140,13 +151,13 @@ export class BmkgService {
         return;
       }
 
-      // 8. Update bmkg_events with signal_id
+      // 9. Update bmkg_events with signal_id
       await (this.db as any)
         .from('bmkg_events')
         .update({ signal_id: signal.id })
         .eq('bmkg_id', bmkgId);
 
-      // 9. Process signal directly (create incident immediately)
+      // 10. Process signal directly (create incident immediately)
       this.logger.log(`Processing BMKG quake directly: ${text}`);
       await this.incidentsService.processSignal(signal.id, lat, lng, happenedAt);
 

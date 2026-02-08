@@ -103,8 +103,8 @@ export class R2UploadService {
         size: buffer.length,
       };
     } catch (error: any) {
-      this.logger.error(`Failed to upload file to R2: ${error.message}`, error);
-      throw new Error(`Failed to upload file: ${error.message}`);
+      this.logger.error(`Failed to upload file to R2: ${error.message}`, error.stack);
+      throw new Error('Failed to upload file. Please try again later.');
     }
   }
 
@@ -122,8 +122,8 @@ export class R2UploadService {
       );
       this.logger.log(`File deleted from R2: ${key}`);
     } catch (error: any) {
-      this.logger.error(`Failed to delete file from R2: ${error.message}`, error);
-      throw new Error(`Failed to delete file: ${error.message}`);
+      this.logger.error(`Failed to delete file from R2: ${error.message}`, error.stack);
+      throw new Error('Failed to delete file. Please try again later.');
     }
   }
 

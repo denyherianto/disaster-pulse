@@ -155,7 +155,7 @@ ANALYSIS TASKS:
 
 OUTPUT JSON:
 {
-  "verified_event_type": "flood|earthquake|fire|landslide|power_outage|other",
+  "verified_event_type": "flood|earthquake|fire|landslide|volcano|whirlwind|tornado|tsunami" (REQUIRED - pick the closest match, use "noise" for unlisted),
   "summary": "Brief summary of what the user is reporting",
   "severity_level": "low|medium|high",
   "confidence_score": 0.0-1.0,

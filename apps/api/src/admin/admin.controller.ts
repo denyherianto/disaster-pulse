@@ -1,8 +1,10 @@
-import { Controller, Get, Post, Query, Body } from '@nestjs/common';
+import { Controller, Get, Post, Query, Body, UseGuards } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { DemoSeedService } from './demo-seed.service';
+import { AuthGuard } from '../auth/auth.guard';
 
 @Controller('admin')
+  // @UseGuards(AuthGuard)
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,

@@ -77,7 +77,7 @@ Respond in JSON format:
   "is_current_event": boolean,
   "is_real_event": boolean,
   "confidence_score": 0.0-1.0,
-  "event_type": "flood|earthquake|fire|landslide|tsunami|power_outage|other" or null,
+  "event_type": "flood|earthquake|fire|landslide|tsunami|volcano|whirlwind|tornado" (REQUIRED if is_real_event=true, pick closest match) or noise,
   "location_inference": "City, Province" format. MUST be in INDONESIA. If outside Indonesia, set is_real_event=false.
   "summary": "Brief 1-2 sentence summary of the incident" or null,
   "happened_at": "ISO timestamp with +07:00 offset" or null,

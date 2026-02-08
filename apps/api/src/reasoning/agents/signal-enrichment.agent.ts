@@ -75,7 +75,7 @@ export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, Sign
             "urgency_score": 0.0-1.0,
             "reason": "Max 5 words",
             "location": "Format must be '{City}, {Province}'. Example: 'Bandung, Jawa Barat'. NEVER return just 'Indonesia' or generic country names. If unknown city or outside Indonesia, return null.",
-            "event_type": "disaster type: flood (flood, potential flood, heavy rain, flash flood), fire (wildfire, forest fire, building fire, gas leak, etc), earthquake (earthquake, aftershock, etc), tsunami, volcano (eruption, etc), landslide (landslide, mudflow, etc), whirlwind (cyclone, tornado, typhoon, hurricane, etc), etc",
+            "event_type": "REQUIRED - Must be one of: flood | fire | earthquake | tsunami | volcano | landslide | whirlwind | tornado. Choose the closest match. flood=flood/heavy rain/flash flood, fire=wildfire/building fire/gas leak, earthquake=earthquake/aftershock, whirlwind=cyclone/typhoon/hurricane. Use 'noise' for unlisted",
             "lat": "lat or null",
             "lng": "lng or null"
           },
@@ -119,16 +119,17 @@ export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, Sign
 
     } catch (error) {
       this.logger.error('Batch analysis failed', error);
-      // Fallback: return default low severity for all
+      // Fallback: return low severity with 'noise' to skip incident creation
+      // Signals will be persisted for review but not processed into incidents
       return {
-        results: inputs.map(() => ({
-          severity: 'low',
+        results: inputs.map((input) => ({
+          severity: 'low' as const,
           urgency_score: 0,
-          reason: 'Batch Analysis Failed',
-          location: null,
-          event_type: 'other',
-          lat: null,
-          lng: null
+          reason: 'Batch Analysis Failed - requires manual review',
+          location: input.city_hint || null,
+          event_type: 'noise', // Mark for filtering - will be saved but not processed
+          lat: input.lat || null,
+          lng: input.lng || null
         }))
       };
     }
@@ -153,7 +154,7 @@ export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, Sign
       - HIGH: Life-threatening, verified disaster, "HELP", "SOS", widespread destruction.
       - MEDIUM: Property damage, potential threat, warning signs.
       - LOW: News discussion, past event, joke, minor inconvenience.
-      - EVENT TYPE: Classify the disaster type (flood, earthquake, whirlwind (Puting Beliung), fire, landslide, power_outage, accident). Never classify as "other", just reject if yes.
+      - EVENT TYPE: MUST be one of: flood, earthquake, whirlwind, tornado, fire, landslide, volcano, tsunami. Choose the closest match. If truly unrelated to disasters, set severity to "low" and urgency_score to 0.
 
       OUTPUT JSON:
       {
@@ -161,7 +162,7 @@ export class SignalEnrichmentAgent extends GeminiAgent<SignalSeverityInput, Sign
         "urgency_score": 0.0 to 1.0,
         "reason": "Max 5 words",
         "location": "Infer location from title/description. Format MUST be '{City}, {Province}' (e.g. 'Surabaya, Jawa Timur'). NEVER return just 'Indonesia' or generic country. If city is unknown, return null.",
-        "event_type": "disaster type inferred from text",
+        "event_type": "REQUIRED - one of: flood | fire | earthquake | tsunami | volcano | landslide | whirlwind | tornado",
         "lat": "Infer latitude from location if possible. Center of the location.",
         "lng": "Longitude from tool or null"
       }

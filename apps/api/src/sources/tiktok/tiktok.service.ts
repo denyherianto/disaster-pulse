@@ -48,8 +48,8 @@ interface TiktokVideo {
 @Injectable()
 export class TiktokService implements OnModuleInit {
   private readonly logger = new Logger(TiktokService.name);
-  private readonly APIFY_TOKEN = 'apify_api_i08bJE9njdgYP9rhTebvTbV62ihg1p3W5kiq';
-  private readonly ACTOR_ID = 'oASyAUakdGfJbbMGg';
+  private readonly apifyToken: string;
+  private readonly actorId: string;
 
   constructor(
     private readonly configService: ConfigService,
@@ -58,7 +58,14 @@ export class TiktokService implements OnModuleInit {
     private readonly videoAgent: VideoAnalysisAgent,
     private readonly remoteConfig: RemoteConfigService,
     private readonly r2UploadService: R2UploadService,
-  ) { }
+  ) {
+    this.apifyToken = this.configService.get<string>('APIFY_TOKEN') || '';
+    this.actorId = this.configService.get<string>('APIFY_ACTOR_ID') || '';
+
+    if (!this.apifyToken || !this.actorId) {
+      this.logger.warn('Apify credentials not configured. TikTok fetching will fail.');
+    }
+  }
 
   onModuleInit() {
     this.logger.log('TikTok Watcher Service Initialized');
@@ -103,7 +110,7 @@ export class TiktokService implements OnModuleInit {
           };
 
           const runResponse = await axios.post(
-            `https://api.apify.com/v2/acts/${this.ACTOR_ID}/runs?token=${this.APIFY_TOKEN}`,
+            `https://api.apify.com/v2/acts/${this.actorId}/runs?token=${this.apifyToken}`,
             input
           );
 
@@ -115,7 +122,7 @@ export class TiktokService implements OnModuleInit {
           while (status === 'RUNNING' || status === 'READY') {
             await new Promise((r) => setTimeout(r, 5000));
             const check = await axios.get(
-              `https://api.apify.com/v2/acts/${this.ACTOR_ID}/runs/${runId}?token=${this.APIFY_TOKEN}`,
+              `https://api.apify.com/v2/acts/${this.actorId}/runs/${runId}?token=${this.apifyToken}`,
             );
             status = check.data.data.status;
           }
@@ -128,7 +135,7 @@ export class TiktokService implements OnModuleInit {
           // Fetch Results
           const datasetId = runResponse.data.data.defaultDatasetId;
           const { data: items } = await axios.get(
-            `https://api.apify.com/v2/datasets/${datasetId}/items?token=${this.APIFY_TOKEN}`,
+            `https://api.apify.com/v2/datasets/${datasetId}/items?token=${this.apifyToken}`,
           );
 
           return Array.isArray(items) ? (items as TiktokVideo[]) : [];
@@ -178,7 +185,7 @@ export class TiktokService implements OnModuleInit {
       timestamp: video.create_time,
     });
 
-    console.log('analysis', analysis)
+    this.logger.debug('Video analysis result:', JSON.stringify(analysis));
 
     if (!analysis.is_real_event || analysis.confidence_score < 0.6) {
       this.logger.debug(`Video ${video.video_id} rejected: Not real, low confidence, or expired.`);
@@ -256,7 +263,7 @@ export class TiktokService implements OnModuleInit {
         original_thumbnail_url: video.origin_cover || video.cover, // Keep original thumbnail URL for reference
       }
     };
-    console.log('signalPayload', signalPayload)
+    this.logger.debug('Signal payload:', JSON.stringify(signalPayload));
 
     this.logger.log(`Ingesting Signal for video ${video.video_id}: ${signalPayload.text}`);
     const signal = await this.signalsService.createSignal(signalPayload);
