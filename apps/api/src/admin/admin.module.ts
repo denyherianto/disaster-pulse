@@ -5,10 +5,9 @@ import { DemoSeedService } from './demo-seed.service';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { SseModule } from '../sse/sse.module';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [SupabaseModule, SseModule, NotificationsModule, AuthModule],
+  imports: [SupabaseModule, SseModule, NotificationsModule],
   controllers: [AdminController],
   providers: [AdminService, DemoSeedService],
 })
