@@ -4,6 +4,65 @@
 
 ![Disaster Pulse](/media/disaster-pulse-home.jpg)
 
+Indonesia is one of the most disaster-prone countries in the world, experiencing earthquakes, tsunamis, volcanic eruptions, and floods regularly. Yet, critical information often reaches citizens too late—through fragmented news reports or word of mouth. We were inspired by the gap between when disasters happen and when people actually know about them. What if AI could bridge this gap by continuously monitoring multiple data sources and alerting communities in real-time?
+
+**Disaster Pulse** is a real-time disaster monitoring and intelligence platform for Indonesia. It aggregates data from multiple sources:
+- **BMKG (Official Earthquake/Tsunami data)**
+- **TikTok videos** for ground-truth social signals
+- **News RSS feeds** for media coverage
+- **User Reports** for crowd-sourced reports & verification
+
+The platform uses a **Multi-Agent AI System** powered by Gemini to analyze, verify, and cluster incoming signals. Each signal passes through 5 specialized AI agents (Observer → Classifier → Skeptic → Synthesizer → Action) that work together to:
+1. Detect potential disasters from raw data
+2. Classify severity and type
+3. Challenge potential false positives
+4. Synthesize multiple sources into coherent incidents
+5. Decide on actions (create alert, merge with existing incident, or discard)
+
+![Disaster Pulse Flow](/media/disaster-pulse-flow.mp4)
+
+Users see a real-time map with active incidents, receive push notifications for their saved locations, and can contribute their own reports and verifications—creating a human-in-the-loop system that combines AI speed with community trust.
+
+## How we built it
+
+- **Frontend**: Next.js 16 with React 19, Tailwind CSS, Leaflet maps, and PWA support for offline capability
+- **Backend**: NestJS with event-driven architecture, BullMQ queues for background processing
+- **AI Layer**: **Google Gemini Multimodal API** powering 11 specialized agents—most notably the **VideoAnalysisAgent** that processes TikTok video content directly using Gemini's native vision capabilities, and SignalEnrichmentAgent for geocoding and data enhancement
+- **Database**: PostgreSQL with PostGIS for geospatial queries
+- **Auth & Real-time**: Supabase for authentication and real-time subscriptions
+- **Notifications**: Firebase Cloud Messaging for push notifications
+- **Architecture**: Turborepo monorepo with shared TypeScript types
+
+## Challenges we ran into
+
+1. **AI Cost Optimization**: Running 5 sequential LLM calls per signal was expensive. We implemented signal pooling, batch processing, and a reasoning cache to reduce API calls by ~60%.
+
+2. **False Positive Management**: Social media signals are noisy. We built a SkepticAgent that specifically challenges potential false positives and requires multiple source corroboration.
+
+3. **Real-time Performance**: Balancing instant notifications with accurate verification required careful tuning of our event-driven pipeline and batching strategies.
+
+4. **Video Analysis**: Leveraging **Gemini's multimodal capabilities** to process TikTok videos directly—the model analyzes video frames to detect disaster-related content like flooding, structural damage, or emergency situations without needing separate frame extraction pipelines.
+
+## Accomplishments that we're proud of
+
+- **Hybrid Intelligence**: Our 5-agent reasoning chain provides transparency—users can see exactly *why* the AI classified something as a disaster
+- **Community Verification Loop**: The verification system lets users confirm or dispute AI findings, building community trust
+- **Sub-minute Alert Delivery**: From signal detection to user notification in under 60 seconds for urgent events
+- **Polished PWA**: Fully offline-capable, installable mobile app with push notifications
+
+## What we learned
+
+- **Gemini's multimodal power is a game-changer**: Processing video content directly with Gemini eliminated complex frame extraction pipelines and produced superior disaster detection results
+- **Gemini excels at structured reasoning**: The multi-agent approach with Gemini produced more reliable results than single-prompt approaches
+- **Human-in-the-loop is essential**: AI alone isn't enough—community verification dramatically improved accuracy
+- **Batch processing is key**: Pooling signals before AI evaluation significantly reduced costs without sacrificing speed for critical events
+
+## What's next for Disaster Pulse
+
+1. **Expand data sources**: Integrate Twitter/X, Instagram, and local government APIs
+2. **Predictive capabilities**: Use historical data to predict disaster-prone times and areas
+3. **Government partnerships**: Work with BNPB (Indonesia's disaster agency) for official integration
+
 ## System Architecture
 
 The project is a monorepo managed with **Turborepo** and **npm**, consisting of:
