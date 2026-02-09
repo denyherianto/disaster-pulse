@@ -2,6 +2,8 @@
 
 ![Disaster Pulse](/media/disaster-pulse-home.jpg)
 
+Demo Video: https://www.youtube.com/watch?v=HHG5lG-VgXg
+
 Indonesia is one of the most disaster-prone countries in the world, experiencing earthquakes, tsunamis, volcanic eruptions, and floods regularly. Yet, critical information often reaches citizens too late—through fragmented news reports or word of mouth. We were inspired by the gap between when disasters happen and when people actually know about them. What if AI could bridge this gap by continuously monitoring multiple data sources and alerting communities in real-time?
 
 **Disaster Pulse** is a real-time disaster monitoring and intelligence platform for Indonesia. It aggregates data from multiple sources:
@@ -16,8 +18,6 @@ The platform uses a **Multi-Agent AI System** powered by Gemini to analyze, veri
 3. Challenge potential false positives
 4. Synthesize multiple sources into coherent incidents
 5. Decide on actions (create alert, merge with existing incident, or discard)
-
-https://www.youtube.com/watch?v=HHG5lG-VgXg
 
 Users see a real-time map with active incidents, receive push notifications for their saved locations, and can contribute their own reports and verifications—creating a human-in-the-loop system that combines AI speed with community trust.
 
