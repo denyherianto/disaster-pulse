@@ -2,9 +2,9 @@
 
 ![Disaster Pulse](/media/disaster-pulse-home.jpg)
 
-Demo Video: https://www.youtube.com/watch?v=HHG5lG-VgXg
+Demo Video: https://youtu.be/vQGyzC_1cys
 
-Indonesia is one of the most disaster-prone countries in the world, experiencing earthquakes, tsunamis, volcanic eruptions, and floods regularly. Yet, critical information often reaches citizens too late—through fragmented news reports or word of mouth. We were inspired by the gap between when disasters happen and when people actually know about them. What if AI could bridge this gap by continuously monitoring multiple data sources and alerting communities in real-time?
+Indonesia is one of the most disaster-prone countries in the world, experiencing earthquakes, tsunamis, volcanic eruptions, and floods regularly. Yet, critical information often reaches citizens too late, through fragmented news reports, or word of mouth. We were inspired by the gap between when disasters happen and when people actually know about them. What if AI could bridge this gap by continuously monitoring multiple data sources and alerting communities in real-time?
 
 **Disaster Pulse** is a real-time disaster monitoring and intelligence platform for Indonesia. It aggregates data from multiple sources:
 - **BMKG (Official Earthquake/Tsunami data)**
@@ -19,13 +19,13 @@ The platform uses a **Multi-Agent AI System** powered by Gemini to analyze, veri
 4. Synthesize multiple sources into coherent incidents
 5. Decide on actions (create alert, merge with existing incident, or discard)
 
-Users see a real-time map with active incidents, receive push notifications for their saved locations, and can contribute their own reports and verifications—creating a human-in-the-loop system that combines AI speed with community trust.
+Users see a real-time map with active incidents, receive push notifications for their saved locations, and can contribute their own reports and verifications, creating a human-in-the-loop system that combines AI speed with community trust.
 
 ## How we built it
 
 - **Frontend**: Next.js with React 19, Tailwind CSS, Leaflet maps, and PWA support for offline capability
 - **Backend**: NestJS with event-driven architecture, BullMQ queues for background processing
-- **AI Layer**: **Google Gemini Multimodal API** powering 11 specialized agents—most notably the **VideoAnalysisAgent** that processes TikTok video content directly using Gemini's native vision capabilities, and SignalEnrichmentAgent for geocoding and data enhancement
+- **AI Layer**: **Google Gemini Multimodal API** powering 11 specialized agents. Most notably the **VideoAnalysisAgent** that processes TikTok video content directly using Gemini's native vision capabilities, and SignalEnrichmentAgent for geocoding and data enhancement
 - **Database**: PostgreSQL with PostGIS for geospatial queries
 - **Auth & Real-time**: Supabase for authentication and real-time subscriptions
 - **Notifications**: Firebase Cloud Messaging for push notifications
@@ -39,11 +39,11 @@ Users see a real-time map with active incidents, receive push notifications for 
 
 3. **Real-time Performance**: Balancing instant notifications with accurate verification required careful tuning of our event-driven pipeline and batching strategies.
 
-4. **Video Analysis**: Leveraging **Gemini's multimodal capabilities** to process TikTok videos directly—the model analyzes video frames to detect disaster-related content like flooding, structural damage, or emergency situations without needing separate frame extraction pipelines.
+4. **Video Analysis**: Leveraging **Gemini's multimodal capabilities** to process TikTok videos directly. The model analyzes video frames to detect disaster-related content like flooding, structural damage, or emergency situations without needing separate frame extraction pipelines.
 
 ## Accomplishments that we're proud of
 
-- **Hybrid Intelligence**: Our 5-agent reasoning chain provides transparency—users can see exactly *why* the AI classified something as a disaster
+- **Hybrid Intelligence**: Our 5-agent reasoning chain provides transparency, users can see exactly *why* the AI classified something as a disaster
 - **Community Verification Loop**: The verification system lets users confirm or dispute AI findings, building community trust
 - **Sub-minute Alert Delivery**: From signal detection to user notification in under 60 seconds for urgent events
 - **Polished PWA**: Fully offline-capable, installable mobile app with push notifications
@@ -52,7 +52,7 @@ Users see a real-time map with active incidents, receive push notifications for 
 
 - **Gemini's multimodal power is a game-changer**: Processing video content directly with Gemini eliminated complex frame extraction pipelines and produced superior disaster detection results
 - **Gemini excels at structured reasoning**: The multi-agent approach with Gemini produced more reliable results than single-prompt approaches
-- **Human-in-the-loop is essential**: AI alone isn't enough—community verification dramatically improved accuracy
+- **Human-in-the-loop is essential**: AI alone isn't enough, community verification dramatically improved accuracy
 - **Batch processing is key**: Pooling signals before AI evaluation significantly reduced costs without sacrificing speed for critical events
 
 ## What's next for Disaster Pulse
