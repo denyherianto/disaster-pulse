@@ -37,9 +37,9 @@ export class ActionAgent extends GeminiAgent<ActionInput, ActionOutput> {
       ${JSON.stringify(input.existingIncidents)}
 
       RULES:
-      - If confidence < 0.6, WAIT_FOR_MORE_DATA.
-      - If confidence > 0.6 and similar incident exists, MERGE_INCIDENT.
-      - If confidence > 0.6 and no similar incident, CREATE_INCIDENT.
+      - If confidence < 0.5, WAIT_FOR_MORE_DATA.
+      - If confidence >= 0.5 and similar incident exists, MERGE_INCIDENT.
+      - If confidence >= 0.5 and no similar incident, CREATE_INCIDENT.
       - If conclusion is "other" or "benign", DISMISS.
 
       OUTPUT JSON:
