@@ -108,32 +108,32 @@ flowchart TB
     end
 
     subgraph Ingestion["Signal Ingestion Agents"]
-        VA["VideoAnalysisAgent<br/>(gemini-2.5-flash)"]
-        NA["NewsAnalysisAgent<br/>(gemini-2.5-flash)"]
-        URA["UserReportAnalysisAgent<br/>(gemini-3-pro)"]
+        VA["VideoAnalysisAgent<br/>(gemini-3-flash-preview)"]
+        NA["NewsAnalysisAgent<br/>(gemini-3-flash-preview)"]
+        URA["UserReportAnalysisAgent<br/>(gemini-3-pro-preview)"]
     end
 
     subgraph Processing["Signal Processing"]
         SQ[("Signal Queue")]
-        SE["SignalEnrichmentAgent<br/>(gemini-2.5-flash)"]
-        LM["LocationMatcherAgent<br/>(gemini-2.5-flash)"]
+        SE["SignalEnrichmentAgent<br/>(gemini-3-flash-preview)"]
+        LM["LocationMatcherAgent<br/>(gemini-3-flash-preview)"]
     end
 
     subgraph Reasoning["Multi-Agent Reasoning Chain"]
-        OBS["ObserverAgent<br/>(gemini-2.5-flash)"]
-        CLS["ClassifierAgent<br/>(gemini-3-pro)"]
-        SKP["SkepticAgent<br/>(gemini-3-pro)"]
-        SYN["SynthesizerAgent<br/>(gemini-3-pro)"]
-        ACT["ActionAgent<br/>(gemini-3-pro)"]
+        OBS["ObserverAgent<br/>(gemini-3-flash-preview)"]
+        CLS["ClassifierAgent<br/>(gemini-3-pro-preview)"]
+        SKP["SkepticAgent<br/>(gemini-3-pro-preview)"]
+        SYN["SynthesizerAgent<br/>(gemini-3-pro-preview)"]
+        ACT["ActionAgent<br/>(gemini-3-pro-preview)"]
     end
 
     subgraph Lifecycle["Incident Lifecycle"]
-        IR["IncidentResolutionAgent<br/>(gemini-2.5-flash)"]
+        IR["IncidentResolutionAgent<br/>(gemini-3-flash-preview)"]
         INC[("Incidents DB")]
     end
 
     subgraph UserFacing["User-Facing"]
-        GA["GuideAssistantAgent<br/>(gemini-3-pro)"]
+        GA["GuideAssistantAgent<br/>(gemini-3-pro-preview)"]
     end
 
     TikTok --> VA
@@ -240,18 +240,18 @@ flowchart TB
 
 | Agent | Model | Type | Role & Logic |
 |-------|-------|------|--------------|
-| **SignalEnrichmentAgent** | `gemini-2.5-flash` | Ingestion | **Triage & Geocoding**. Process raw signals in batches. <br>• Infers `{City}, {Province}` from unstructured text.<br>• Rejects signals outside Indonesia.<br>• Assigns initial severity score. |
-| **VideoAnalysisAgent** | `gemini-2.5-flash` | Ingestion | **TikTok Analyst**. Analyzes video content + captions.<br>• Multimodal check: Does visual match text?<br>• Freshness check: Is this old footage being reposted?<br>• Location check: Must be in Indonesia. |
-| **NewsAnalysisAgent** | `gemini-2.5-flash` | Ingestion | **News Analyst**. Filters RSS feeds.<br>• Distinguishes active disasters from prevention articles/history.<br>• Extracts specific location and time.<br>• Rejects international news. |
-| **UserReportAnalysisAgent** | `gemini-3-pro` | Ingestion | **Forensic Analyst**. Validates user submissions.<br>• Checks EXIF metadata consistency (GPS/Time).<br>• Detects "fake" or "spam" reports.<br>• Multimodal analysis of user upload media. |
-| **ObserverAgent** | `gemini-2.5-flash` | Reasoning | **The Eye**. Step 1 of Reasoning Chain.<br>• Reads raw signals (text/images).<br>• Extracts objective facts only (timeline, casualty counts).<br>• No speculation allowed. |
-| **ClassifierAgent** | `gemini-3-pro` | Reasoning | **The Theorist**. Step 2 of Reasoning Chain.<br>• Proposes multiple hypotheses based on facts (e.g., "Flood" vs "Puddle").<br>• Assigns likelihood scores.<br>• Restricted to Indonesian event types. |
-| **SkepticAgent** | `gemini-3-pro` | Reasoning | **The Critic**. Step 3 of Reasoning Chain.<br>• Challenges hypotheses.<br>• Checks source diversity (Bio-verification).<br>• Penalizes single-source or viral-only reports.<br>• Explicitly demotes out-of-region events. |
-| **SynthesizerAgent** | `gemini-3-pro` | Reasoning | **The Judge**. Step 4 of Reasoning Chain.<br>• Weighs hypotheses vs critiques.<br>• Produces final classification and confidence score.<br>• Generates user-facing summaries. |
-| **ActionAgent** | `gemini-3-pro` | Reasoning | **The Strategist**. Step 5 of Reasoning Chain.<br>• Decides system action based on confidence threshold (0.6).<br>• `CREATE_INCIDENT`: High confidence, new event.<br>• `MERGE_INCIDENT`: Matches existing active incident.<br>• `WAIT`: Insufficient data.<br>• `DISMISS`: Benign/Noise. |
-| **LocationMatcherAgent** | `gemini-2.5-flash` | Utility | **Fuzzy Geospatial Matcher**.<br>• Compares two location strings (e.g. "Jaksel" vs "Jakarta Selatan").<br>• Determines if they refer to the same incident cluster. |
-| **IncidentResolutionAgent** | `gemini-2.5-flash` | Utility | **Cleanup Crew**.<br>• Analyzes stale incidents (no updates > 6h).<br>• Determines if safe to resolve/close. |
-| **GuideAssistantAgent** | `gemini-3-pro` | Utility | **Safety Guide**.<br>• RAG-based safety advice.<br>• Context-aware answers based on active incident. |
+| **SignalEnrichmentAgent** | `gemini-3-flash-preview` | Ingestion | **Triage & Geocoding**. Process raw signals in batches. <br>• Infers `{City}, {Province}` from unstructured text.<br>• Rejects signals outside Indonesia.<br>• Assigns initial severity score. |
+| **VideoAnalysisAgent** | `gemini-3-flash-preview` | Ingestion | **TikTok Analyst**. Analyzes video content + captions.<br>• Multimodal check: Does visual match text?<br>• Freshness check: Is this old footage being reposted?<br>• Location check: Must be in Indonesia. |
+| **NewsAnalysisAgent** | `gemini-3-flash-preview` | Ingestion | **News Analyst**. Filters RSS feeds.<br>• Distinguishes active disasters from prevention articles/history.<br>• Extracts specific location and time.<br>• Rejects international news. |
+| **UserReportAnalysisAgent** | `gemini-3-pro-preview` | Ingestion | **Forensic Analyst**. Validates user submissions.<br>• Checks EXIF metadata consistency (GPS/Time).<br>• Detects "fake" or "spam" reports.<br>• Multimodal analysis of user upload media. |
+| **ObserverAgent** | `gemini-3-flash-preview` | Reasoning | **The Eye**. Step 1 of Reasoning Chain.<br>• Reads raw signals (text/images).<br>• Extracts objective facts only (timeline, casualty counts).<br>• No speculation allowed. |
+| **ClassifierAgent** | `gemini-3-pro-preview` | Reasoning | **The Theorist**. Step 2 of Reasoning Chain.<br>• Proposes multiple hypotheses based on facts (e.g., "Flood" vs "Puddle").<br>• Assigns likelihood scores.<br>• Restricted to Indonesian event types. |
+| **SkepticAgent** | `gemini-3-pro-preview` | Reasoning | **The Critic**. Step 3 of Reasoning Chain.<br>• Challenges hypotheses.<br>• Checks source diversity (Bio-verification).<br>• Penalizes single-source or viral-only reports.<br>• Explicitly demotes out-of-region events. |
+| **SynthesizerAgent** | `gemini-3-pro-preview` | Reasoning | **The Judge**. Step 4 of Reasoning Chain.<br>• Weighs hypotheses vs critiques.<br>• Produces final classification and confidence score.<br>• Generates user-facing summaries. |
+| **ActionAgent** | `gemini-3-pro-preview` | Reasoning | **The Strategist**. Step 5 of Reasoning Chain.<br>• Decides system action based on confidence threshold (0.6).<br>• `CREATE_INCIDENT`: High confidence, new event.<br>• `MERGE_INCIDENT`: Matches existing active incident.<br>• `WAIT`: Insufficient data.<br>• `DISMISS`: Benign/Noise. |
+| **LocationMatcherAgent** | `gemini-3-flash-preview` | Utility | **Fuzzy Geospatial Matcher**.<br>• Compares two location strings (e.g. "Jaksel" vs "Jakarta Selatan").<br>• Determines if they refer to the same incident cluster. |
+| **IncidentResolutionAgent** | `gemini-3-flash-preview` | Utility | **Cleanup Crew**.<br>• Analyzes stale incidents (no updates > 6h).<br>• Determines if safe to resolve/close. |
+| **GuideAssistantAgent** | `gemini-3-pro-preview` | Utility | **Safety Guide**.<br>• RAG-based safety advice.<br>• Context-aware answers based on active incident. |
 
 ---
 
@@ -309,8 +309,8 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 # AI / LLM (Gemini)
 GEMINI_API_KEY=your-gemini-api-key
 GEMINI_BASE_URL=https://api.maiarouter.ai/v1
-GEMINI_FLASH_MODEL=maia/gemini-2.5-flash
-GEMINI_PRO_MODEL=maia/gemini-3-pro-preview
+GEMINI_FLASH_MODEL=maia/gemini-3-flash-preview
+GEMINI_PRO_MODEL=maia/gemini-3-pro-preview-preview
 
 # Google Maps (Geocoding)
 GOOGLE_MAPS_API_KEY=your-google-maps-api-key
