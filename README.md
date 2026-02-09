@@ -23,7 +23,7 @@ Users see a real-time map with active incidents, receive push notifications for 
 
 ## How we built it
 
-- **Frontend**: Next.js 16 with React 19, Tailwind CSS, Leaflet maps, and PWA support for offline capability
+- **Frontend**: Next.js with React 19, Tailwind CSS, Leaflet maps, and PWA support for offline capability
 - **Backend**: NestJS with event-driven architecture, BullMQ queues for background processing
 - **AI Layer**: **Google Gemini Multimodal API** powering 11 specialized agents—most notably the **VideoAnalysisAgent** that processes TikTok video content directly using Gemini's native vision capabilities, and SignalEnrichmentAgent for geocoding and data enhancement
 - **Database**: PostgreSQL with PostGIS for geospatial queries
@@ -67,7 +67,7 @@ The project is a monorepo managed with **Turborepo** and **npm**, consisting of:
 
 | Package | Description | Tech Stack |
 |---------|-------------|------------|
-| `apps/web` | Next.js 16 PWA frontend | Next.js, Tailwind CSS 4, Leaflet, TanStack Query |
+| `apps/web` | Next.js PWA frontend | Next.js, Tailwind CSS 4, Leaflet, TanStack Query |
 | `apps/api` | NestJS backend service | NestJS, PostgreSQL + PostGIS, BullMQ, Gemini AI |
 | `packages/shared` | Shared types and utilities | TypeScript |
 
