@@ -6,15 +6,20 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Environment-based CORS configuration
-  const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? [process.env.ALLOWED_ORIGIN || 'https://disaster-pulse.denyherianto.com']
-    : ['http://localhost:3000', 'http://localhost:3001'];
+  // const allowedOrigins = process.env.NODE_ENV === 'production'
+  //   ? process.env.ALLOWED_ORIGIN?.split(',') || ['https://disaster-pulse.denyherianto.com/']
+  //   : [
+  //     'http://localhost:3000',
+  //     'http://localhost:3001',
+  //     /^http:\/\/localhost:\d+$/,
+  //     /^http:\/\/127\.0\.0\.1:\d+$/,
+  //   ];
 
-  app.enableCors({
-    origin: allowedOrigins,
-    credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'PUT', 'OPTIONS'],
-  });
+  // app.enableCors({
+  //   origin: allowedOrigins,
+  //   credentials: true,
+  //   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'PUT', 'OPTIONS'],
+  // });
 
   // Global validation pipe for input sanitization
   app.useGlobalPipes(new ValidationPipe({
