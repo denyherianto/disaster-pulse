@@ -1,5 +1,8 @@
 FROM node:20-alpine AS base
 
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable && corepack prepare npm@11.6.1 --activate
+
 FROM base AS builder
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
@@ -10,6 +13,7 @@ RUN turbo prune web --docker
 FROM base AS installer
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
+ENV NEXT_IGNORE_INCORRECT_LOCKFILE=1
 
 COPY .gitignore .gitignore
 COPY --from=builder /app/out/json/ .
