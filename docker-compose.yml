@@ -45,6 +45,7 @@ services:
     depends_on:
       - api
     networks:
+      - default
       - disaster_network
 
   api:
@@ -82,6 +83,9 @@ services:
       # Firebase
       - FIREBASE_SERVICE_ACCOUNT_BASE64=${FIREBASE_SERVICE_ACCOUNT_BASE64}
       - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+    networks:
+      - default
+      - disaster_network
 
   redis:
     image: redis:alpine
