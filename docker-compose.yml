@@ -45,7 +45,7 @@ services:
     depends_on:
       - api
     networks:
-      - default
+      - dokploy-network
       - disaster_network
 
   api:
@@ -84,7 +84,7 @@ services:
       - FIREBASE_SERVICE_ACCOUNT_BASE64=${FIREBASE_SERVICE_ACCOUNT_BASE64}
       - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
     networks:
-      - default
+      - dokploy-network
       - disaster_network
 
   redis:
@@ -95,5 +95,7 @@ services:
       - disaster_network
 
 networks:
+  dokploy-network:
+    external: true
   disaster_network:
     driver: bridge
