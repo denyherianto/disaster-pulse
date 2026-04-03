@@ -46,7 +46,6 @@ services:
       - api
     networks:
       - dokploy-network
-      - disaster_network
 
   api:
     build:
